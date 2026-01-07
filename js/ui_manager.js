@@ -511,6 +511,7 @@ const UIManager = {
         this.closeMenu();
         switch (action) {
             case 'my-records': this.showMyRecords(); break;
+            case 'saved-messages': this.showSavedMessages(); break;
             case 'mode-change':
                 AppState.userMode = AppState.userMode === 'walking' ? 'wheelchair' : 'walking';
                 Utils.saveState('userMode', AppState.userMode);
@@ -629,6 +630,60 @@ const UIManager = {
                 </div>
             </div>
         `;
+    },
+
+    showSavedMessages() {
+        const modal = document.getElementById('my-records-modal');
+        modal.classList.remove('hidden');
+
+        // 모달 제목 변경
+        const titleEl = modal.querySelector('h2');
+        if (titleEl) titleEl.textContent = '💾 저장된 대화';
+
+        // 탭 숨기기
+        const tabsEl = modal.querySelector('.tabs');
+        if (tabsEl) tabsEl.style.display = 'none';
+
+        // 목록 로드
+        this.loadSavedMessagesList();
+    },
+
+    async loadSavedMessagesList() {
+        const userId = AppState.userProfile?.nickname || '익명';
+        const listEl = document.getElementById('records-list');
+        listEl.innerHTML = '<p class="empty-state">불러오는 중...</p>';
+
+        try {
+            const res = await fetch(`/api/users/${encodeURIComponent(userId)}/saved`);
+            const messages = await res.json();
+
+            if (messages.length === 0) {
+                listEl.innerHTML = '<p class="empty-state">저장된 대화가 없습니다.</p>';
+                return;
+            }
+
+            listEl.innerHTML = messages.map(m => `
+                <div class="record-item saved-msg-item" data-msg-id="${m.id}" style="cursor: pointer;">
+                    <span class="icon">💬</span>
+                    <div class="info">
+                        <div class="title">${m.text}</div>
+                        <div class="meta">${new Date(m.timestamp).toLocaleDateString('ko-KR')} · 👍 ${m.likes || 0}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // 클릭 이벤트
+            listEl.querySelectorAll('.saved-msg-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const msgId = item.dataset.msgId;
+                    SocialManager.openThreadPanel(msgId);
+                    document.getElementById('my-records-modal')?.classList.add('hidden');
+                });
+            });
+        } catch (e) {
+            console.error('Saved messages load error:', e);
+            listEl.innerHTML = '<p class="empty-state">오류가 발생했습니다.</p>';
+        }
     },
 
     async handleSearch() {

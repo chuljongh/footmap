@@ -104,7 +104,7 @@ class Vote(db.Model):
     message_id = db.Column(db.String(50), db.ForeignKey('message.id'), nullable=False)
     user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
     vote_type = db.Column(db.String(10), nullable=False)  # 'up' or 'down'
-    
+
     __table_args__ = (db.UniqueConstraint('message_id', 'user_id'),)
 
 class Route(db.Model):
@@ -118,7 +118,7 @@ class Route(db.Model):
     end_coords = db.Column(db.String(50))  # "lon,lat"
     points_json = db.Column(db.Text)  # 전체 이동 궤적 (JSON string of coordinates)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -129,6 +129,23 @@ class Route(db.Model):
             'startCoords': self.start_coords,
             'endCoords': self.end_coords,
             'points': self.points_json, # 프론트에서 JSON.parse() 필요
+            'timestamp': int(self.timestamp.timestamp() * 1000)
+        }
+
+class SavedMessage(db.Model):
+    """저장된 메시지 (스크랩/북마크)"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False, index=True)
+    message_id = db.Column(db.String(50), db.ForeignKey('message.id'), nullable=False, index=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('user_id', 'message_id'),)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'userId': self.user_id,
+            'messageId': self.message_id,
             'timestamp': int(self.timestamp.timestamp() * 1000)
         }
 
@@ -161,10 +178,10 @@ def update_user_profile(user_id):
     if not user:
         user = User(id=user_id)
         db.session.add(user)
-    
+
     if 'profileImg' in data: user.profile_img = data['profileImg']
     if 'bio' in data: user.bio = data['bio']
-    
+
     db.session.commit()
     return jsonify(user.to_dict())
 
@@ -185,7 +202,7 @@ def api_search():
     query = request.args.get('query', '')
     if not query:
         return jsonify({'error': 'Missing query'}), 400
-    
+
     api_url = f"https://dapi.kakao.com/v2/local/search/keyword.json?query={urllib.parse.quote(query)}"
     return proxy_kakao(api_url)
 
@@ -195,7 +212,7 @@ def api_reverse_geo():
     y = request.args.get('y', '')
     if not x or not y:
         return jsonify({'error': 'Missing x or y'}), 400
-    
+
     api_url = f"https://dapi.kakao.com/v2/local/geo/coord2address.json?x={x}&y={y}"
     return proxy_kakao(api_url)
 
@@ -220,9 +237,9 @@ def get_messages():
     max_x = request.args.get('max_x', type=float)
     min_y = request.args.get('min_y', type=float)
     max_y = request.args.get('max_y', type=float)
-    
+
     query = Message.query
-    
+
     if all([min_x, max_x, min_y, max_y]):
         query = query.filter(
             Message.coord_x >= min_x,
@@ -230,7 +247,7 @@ def get_messages():
             Message.coord_y >= min_y,
             Message.coord_y <= max_y
         )
-    
+
     messages = query.order_by(Message.likes.desc(), Message.timestamp.desc()).limit(100).all()
     return jsonify([m.to_dict() for m in messages])
 
@@ -240,9 +257,9 @@ def create_message():
     data = request.json
     if not data or not data.get('text') or not data.get('coords'):
         return jsonify({'error': 'Missing required fields'}), 400
-    
+
     ensure_user(data.get('userId', '익명'))
-    
+
     msg = Message(
         id=f"msg_{int(datetime.utcnow().timestamp() * 1000)}",
         user_id=data.get('userId', '익명'),
@@ -253,7 +270,7 @@ def create_message():
     )
     db.session.add(msg)
     db.session.commit()
-    
+
     return jsonify(msg.to_dict()), 201
 
 @app.route('/api/messages/<msg_id>', methods=['PUT'])
@@ -261,18 +278,18 @@ def update_message(msg_id):
     """메시지 수정 (본인만)"""
     data = request.json
     msg = Message.query.get(msg_id)
-    
+
     if not msg:
         return jsonify({'error': 'Message not found'}), 404
-    
+
     # 본인 확인 (간단 버전 - 실제 서비스에선 인증 토큰 사용)
     if data.get('userId') != msg.user_id:
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     if data.get('text'):
         msg.text = data['text'][:140]
         msg.edited = True
-    
+
     db.session.commit()
     return jsonify(msg.to_dict())
 
@@ -281,13 +298,13 @@ def delete_message(msg_id):
     """메시지 삭제 (본인만)"""
     data = request.json or {}
     msg = Message.query.get(msg_id)
-    
+
     if not msg:
         return jsonify({'error': 'Message not found'}), 404
-    
+
     if data.get('userId') != msg.user_id:
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     db.session.delete(msg)
     db.session.commit()
     return jsonify({'success': True})
@@ -298,21 +315,21 @@ def vote_message(msg_id):
     data = request.json
     vote_type = data.get('type')  # 'up' or 'down'
     user_id = data.get('userId', 'anonymous')
-    
+
     if vote_type not in ['up', 'down']:
         return jsonify({'error': 'Invalid vote type'}), 400
-    
+
     msg = Message.query.get(msg_id)
     if not msg:
         return jsonify({'error': 'Message not found'}), 404
-    
+
     # 기존 투표 확인
     existing_vote = Vote.query.filter_by(message_id=msg_id, user_id=user_id).first()
-    
+
     if existing_vote:
         if existing_vote.vote_type == vote_type:
             return jsonify({'error': 'Already voted', 'likes': msg.likes, 'dislikes': msg.dislikes}), 400
-        
+
         # 반대 투표로 변경
         if existing_vote.vote_type == 'up':
             msg.likes -= 1
@@ -323,13 +340,13 @@ def vote_message(msg_id):
         # 새 투표
         vote = Vote(message_id=msg_id, user_id=user_id, vote_type=vote_type)
         db.session.add(vote)
-    
+
     # 새 투표 반영
     if vote_type == 'up':
         msg.likes += 1
     else:
         msg.dislikes += 1
-    
+
     db.session.commit()
     return jsonify({'success': True, 'likes': msg.likes, 'dislikes': msg.dislikes})
 
@@ -342,7 +359,14 @@ def get_message_detail(msg_id):
     msg = Message.query.get(msg_id)
     if not msg:
         return jsonify({'error': 'Message not found'}), 404
-    return jsonify(msg.to_dict(include_comments=True))
+
+    # 요청한 사용자가 이 메시지를 저장했는지 확인
+    user_id = request.args.get('userId', 'anonymous')
+    is_saved = SavedMessage.query.filter_by(user_id=user_id, message_id=msg_id).first() is not None
+
+    result = msg.to_dict(include_comments=True)
+    result['isSavedByMe'] = is_saved
+    return jsonify(result)
 
 @app.route('/api/messages/<msg_id>/comments', methods=['POST'])
 def add_comment(msg_id):
@@ -350,11 +374,11 @@ def add_comment(msg_id):
     data = request.json
     if not data or not data.get('text'):
         return jsonify({'error': 'Missing text'}), 400
-    
+
     msg = Message.query.get(msg_id)
     if not msg:
         return jsonify({'error': 'Message not found'}), 404
-    
+
     comment = Comment(
         id=f"cmt_{int(datetime.utcnow().timestamp() * 1000)}",
         message_id=msg_id,
@@ -363,7 +387,7 @@ def add_comment(msg_id):
     )
     db.session.add(comment)
     db.session.commit()
-    
+
     return jsonify(comment.to_dict()), 201
 
 @app.route('/api/comments/<comment_id>', methods=['DELETE'])
@@ -371,13 +395,13 @@ def delete_comment(comment_id):
     """댓글 삭제 (본인만)"""
     data = request.json or {}
     comment = Comment.query.get(comment_id)
-    
+
     if not comment:
         return jsonify({'error': 'Comment not found'}), 404
-    
+
     if data.get('userId') != comment.user_id:
         return jsonify({'error': 'Unauthorized'}), 403
-    
+
     db.session.delete(comment)
     db.session.commit()
     return jsonify({'success': True})
@@ -387,22 +411,22 @@ def get_messages_by_address():
     """주소 기반 메시지 조회 (플로팅 모드용)"""
     address = request.args.get('address', '')
     address_base = request.args.get('address_base', '')
-    
+
     if not address and not address_base:
         return jsonify({'error': 'Missing address parameter'}), 400
-    
+
     # 완전 일치 우선
     if address:
         msg = Message.query.filter_by(address=address).order_by(Message.likes.desc()).first()
         if msg:
             return jsonify(msg.to_dict())
-    
+
     # 기본 주소 일치
     if address_base:
         msg = Message.query.filter_by(address_base=address_base).order_by(Message.likes.desc()).first()
         if msg:
             return jsonify(msg.to_dict())
-    
+
     return jsonify(None)
 
 # ========================================
@@ -420,6 +444,55 @@ def get_user_comments(user_id):
     comments = Comment.query.filter_by(user_id=user_id).order_by(Comment.timestamp.desc()).limit(50).all()
     return jsonify([c.to_dict() for c in comments])
 
+@app.route('/api/users/<user_id>/saved', methods=['GET'])
+def get_user_saved_messages(user_id):
+    """사용자가 저장한 메시지 목록"""
+    saved = SavedMessage.query.filter_by(user_id=user_id).order_by(SavedMessage.timestamp.desc()).limit(50).all()
+    message_ids = [s.message_id for s in saved]
+    messages = Message.query.filter(Message.id.in_(message_ids)).all() if message_ids else []
+    # 저장 시간 순서 유지를 위해 정렬
+    messages_dict = {m.id: m for m in messages}
+    result = [messages_dict[mid].to_dict() for mid in message_ids if mid in messages_dict]
+    return jsonify(result)
+
+@app.route('/api/messages/<msg_id>/save', methods=['POST'])
+def save_message(msg_id):
+    """메시지 저장 (스크랩/북마크)"""
+    data = request.json or {}
+    user_id = data.get('userId', 'anonymous')
+
+    msg = Message.query.get(msg_id)
+    if not msg:
+        return jsonify({'error': 'Message not found'}), 404
+
+    # 중복 저장 방지
+    existing = SavedMessage.query.filter_by(user_id=user_id, message_id=msg_id).first()
+    if existing:
+        return jsonify({'error': 'Already saved', 'success': True}), 200
+
+    ensure_user(user_id)
+    saved = SavedMessage(user_id=user_id, message_id=msg_id)
+    db.session.add(saved)
+    db.session.commit()
+
+    return jsonify({'success': True}), 201
+
+@app.route('/api/messages/<msg_id>/save', methods=['DELETE'])
+def unsave_message(msg_id):
+    """메시지 저장 취소"""
+    data = request.json or {}
+    user_id = data.get('userId', 'anonymous')
+
+    saved = SavedMessage.query.filter_by(user_id=user_id, message_id=msg_id).first()
+    if not saved:
+        return jsonify({'error': 'Not saved'}), 404
+
+    db.session.delete(saved)
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
 @app.route('/api/users/<user_id>/routes', methods=['GET'])
 def get_user_routes(user_id):
     """사용자의 이동 기록 조회"""
@@ -432,9 +505,9 @@ def save_user_route(user_id):
     data = request.json
     if not data:
         return jsonify({'error': 'Missing data'}), 400
-    
+
     ensure_user(user_id)
-    
+
     route = Route(
         user_id=user_id,
         distance=data.get('distance', 0),
@@ -452,21 +525,21 @@ def save_user_route(user_id):
 def get_trajectories():
     """지도 범위 내 집단지성 궤적 조회 (익명 궤적 노출)"""
     bounds = request.args.get('bounds', '') # "minLon,minLat,maxLon,maxLat"
-    
+
     query = Route.query
-    
+
     # 실서비스에서는 공간 쿼리(Spatial Query)를 사용해야 함
-    # 데모용으로 최신 100개의 궤적을 반환하며, 
+    # 데모용으로 최신 100개의 궤적을 반환하며,
     # 밀집도 시각화를 위해 랜덤하게 userCount를 부여 (실제로는 경로 중첩 계산 필요)
     import random
     routes = query.order_by(Route.timestamp.desc()).limit(100).all()
-    
+
     result = []
     for r in routes:
         d = r.to_dict()
         d['userCount'] = random.randint(1, 25) # 시각화 테스트용 랜덤 값
         result.append(d)
-        
+
     return jsonify(result)
 
 # ========================================
@@ -476,7 +549,7 @@ if __name__ == "__main__":
     with app.app_context():
         db.create_all()  # DB 테이블 자동 생성
         print(f"Database initialized: {DATABASE_URL}")
-    
+
     print(f"🚀 Serving at http://localhost:{PORT}")
     print(f"📍 Kakao REST API Proxy Active")
     print(f"💬 Message API Active")

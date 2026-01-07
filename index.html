@@ -215,18 +215,30 @@
             </div>
         </div>
 
-        <!-- 스레드 상세 패널 (우측 슬라이드) -->
+        <!-- 스레드 상세 패널 (우측 슬라이드) - 3단 탭 구조 -->
         <div id="thread-panel" class="thread-panel">
-            <div class="panel-header">
-                <span>대화 스레드</span>
-                <button id="close-thread-btn" class="close-panel">✕</button>
+            <!-- 헤더 -->
+            <div class="thread-header">
+                <button id="close-thread-btn" class="thread-back-btn">← 뒤로</button>
+                <span id="thread-place-name" class="thread-place">장소 이름</span>
             </div>
-            <div id="thread-main-message" class="main-message">
-                <!-- JS로 메인 메시지 주입 -->
+
+            <!-- 3단 탭 -->
+            <div class="thread-tabs">
+                <button class="tab-btn active" data-tab="comments">댓글</button>
+                <button class="tab-btn" data-tab="place">이 장소</button>
+                <button class="tab-btn" data-tab="tags">해시태그</button>
             </div>
-            <div class="replies-header">이 위치의 다른 대화</div>
-            <div id="thread-replies-list" class="replies-list">
-                <!-- JS로 답글 목록 주입 -->
+
+            <!-- 컨텐츠 영역 (탭별로 동적 렌더링) -->
+            <div class="thread-content" id="thread-content">
+                <!-- JS로 탭 컨텐츠 주입 -->
+            </div>
+
+            <!-- 하단 고정 입력창 -->
+            <div class="thread-input-bar">
+                <input type="text" id="thread-comment-input" placeholder="댓글을 입력하세요...">
+                <button id="thread-comment-submit">등록</button>
             </div>
         </div>
 
@@ -256,6 +268,10 @@
                 <!-- 나의 기록 (최상단, 강조) -->
                 <button class="menu-item highlight" data-action="my-records">
                     <span>🏆</span> 나의 기록
+                </button>
+
+                <button class="menu-item" data-action="saved-messages">
+                    <span>💾</span> 저장된 대화
                 </button>
 
                 <button class="menu-item" data-action="mode-change">

@@ -136,7 +136,22 @@ const SocialManager = {
                 case 'delete':
                     this.handleDelete(msgId);
                     break;
+                case 'save':
+                    this.handleSave(msgId);
+                    break;
+                case 'unsave':
+                    this.handleUnsave(msgId);
+                    break;
+                case 'focus-comment':
+                    document.getElementById('thread-comment-input')?.focus();
+                    break;
             }
+        });
+
+        // 댓글 제출
+        document.getElementById('thread-comment-submit')?.addEventListener('click', () => this.submitThreadComment());
+        document.getElementById('thread-comment-input')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') this.submitThreadComment();
         });
     },
 
@@ -313,7 +328,7 @@ const SocialManager = {
 
             card.innerHTML = `
                 <button class="close-bubble" data-action="remove-card">✕</button>
-                
+
                 <div class="bubble-content" data-action="open-thread" data-msg-id="${msg.id}">
                     ${msg.tags ? `<div class="bubble-tags">${msg.tags}</div>` : ''}
                     <div class="bubble-text">${msg.text}</div>
@@ -590,6 +605,68 @@ const SocialManager = {
         }
     },
 
+    async handleSave(id) {
+        const userId = AppState.userProfile?.nickname || 'anonymous';
+        try {
+            const response = await fetch(`/api/messages/${id}/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+
+            if (!response.ok) throw new Error('Failed to save message');
+
+            // UI 즉시 업데이트
+            this.switchTab(this.currentTab); // 현재 탭 새로고침
+        } catch (error) {
+            console.error('Error saving message:', error);
+            alert('저장에 실패했습니다.');
+        }
+    },
+
+    async handleUnsave(id) {
+        const userId = AppState.userProfile?.nickname || 'anonymous';
+        try {
+            const response = await fetch(`/api/messages/${id}/save`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })
+            });
+
+            if (!response.ok) throw new Error('Failed to unsave message');
+
+            // UI 즉시 업데이트
+            this.switchTab(this.currentTab); // 현재 탭 새로고침
+        } catch (error) {
+            console.error('Error unsaving message:', error);
+            alert('저장 취소에 실패했습니다.');
+        }
+    },
+
+    async submitThreadComment() {
+        const input = document.getElementById('thread-comment-input');
+        const text = input?.value.trim();
+        if (!text || !this.currentMessageId) return;
+
+        const userId = AppState.userProfile?.nickname || '익명';
+        try {
+            const response = await fetch(`/api/messages/${this.currentMessageId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, text })
+            });
+
+            if (!response.ok) throw new Error('Failed to post comment');
+
+            // 입력창 초기화 및 댓글 목록 새로고침
+            input.value = '';
+            this.loadComments(this.currentMessageId);
+        } catch (error) {
+            console.error('Error posting comment:', error);
+            alert('댓글 작성에 실패했습니다.');
+        }
+    },
+
     async showWriteModal() {
         // [수정] 현위치가 없더라도 목적지(검색 결과)가 있으면 작성 가능하게 변경
         let targetCoords = (AppState.destination && AppState.destination.coords)
@@ -669,72 +746,208 @@ const SocialManager = {
     },
 
     // ========================================
-    // 스레드 패널 (Thread Detail Panel)
+    // 스레드 패널 (Thread Detail Panel) - 3단 탭 시스템
     // ========================================
-    openThreadPanel(messageId) {
+    currentMessageId: null,
+    currentTab: 'comments',
+
+    async openThreadPanel(messageId) {
         console.log('[DEBUG] Opening Thread Panel for ID:', messageId);
         const panel = document.getElementById('thread-panel');
         if (!panel) return;
 
-        // 선택된 메시지 찾기
+        this.currentMessageId = messageId;
         const msg = this.messages.find(m => m.id === messageId);
         if (!msg) return;
 
-        // 같은 위치의 다른 메시지 찾기
+        // 장소 이름 업데이트 (주소 없으면 역지오코딩 시도)
+        const placeNameEl = document.getElementById('thread-place-name');
+        if (placeNameEl) {
+            if (msg.address) {
+                placeNameEl.textContent = msg.address;
+            } else {
+                placeNameEl.textContent = '위치 확인 중...';
+                try {
+                    const manager = window.MapManager || MapManager;
+                    if (manager && typeof manager.getAddressFromCoords === 'function') {
+                        const addr = await manager.getAddressFromCoords(msg.coords);
+                        placeNameEl.textContent = addr;
+                        // 캐시에 저장 (선택 사항)
+                        msg.address = addr;
+                    } else {
+                        placeNameEl.textContent = `${msg.coords[1].toFixed(5)}, ${msg.coords[0].toFixed(5)}`;
+                    }
+                } catch (e) {
+                    placeNameEl.textContent = `${msg.coords[1].toFixed(5)}, ${msg.coords[0].toFixed(5)}`;
+                }
+            }
+        }
+
+        // 탭 이벤트 바인딩
+        this.bindTabEvents();
+
+        // 기본 탭(댓글) 렌더링
+        this.switchTab('comments');
+
+        // 패널 열기
+        panel.classList.add('open');
+    },
+
+    bindTabEvents() {
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        tabBtns.forEach(btn => {
+            btn.onclick = () => {
+                const tab = btn.dataset.tab;
+                this.switchTab(tab);
+            };
+        });
+    },
+
+    switchTab(tabName) {
+        this.currentTab = tabName;
+
+        // 탭 버튼 활성화 상태 업데이트
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+
+        // 컨텐츠 렌더링
+        switch (tabName) {
+            case 'comments':
+                this.renderCommentsTab();
+                break;
+            case 'place':
+                this.renderPlaceTab();
+                break;
+            case 'tags':
+                this.renderTagsTab();
+                break;
+        }
+    },
+
+    async renderCommentsTab() {
+        const msg = this.messages.find(m => m.id === this.currentMessageId);
+        if (!msg) return;
+
+        const container = document.getElementById('thread-content');
+        const currentUser = AppState.userProfile?.nickname || '익명';
+        const isOwner = msg.userId === currentUser;
+
+        // 저장 상태 확인
+        let isSaved = false;
+        try {
+            const res = await fetch(`/api/messages/${msg.id}/detail?userId=${encodeURIComponent(currentUser)}`);
+            if (res.ok) {
+                const data = await res.json();
+                isSaved = data.isSavedByMe || false;
+            }
+        } catch (e) { console.error(e); }
+
+        // 5버튼 액션 구성
+        const saveBtn = isOwner ? '' : (isSaved
+            ? `<button data-action="unsave" data-msg-id="${msg.id}">❌ 저장취소</button>`
+            : `<button data-action="save" data-msg-id="${msg.id}">💾 저장</button>`);
+
+        const editBtn = isOwner ? `<button data-action="edit" data-msg-id="${msg.id}">✏️ 수정</button>` : '';
+        const deleteBtn = isOwner ? `<button data-action="delete" data-msg-id="${msg.id}">🗑️ 삭제</button>` : '';
+        const commentBtn = isOwner ? '' : `<button data-action="focus-comment">💬 댓글</button>`;
+
+        container.innerHTML = `
+            <div class="main-message-card">
+                ${msg.tags ? `<div class="msg-tags">${msg.tags}</div>` : ''}
+                <div class="msg-full-text">${msg.text}</div>
+                <div class="msg-meta">
+                    <span>by ${msg.userId}</span>
+                    <span>${new Date(msg.timestamp).toLocaleDateString('ko-KR')}</span>
+                </div>
+                <div class="msg-actions">
+                    <button data-action="like" data-msg-id="${msg.id}" data-type="up">👍 ${msg.likes || 0}</button>
+                    <button data-action="like" data-msg-id="${msg.id}" data-type="down">👎 ${msg.dislikes || 0}</button>
+                    <button data-action="share" data-msg-id="${msg.id}">🔗 공유</button>
+                    ${commentBtn}
+                    ${saveBtn}
+                    ${editBtn}
+                    ${deleteBtn}
+                </div>
+            </div>
+            <div class="comments-section">
+                <h4>댓글 ${msg.commentCount || 0}개</h4>
+                <div id="comments-list"></div>
+            </div>
+        `;
+
+        // 댓글 로드
+        this.loadComments(msg.id);
+    },
+
+    async loadComments(msgId) {
+        const list = document.getElementById('comments-list');
+        if (!list) return;
+
+        try {
+            const res = await fetch(`/api/messages/${msgId}/detail`);
+            if (res.ok) {
+                const data = await res.json();
+                const comments = data.comments || [];
+                if (comments.length === 0) {
+                    list.innerHTML = '<div class="empty-comments">첫 번째 댓글을 남겨보세요!</div>';
+                } else {
+                    list.innerHTML = comments.map(c => `
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <span class="comment-user">${c.userId}</span>
+                                <span class="comment-time">${new Date(c.timestamp).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
+                            <div class="comment-text">${c.text}</div>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (e) { console.error(e); }
+    },
+
+    renderPlaceTab() {
+        const msg = this.messages.find(m => m.id === this.currentMessageId);
+        if (!msg) return;
+
+        const container = document.getElementById('thread-content');
         const nearbyMessages = this.messages.filter(m => {
-            if (m.id === messageId || !m.coords || !msg.coords) return false;
+            if (m.id === this.currentMessageId || !m.coords || !msg.coords) return false;
             const dist = ol.sphere.getDistance(msg.coords, m.coords);
             return dist < Config.NEARBY_MESSAGE_DISTANCE;
         });
 
-        // 메인 메시지 렌더링
-        const mainContainer = document.getElementById('thread-main-message');
-        const currentUser = AppState.userProfile?.nickname || '익명';
-        const isOwner = msg.userId === currentUser;
-        const dateStr = new Date(msg.timestamp).toLocaleDateString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit' });
-
-        mainContainer.innerHTML = `
-            <div class="msg-text">${msg.text}</div>
-            ${msg.tags ? `<div class="msg-tags">${msg.tags}</div>` : ''}
-            <div class="msg-meta">
-                <span>by ${msg.userId}</span>
-                <span>${dateStr}</span>
-            </div>
-            <div class="msg-actions">
-                <button data-action="like" data-msg-id="${msg.id}" data-type="up">👍 ${msg.likes || 0}</button>
-                <button data-action="like" data-msg-id="${msg.id}" data-type="down">👎 ${msg.dislikes || 0}</button>
-                <button data-action="share" data-msg-id="${msg.id}">🔗 ${msg.shares || 0}</button>
-                ${isOwner ? `
-                    <button data-action="edit" data-msg-id="${msg.id}">✏️</button>
-                    <button data-action="delete" data-msg-id="${msg.id}">🗑️</button>
-                ` : ''}
-            </div>
-        `;
-
-        // 근처 메시지 목록 렌더링
-        const repliesContainer = document.getElementById('thread-replies-list');
         if (nearbyMessages.length === 0) {
-            repliesContainer.innerHTML = '<div class="reply-item reply-empty">이 위치에 다른 대화가 없습니다.</div>';
+            container.innerHTML = '<div class="empty-state">이 장소에 다른 대화가 없습니다.</div>';
         } else {
-            repliesContainer.innerHTML = nearbyMessages.map(m => {
-                const mDate = new Date(m.timestamp).toLocaleDateString('ko-KR', { year: '2-digit', month: '2-digit', day: '2-digit' });
-                return `
-                    <div class="reply-item" data-action="open-thread" data-msg-id="${m.id}">
-                        <div class="reply-line"></div>
-                        <div class="reply-content">
-                            <div class="reply-text">${m.text}</div>
-                            <div class="reply-meta">
-                                <span>by ${m.userId}</span>
-                                <span>${mDate}</span>
+            container.innerHTML = `
+                <div class="place-messages-list">
+                    ${nearbyMessages.map(m => `
+                        <div class="place-message-item" data-action="open-thread" data-msg-id="${m.id}">
+                            <div class="place-msg-text">${m.text}</div>
+                            <div class="place-msg-meta">
+                                by ${m.userId} · 👍 ${m.likes || 0}
                             </div>
                         </div>
-                    </div>
-                `;
-            }).join('');
+                    `).join('')}
+                </div>
+            `;
         }
+    },
 
-        // 패널 열기
-        panel.classList.add('open');
+    renderTagsTab() {
+        const container = document.getElementById('thread-content');
+        container.innerHTML = `
+            <div class="tags-tab-content">
+                <div class="tags-search-bar">
+                    <input type="text" placeholder="태그 검색..." class="tags-search-input">
+                </div>
+                <div class="empty-state">
+                    <p>🏷️ 해시태그 네트워크 그래프 (준비 중)</p>
+                    <p style="font-size: 12px; color: var(--text-muted);">Phase 4-4에서 구현 예정</p>
+                </div>
+            </div>
+        `;
     },
 
     closeThreadPanel() {
