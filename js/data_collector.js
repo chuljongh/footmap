@@ -1,0 +1,140 @@
+// ========================================
+// 데이터 취합 관리 (IndexedDB)
+// ========================================
+const DataCollector = {
+    DB_NAME: 'BalgilMapDB',
+    STORE_NAME: 'routes',
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.DB_NAME, 1);
+
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve();
+            };
+
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+                    db.createObjectStore(this.STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                }
+            };
+        });
+    },
+
+    // 서버 전송 및 로컬 저장 통합
+    async saveRoute(routeData) {
+        // 1. IndexedDB 저장
+        const idbId = await this.saveToIndexedDB(routeData);
+
+        // 2. 서버 전송 시도
+        try {
+            await this.saveToServer(routeData);
+            // 전송 성공 시 IDB 마크 업데이트
+            await this.markAsSynced(idbId);
+        } catch (e) {
+            console.warn('저장 중에 오프라인 상태임이 감지되었습니다. 나중에 동기화됩니다.');
+        }
+    },
+
+    async markAsSynced(id) {
+        return new Promise((resolve) => {
+            const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.STORE_NAME);
+            const request = store.get(id);
+            request.onsuccess = () => {
+                const data = request.result;
+                if (data) {
+                    data.synced = true;
+                    store.put(data);
+                }
+                resolve();
+            };
+        });
+    },
+
+    async saveToIndexedDB(routeData) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.STORE_NAME);
+
+            const data = {
+                mode: routeData.mode,
+                points: routeData.points,
+                distance: routeData.distance,
+                duration: routeData.duration,
+                startCoords: routeData.startCoords,
+                endCoords: routeData.endCoords,
+                timestamp: Date.now(),
+                synced: false // 초기 상태는 미동기화
+            };
+
+            const request = store.add(data);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+
+    async saveToServer(routeData) {
+        const userId = AppState.userProfile?.nickname || '익명';
+        try {
+            const response = await fetch(`/api/users/${encodeURIComponent(userId)}/routes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    distance: routeData.distance,
+                    duration: routeData.duration,
+                    mode: routeData.mode,
+                    startCoords: routeData.startCoords,
+                    endCoords: routeData.endCoords,
+                    points: JSON.stringify(routeData.points) // 전체 궤적
+                })
+            });
+            return await response.json();
+        } catch (e) {
+            console.error('Server sync failed, will retry later:', e);
+            throw e;
+        }
+    },
+
+    async fetchTrajectories(bounds) {
+        try {
+            const response = await fetch(`/api/trajectories?bounds=${bounds.join(',')}`);
+            if (!response.ok) throw new Error('API fetch failed');
+            return await response.json();
+        } catch (e) {
+            console.error('Failed to fetch trajectories:', e);
+            return [];
+        }
+    },
+
+    async syncToServer() {
+        if (!navigator.onLine) return;
+
+        const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(this.STORE_NAME);
+        const request = store.getAll();
+
+        request.onsuccess = async () => {
+            const allRoutes = request.result;
+            const unsynced = allRoutes.filter(r => !r.synced);
+
+            if (unsynced.length === 0) return;
+
+            console.log(`[Sync] 동기화되지 않은 ${unsynced.length}개의 데이터를 서버로 전송합니다...`);
+
+            for (const route of unsynced) {
+                try {
+                    await this.saveToServer(route);
+                    await this.markAsSynced(route.id);
+                } catch (e) {
+                    console.error('[Sync] 개별 전송 실패:', e);
+                    break; // 네트워크 에러 가능성이 높으므로 중단
+                }
+            }
+            console.log('[Sync] 동기화 시도가 완료되었습니다.');
+        };
+    }
+};

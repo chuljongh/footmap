@@ -1,0 +1,577 @@
+// ========================================
+// 지도 관리 (MapManager)
+// ========================================
+const MapManager = {
+    init() {
+        this.initMainMap();
+        this.initOverlayMap();
+        this.getCurrentPosition();
+        this.setupMapInteractionListeners();
+        this.setupMapClickHandler();
+    },
+
+    // 지도 더블클릭/투터치로 목적지 설정
+    setupMapClickHandler() {
+        // 데스크탑: 더블클릭
+        AppState.map.on('dblclick', (evt) => {
+            evt.preventDefault(); // 기본 줌 동작 방지
+            const coords = ol.proj.toLonLat(evt.coordinate);
+
+            if (AppState.isNavigating) {
+                UIManager.showWaypointModal(coords);
+            } else {
+                this.setDestinationByClick(coords);
+            }
+        });
+
+        // 모바일: 투터치 (두 손가락 탭)
+        const mapElement = document.getElementById('map');
+        let twoFingerTapTimer = null;
+        let lastTwoFingerTime = 0;
+
+        mapElement.addEventListener('touchstart', (e) => {
+            if (AppState.isNavigating) return;
+
+            // 두 손가락 터치 감지
+            if (e.touches.length === 2) {
+                const now = Date.now();
+
+                // 두 손가락으로 빠르게 두 번 탭 (더블탭)
+                if (now - lastTwoFingerTime < 400) {
+                    const x = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    const pixel = [x, y];
+                    const coordinate = AppState.map.getCoordinateFromPixel(pixel);
+
+                    if (coordinate) {
+                        const coords = ol.proj.toLonLat(coordinate);
+                        this.setDestinationByClick(coords);
+                    }
+                    lastTwoFingerTime = 0;
+                } else {
+                    lastTwoFingerTime = now;
+                }
+            }
+        }, { passive: true });
+    },
+
+    // 좌표로 주소 가져오기 (Reverse Geocoding)
+    async getAddressFromCoords(coords) {
+        try {
+            const lon = coords[0];
+            const lat = coords[1];
+            const response = await fetch(`/api/reverse-geo?x=${lon}&y=${lat}`);
+            const data = await response.json();
+
+            if (data.documents && data.documents.length > 0) {
+                const doc = data.documents[0];
+                return doc.road_address ? doc.road_address.address_name : doc.address.address_name;
+            }
+        } catch (e) {
+            console.error('Reverse Geocoding Error:', e);
+        }
+        return `선택한 위치 (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+    },
+
+    // 클릭으로 목적지 설정
+    async setDestinationByClick(coords) {
+        const addressName = await this.getAddressFromCoords(coords);
+        this.setDestination(coords, addressName);
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = addressName;
+        const overlayDestEl = document.getElementById('overlay-destination');
+        if (overlayDestEl) overlayDestEl.textContent = addressName;
+    },
+
+    // 지도 상호작용 리스너 (사용자 조작 감지)
+    setupMapInteractionListeners() {
+        const mapElement = document.getElementById('map');
+        if (!mapElement) return;
+
+        // 터치/마우스 이벤트로 사용자 조작 감지
+        const interactionEvents = ['pointerdown', 'wheel', 'touchstart'];
+        interactionEvents.forEach(eventType => {
+            mapElement.addEventListener(eventType, () => {
+                if (AppState.isNavigating) {
+                    AppState.isUserInteracting = true;
+                    this.startViewResetTimer();
+                }
+            });
+        });
+    },
+
+    // 5초 후 기본 뷰로 복귀 타이머
+    startViewResetTimer() {
+        if (AppState.viewResetTimer) {
+            clearTimeout(AppState.viewResetTimer);
+        }
+
+        AppState.viewResetTimer = setTimeout(() => {
+            if (AppState.isNavigating) {
+                AppState.isUserInteracting = false;
+                this.fitViewToRoute();
+            }
+        }, 5000);
+    },
+
+    // 뷰 조정
+    fitViewToRoute() {
+        const source = AppState.routeLayer?.getSource();
+        const features = source?.getFeatures();
+
+        if (features && features.length > 0) {
+            const extent = source.getExtent();
+            AppState.map.getView().fit(extent, {
+                padding: [120, 50, 160, 50],
+                duration: 500
+            });
+            return;
+        }
+
+        if (!AppState.currentPosition || !AppState.destination) return;
+
+        const extent = ol.extent.boundingExtent([
+            ol.proj.fromLonLat(AppState.currentPosition),
+            ol.proj.fromLonLat(AppState.destination.coords)
+        ]);
+
+        AppState.map.getView().fit(extent, {
+            padding: [100, 50, 150, 50],
+            duration: 500
+        });
+    },
+
+    initMainMap() {
+        // Google Maps 레이어
+        const isRetina = window.devicePixelRatio > 1;
+        const googleUrl = isRetina
+            ? 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko&scale=2'
+            : 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko';
+
+        const mapLayer = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: googleUrl,
+                tilePixelRatio: isRetina ? 2 : 1,
+                attributions: 'Map data &copy;2025 Google'
+            })
+        });
+
+        // 궤적 레이어
+        AppState.trajectoryLayer = new ol.layer.Vector({
+            source: new ol.source.Vector(),
+            style: (feature) => PathManager.getTrajectoryStyle(feature)
+        });
+
+        // 경로 레이어
+        AppState.routeLayer = new ol.layer.Vector({
+            source: new ol.source.Vector(),
+            style: RouteManager.routeStyleFunction.bind(RouteManager),
+            updateWhileAnimating: true,
+            updateWhileInteracting: true
+        });
+
+        // 지도 초기화
+        AppState.map = new ol.Map({
+            target: 'map',
+            layers: [mapLayer, AppState.trajectoryLayer, AppState.routeLayer],
+            view: new ol.View({
+                center: ol.proj.fromLonLat(Config.DEFAULT_CENTER),
+                zoom: Config.DEFAULT_ZOOM
+            }),
+            interactions: ol.interaction.defaults.defaults({ doubleClickZoom: false }),
+            controls: ol.control.defaults.defaults({ attribution: false, zoom: false })
+        });
+
+        // 궤적 로딩 (디바운싱 적용 + 초기 지연)
+        const debouncedLoadTrajectories = Utils.debounce(() => {
+            PathManager.loadRealTrajectories();
+        }, Config.TRAJECTORY_DEBOUNCE_MS);
+
+        AppState.map.on('moveend', debouncedLoadTrajectories);
+
+        // 초기 로드 지연: 지도 타일이 먼저 로드되도록 2초 대기
+        setTimeout(() => {
+            PathManager.loadRealTrajectories();
+        }, Config.TRAJECTORY_INITIAL_DELAY);
+    },
+
+    initOverlayMap() {
+        const isRetina = window.devicePixelRatio > 1;
+        const googleUrl = isRetina
+            ? 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko&scale=2'
+            : 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko';
+
+        const mapLayer = new ol.layer.Tile({
+            source: new ol.source.XYZ({
+                url: googleUrl,
+                tilePixelRatio: isRetina ? 2 : 1
+            })
+        });
+
+        AppState.overlayMap = new ol.Map({
+            target: 'overlay-map',
+            layers: [mapLayer],
+            view: new ol.View({
+                center: ol.proj.fromLonLat(Config.DEFAULT_CENTER),
+                zoom: Config.DEFAULT_ZOOM
+            }),
+            controls: []
+        });
+    },
+
+    // 스마트 다이내믹 줌 (Smart Dynamic Zoom)
+    handleDynamicZoom(distanceToNextTurn) {
+        if (!AppState.isNavigating || AppState.isUserInteracting) return;
+
+        const ZOOM_THRESHOLD = 300; // 300m 전방에서 줌인
+        const ZOOM_LEVEL_DETAIL = 18; // 상세 줌 레벨
+
+        if (distanceToNextTurn <= ZOOM_THRESHOLD) {
+            // [Detail Mode] 턴 접근 시
+            if (!AppState.isZoomedIn) {
+                AppState.isZoomedIn = true;
+                this.animateZoomToLocation(AppState.currentPosition, ZOOM_LEVEL_DETAIL);
+                console.log('🔍 Smart Zoom: IN (Detail Mode)');
+            } else {
+                // 이미 줌인 상태면 현위치 추적만 (팬)
+                const view = AppState.map.getView();
+                const center = view.getCenter();
+                const target = ol.proj.fromLonLat(AppState.currentPosition);
+                // 너무 자주 업데이트하면 끊기므로 거리가 좀 차이나면 이동
+                // (OpenLayers animate는 부드러우므로 매번 호출해도 괜찮을 수 있음)
+                view.animate({ center: target, duration: 500 });
+            }
+        } else {
+            // [Overview Mode] 직선 주행 시
+            if (AppState.isZoomedIn) {
+                AppState.isZoomedIn = false;
+                this.fitViewToRoute();
+                console.log('🗺️ Smart Zoom: OUT (Overview Mode)');
+            }
+        }
+    },
+
+    animateZoomToLocation(coords, zoomLevel) {
+        AppState.map.getView().animate({
+            center: ol.proj.fromLonLat(coords),
+            zoom: zoomLevel,
+            duration: 1000,
+            easing: ol.easing.easeOut
+        });
+    },
+
+    getCurrentPosition() {
+        if (!navigator.geolocation) {
+            console.warn('Geolocation을 지원하지 않는 브라우저입니다.');
+            this.setCurrentPosition(Config.DEFAULT_CENTER);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const coords = [position.coords.longitude, position.coords.latitude];
+                this.setCurrentPosition(coords);
+            },
+            (error) => {
+                console.warn('위치 정보 획득 실패:', error);
+                this.setCurrentPosition(Config.DEFAULT_CENTER);
+            },
+            { enableHighAccuracy: true }
+        );
+
+        navigator.geolocation.watchPosition(
+            (position) => {
+                const coords = [position.coords.longitude, position.coords.latitude];
+                const heading = position.coords.heading;
+                const speed = position.coords.speed; // m/s
+                this.updateCurrentPosition(coords, heading, speed);
+            },
+            null,
+            { enableHighAccuracy: true }
+        );
+    },
+
+    setCurrentPosition(coords) {
+        AppState.currentPosition = coords;
+        const mapCoords = ol.proj.fromLonLat(coords);
+
+        if (!AppState.positionMarker) {
+            AppState.positionMarker = new ol.Overlay({
+                element: this.createMarkerElement('current'),
+                positioning: 'center-center'
+            });
+            AppState.map.addOverlay(AppState.positionMarker);
+        }
+
+        AppState.positionMarker.setPosition(mapCoords);
+        AppState.map.getView().setCenter(mapCoords);
+    },
+
+    updateCurrentPosition(coords, heading = null, speed = null) {
+        AppState.currentPosition = coords;
+        const mapCoords = ol.proj.fromLonLat(coords);
+
+        // 이동수단 판별 업데이트
+        if (window.SensorManager) {
+            SensorManager.updateSpeed(speed);
+        }
+
+        if (AppState.positionMarker) {
+            AppState.positionMarker.setPosition(mapCoords);
+
+            const el = AppState.positionMarker.getElement();
+            const dot = el.querySelector('.user-dot');
+            const arrow = el.querySelector('.user-heading-arrow');
+
+            if (heading !== null && heading !== undefined) {
+                if (dot) dot.classList.add('opacity-0');
+                if (arrow) {
+                    arrow.classList.remove('hidden');
+                    arrow.classList.add('opacity-100');
+                    arrow.style.setProperty('--heading', `${heading}deg`); // CSS: transform: rotate(var(--heading))
+                }
+            } else {
+                if (dot) dot.classList.remove('opacity-0');
+                if (arrow) {
+                    arrow.classList.remove('opacity-100');
+                    arrow.classList.add('hidden');
+                }
+            }
+        }
+
+        if (AppState.isNavigating) {
+            AppState.routeHistory.push({
+                coords: coords,
+                timestamp: Date.now(),
+                mode: AppState.userMode,
+                heading: heading
+            });
+
+            if (AppState.activeRoute) {
+                UIManager.updateNavigationHUD(AppState.activeRoute);
+            }
+        }
+    },
+
+    createMarkerElement(type) {
+        const el = document.createElement('div');
+        el.className = `marker marker-${type}`;
+
+        if (type === 'current') {
+            el.innerHTML = `
+                <div class="user-marker-container">
+                    <div class="user-dot"></div>
+                    <svg class="user-heading-arrow" viewBox="0 0 24 24">
+                        <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" fill="${Config.COLORS.ARROW_FILL}" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+            `;
+        } else if (type === 'destination') {
+            el.innerHTML = `
+                <div class="marker-destination-wrapper">
+                    <span class="marker-number"></span>
+                </div>
+            `;
+        }
+        return el;
+    },
+
+    setDestination(coords, name) {
+        AppState.destination = { coords, name };
+
+        // 검색 기록 저장 (중앙 집중식)
+        if (typeof UIManager !== 'undefined' && UIManager.saveSearchHistory) {
+            UIManager.saveSearchHistory(name);
+        }
+
+        const mapCoords = ol.proj.fromLonLat(coords);
+
+        if (!AppState.destinationMarker) {
+            const markerElement = this.createMarkerElement('destination');
+            markerElement.classList.add('cursor-grab');
+
+            AppState.destinationMarker = new ol.Overlay({
+                element: markerElement,
+                positioning: 'bottom-center',
+                stopEvent: false
+            });
+            AppState.map.addOverlay(AppState.destinationMarker);
+            this.setupDestinationDrag(markerElement);
+        }
+
+        AppState.destinationMarker.setPosition(mapCoords);
+
+        if (AppState.currentPosition) {
+            const extent = ol.extent.boundingExtent([
+                ol.proj.fromLonLat(AppState.currentPosition),
+                mapCoords
+            ]);
+            AppState.map.getView().fit(extent, { padding: [100, 50, 150, 50], maxZoom: 17 });
+        }
+
+        this.refreshMarkers();
+        UIManager.enableNavigateButton();
+    },
+
+    setupDestinationDrag(element) {
+        let isDragging = false;
+        element.addEventListener('mousedown', (e) => {
+            if (AppState.isNavigating) return;
+            isDragging = true;
+            element.classList.remove('cursor-grab');
+            element.classList.add('cursor-grabbing');
+            e.stopPropagation();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const pixel = [e.clientX, e.clientY];
+            const coord = AppState.map.getCoordinateFromPixel(pixel);
+            if (coord) AppState.destinationMarker.setPosition(coord);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            element.classList.remove('cursor-grabbing');
+            element.classList.add('cursor-grab');
+            this.updateDestFromMarker();
+        });
+
+        element.addEventListener('touchstart', (e) => {
+            if (AppState.isNavigating) return;
+            isDragging = true;
+            e.stopPropagation();
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            const pixel = [touch.clientX, touch.clientY];
+            const coord = AppState.map.getCoordinateFromPixel(pixel);
+            if (coord) AppState.destinationMarker.setPosition(coord);
+        });
+
+        document.addEventListener('touchend', () => {
+            if (!isDragging) return;
+            isDragging = false;
+            this.updateDestFromMarker();
+        });
+    },
+
+    updateDestFromMarker() {
+        const newPosition = AppState.destinationMarker.getPosition();
+        if (newPosition) {
+            const coords = ol.proj.toLonLat(newPosition);
+            const addressName = `선택한 위치 (${coords[1].toFixed(5)}, ${coords[0].toFixed(5)})`;
+            AppState.destination = { coords, name: addressName };
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = addressName;
+            const overlayDest = document.getElementById('overlay-destination');
+            if (overlayDest) overlayDest.textContent = addressName;
+
+            // 주소 변환 시도 (비동기)
+            this.getAddressFromCoords(coords).then(addr => {
+                if (addr && !addr.includes('실패')) {
+                    AppState.destination.name = addr;
+                    const searchInput2 = document.getElementById('search-input');
+                    if (searchInput2) searchInput2.value = addr;
+                    const overlayDest2 = document.getElementById('overlay-destination');
+                    if (overlayDest2) overlayDest2.textContent = addr;
+                }
+            });
+        }
+    },
+
+    // Trajectory 관련 메서드 이관 -> PathManager
+    loadDummyTrajectories() {
+        PathManager.loadDummyTrajectories();
+    },
+
+
+
+    // ... (Existing methods below)
+    addWaypointMarker(coords) {
+        // ... (Keep existing implementation for markers as it is map view specific)
+        const marker = new ol.Feature({
+            geometry: new ol.geom.Point(ol.proj.fromLonLat(coords))
+        });
+
+        marker.setStyle(new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 10,
+                fill: new ol.style.Fill({ color: Config.COLORS.ACCENT }),
+                stroke: new ol.style.Stroke({ color: Config.COLORS.WHITE, width: 2 })
+            }),
+            text: new ol.style.Text({
+                text: `${AppState.waypoints.length}`,
+                font: 'bold 12px sans-serif',
+                fill: new ol.style.Fill({ color: Config.COLORS.WHITE }),
+                offsetY: 1
+            })
+        }));
+
+        const layer = new ol.layer.Vector({
+            source: new ol.source.Vector({ features: [marker] }),
+            zIndex: 15
+        });
+
+        AppState.map.addLayer(layer);
+        AppState.waypointMarkers.push(layer);
+        this.refreshMarkers();
+    },
+
+    clearWaypoints() {
+        AppState.waypoints = [];
+        AppState.waypointMarkers.forEach(layer => AppState.map.removeLayer(layer));
+        AppState.waypointMarkers = [];
+        this.refreshMarkers();
+    },
+
+    clearDestination() {
+        if (AppState.destinationMarker) {
+            AppState.map.removeOverlay(AppState.destinationMarker);
+            AppState.destinationMarker = null;
+        }
+        AppState.destination = null;
+        const searchInputClear = document.getElementById('search-input');
+        if (searchInputClear) searchInputClear.value = '';
+        const overlayDestClear = document.getElementById('overlay-destination');
+        if (overlayDestClear) overlayDestClear.textContent = '목적지를 설정하세요';
+        const btn = document.getElementById('navigate-btn');
+        if (btn) {
+            btn.classList.add('disabled');
+            btn.querySelector('.btn-text').textContent = '목적지를 선택하세요';
+        }
+    },
+
+    refreshMarkers() {
+        AppState.waypointMarkers.forEach((layer, index) => {
+            const feature = layer.getSource().getFeatures()[0];
+            const style = feature.getStyle();
+            if (style && style.getText) {
+                style.getText().setText(`${index + 1}`);
+                feature.changed();
+            } else if (style instanceof ol.style.Style) {
+                style.getText().setText(`${index + 1}`);
+                feature.changed();
+            }
+        });
+
+        if (AppState.destinationMarker) {
+            const num = AppState.waypoints.length + 1;
+            const el = AppState.destinationMarker.getElement();
+            const numEl = el?.querySelector('.marker-number');
+            if (numEl) {
+                // 도착지가 2개 이상일 때만 번호 표시 (경유지 포함)
+                if (AppState.waypoints.length > 0) {
+                    numEl.textContent = `${num}`;
+                    numEl.classList.remove('hidden');
+                } else {
+                    numEl.classList.add('hidden');
+                }
+            }
+        }
+    }
+};
+

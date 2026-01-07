@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>발길맵 - 라스트 마일 내비게이션</title>
+    <meta name="description" content="배달원과 휠체어 이용자를 위한 초정밀 라스트 마일 내비게이션">
+    <!-- OpenLayers CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
+
+    <!-- Kakao Maps SDK (로컬 API 사용, autoload=false) -->
+    <script type="text/javascript"
+        src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=94efadb747ddb4a6f534eae8dc61a99e&libraries=services&autoload=false"></script>
+
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Custom Styles -->
+</head>
+
+<body>
+    <!-- 스플래시 화면 -->
+    <div id="splash-screen" class="screen active">
+        <div class="splash-content">
+            <div class="logo-container">
+                <div class="splash-logo-wrapper">
+                    <!-- Footprint Background Shape (will be styled in CSS) -->
+                    <div class="footprint-bg"></div>
+                    <!-- Character Image (Placeholder for now) -->
+                    <img src="assets/balgil_character.png" class="splash-character" alt="Balgil Character">
+                    <!-- Fallback Emoji -->
+                    <div class="footprint-icon fallback">👣</div>
+                </div>
+                <h1 class="app-title">발길맵</h1>
+                <p class="app-subtitle">라스트 마일 내비게이션</p>
+            </div>
+            <div class="loading-indicator">
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 온보딩 - 권한 안내 -->
+    <div id="permission-screen" class="screen">
+        <div class="onboarding-content">
+            <h2>앱 사용을 위해<br>다음 권한이 필요합니다</h2>
+
+            <div class="permission-cards">
+                <div class="permission-card">
+                    <div class="permission-icon">📍</div>
+                    <div class="permission-info">
+                        <h3>위치 정보</h3>
+                        <p>현재 위치와 이동 경로를 표시합니다</p>
+                    </div>
+                </div>
+                <div class="permission-card">
+                    <div class="permission-icon">🗺️</div>
+                    <div class="permission-info">
+                        <h3>오버레이</h3>
+                        <p>다른 앱 위에 지도를 표시합니다</p>
+                    </div>
+                </div>
+                <div class="permission-card">
+                    <div class="permission-icon">📋</div>
+                    <div class="permission-info">
+                        <h3>클립보드</h3>
+                        <p>복사한 주소로 바로 안내합니다</p>
+                    </div>
+                </div>
+            </div>
+
+            <button id="permission-next-btn" class="primary-btn">다음</button>
+        </div>
+    </div>
+
+    <!-- 온보딩 - 모드 선택 -->
+    <div id="mode-screen" class="screen">
+        <div class="onboarding-content">
+            <h2>이동 수단을 선택해주세요</h2>
+            <p class="mode-description">선택한 모드에 맞는 경로를 안내해 드립니다</p>
+
+            <div class="mode-options">
+                <button class="mode-option selected" data-mode="walking">
+                    <div class="mode-icon">🚶</div>
+                    <div class="mode-label">도보</div>
+                    <div class="mode-check">✓</div>
+                </button>
+                <button class="mode-option" data-mode="wheelchair">
+                    <div class="mode-icon">♿</div>
+                    <div class="mode-label">휠체어</div>
+                    <div class="mode-check">✓</div>
+                </button>
+            </div>
+
+            <p class="mode-note">* 설정에서 언제든지 변경할 수 있습니다</p>
+
+            <button id="mode-next-btn" class="primary-btn">시작하기</button>
+        </div>
+    </div>
+
+    <!-- 메인 지도 화면 -->
+    <div id="main-screen" class="screen">
+        <!-- 상단 바 + 검색 버튼 래퍼 -->
+        <div class="top-bar-wrapper">
+            <header class="top-bar glass">
+                <button id="menu-btn" class="icon-btn" aria-label="메뉴">
+                    <span class="hamburger-icon">≡</span>
+                </button>
+                <div class="search-container">
+                    <div class="search-input-wrapper">
+                        <input type="text" id="search-input" placeholder="주소를 입력하세요" autocomplete="off">
+                        <button id="search-clear-btn" class="icon-btn" aria-label="지우기">✕</button>
+                        <ul id="search-suggestions" class="suggestion-list"></ul>
+                    </div>
+                </div>
+            </header>
+            <!-- 검색 버튼을 top-bar 바깥에 배치 -->
+            <button id="search-btn" class="icon-btn search-action" aria-label="검색">🔍</button>
+        </div>
+
+        <!-- 지도 영역 -->
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+
+        <!-- 하단 액션 바 (대화/글쓰기/안내) -->
+        <div class="bottom-bar glass">
+            <div id="pre-nav-actions" class="bottom-actions-row">
+                <button id="chat-btn" class="icon-btn action-btn" aria-label="대화 보기">
+                    🗨️
+                </button>
+                <button id="write-btn" class="icon-btn action-btn" aria-label="글쓰기">
+                    ✏️
+                </button>
+                <button id="navigate-btn" class="navigate-btn disabled">
+                    <span id="mode-indicator" class="mode-indicator">🚶</span>
+                    <span class="btn-text">경로 안내 시작</span>
+                </button>
+            </div>
+
+            <!-- Context Dashboard (안내 중 표시) -->
+            <div id="dashboard-container" class="dashboard-container hidden">
+                <div class="dashboard-info">
+                    <!-- [NEW] Line 1: Stats (Time | Distance) -->
+                    <div id="dash-stats" class="dash-text stats">목적지까지 0분 | 0km</div>
+                    <div id="dash-primary" class="dash-text primary">정보 로딩중...</div>
+                    <div id="dash-secondary" class="dash-text secondary">잠시만 기다려주세요</div>
+                </div>
+
+                <div class="dashboard-actions">
+                    <button id="stop-nav-btn" class="icon-btn small stop" aria-label="안내 종료">
+                        <img src="pin.png" alt="중지">
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 메시지 작성 모달 -->
+        <div id="write-modal" class="modal hidden">
+            <div class="modal-content glass-premium write-modal-content">
+                <h3 id="write-modal-title">글 남기기 : 📍 위치 확인 중...</h3>
+
+                <div class="write-area">
+                    <div class="floating-field">
+                        <svg class="field-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <textarea id="write-input" maxlength="140" placeholder=" "></textarea>
+                        <label for="write-input" class="floating-label">이 장소에 대한 이야기를 남겨보세요...</label>
+                        <div class="char-count"><span id="curr-char">0</span>/140</div>
+                    </div>
+                </div>
+
+                <div class="tag-input-wrapper">
+                    <div class="floating-field">
+                        <svg class="field-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                            <line x1="7" y1="7" x2="7.01" y2="7" />
+                        </svg>
+                        <input type="text" id="write-tags" class="tag-input" placeholder=" " maxlength="50">
+                        <label for="write-tags" class="floating-label">#태그 입력</label>
+                    </div>
+                </div>
+
+                <!-- 추천 태그 칩 (선제시) -->
+                <div class="tag-chips-container">
+                    <button class="tag-chip" data-tag="#경로꿀팁">#경로꿀팁</button>
+                    <button class="tag-chip" data-tag="#친절매장">#친절매장</button>
+                    <button class="tag-chip" data-tag="#주차장별_동출입구">#주차장별_동출입구</button>
+                    <button class="tag-chip" data-tag="#양방향출입">#양방향출입</button>
+                    <button class="tag-chip" data-tag="#지도안내_틀림">#지도안내_틀림</button>
+                </div>
+
+                <div class="modal-actions horizontal">
+                    <button id="write-cancel-btn" class="modal-action-btn secondary">취소</button>
+                    <button id="write-save-btn" class="modal-action-btn primary">저장</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 메시지 리스트 오버레이 (카드 형태) -->
+        <div id="message-overlay" class="message-overlay hidden">
+            <!-- JS로 카드 주입 -->
+            <button id="close-message-btn" class="icon-btn close-floating">✕</button>
+            <div id="message-cards-container" class="message-cards-container">
+                <!-- Card Template -->
+            </div>
+        </div>
+
+        <!-- 스레드 상세 패널 (우측 슬라이드) -->
+        <div id="thread-panel" class="thread-panel">
+            <div class="panel-header">
+                <span>대화 스레드</span>
+                <button id="close-thread-btn" class="close-panel">✕</button>
+            </div>
+            <div id="thread-main-message" class="main-message">
+                <!-- JS로 메인 메시지 주입 -->
+            </div>
+            <div class="replies-header">이 위치의 다른 대화</div>
+            <div id="thread-replies-list" class="replies-list">
+                <!-- JS로 답글 목록 주입 -->
+            </div>
+        </div>
+
+        <div id="menu-overlay" class="menu-overlay"></div>
+
+        <!-- 사이드 메뉴 (오버레이 위에 배치하기 위해 순서 변경) -->
+        <div id="side-menu" class="side-menu">
+            <div class="menu-header profile-mode">
+                <div class="profile-container">
+                    <div class="profile-img-wrapper">
+                        <img id="profile-img"
+                            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23ddd'/%3E%3Ctext x='50' y='50' dy='.3em' text-anchor='middle' font-size='40'%3E👤%3C/text%3E%3C/svg%3E"
+                            alt="Profile">
+                        <button id="edit-profile-img-btn" class="edit-btn" aria-label="사진 변경">📷</button>
+                        <input type="file" id="profile-img-input" accept="image/*" class="hidden">
+                    </div>
+                    <div class="profile-info-wrapper">
+                        <div class="nickname-row">
+                            <input type="text" id="profile-nickname" value="" readonly>
+                            <button id="edit-nickname-btn" class="edit-btn" aria-label="별명 수정">✏️</button>
+                        </div>
+                    </div>
+                </div>
+                <button id="close-menu-btn" class="icon-btn close-menu">✕</button>
+            </div>
+            <nav class="menu-nav">
+                <!-- 나의 기록 (최상단, 강조) -->
+                <button class="menu-item highlight" data-action="my-records">
+                    <span>🏆</span> 나의 기록
+                </button>
+
+                <button class="menu-item" data-action="mode-change">
+                    <span id="current-mode-icon">🚶</span> 모드 변경
+                </button>
+                <button class="menu-item" data-action="overlay-settings">
+                    <span>🗺️</span> 오버레이 설정
+                </button>
+
+
+                <!-- 범례 메뉴 (Collapsible) -->
+                <button class="menu-item" data-action="legend-toggle">
+                    <span>📊</span> 범례
+                    <span class="toggle-arrow">▼</span>
+                </button>
+                <div id="menu-legend-details" class="menu-legend-details hidden">
+                    <div class="legend-row">
+                        <span class="legend-dot low"></span>
+                        <span>1-3명 (한적)</span>
+                    </div>
+                    <div class="legend-row">
+                        <span class="legend-dot mid"></span>
+                        <span>4-10명 (보통)</span>
+                    </div>
+                    <div class="legend-row">
+                        <span class="legend-dot high"></span>
+                        <span>11-100명 (활발)</span>
+                    </div>
+                    <div class="legend-row">
+                        <span class="legend-dot very-high"></span>
+                        <span>100명+ (북적)</span>
+                    </div>
+                </div>
+            </nav>
+            <div class="menu-footer">
+                <p>발길맵 v1.0.0</p>
+                <p>Balgil Map</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 플로팅 오버레이 모드 (데모용) -->
+    <div id="floating-overlay" class="floating-overlay hidden">
+        <div class="overlay-header">
+            <span class="destination-text">📍 → <span id="overlay-destination">목적지명</span></span>
+            <button id="close-overlay-btn" class="icon-btn small">✕</button>
+        </div>
+        <div id="overlay-map" class="overlay-map"></div>
+        <div class="resize-handle"></div>
+    </div>
+
+    <!-- 오버레이 설정 모달 -->
+    <div id="overlay-settings-modal" class="modal hidden">
+        <div class="modal-content glass">
+            <h3>오버레이 설정</h3>
+            <div class="setting-item">
+                <label for="opacity-slider">투명도: <span id="opacity-value">30</span>%</label>
+                <input type="range" id="opacity-slider" min="0" max="50" value="30">
+            </div>
+            <div class="modal-actions">
+                <button id="close-settings-btn" class="secondary-btn">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 경유지 설정 모달 -->
+    <div id="waypoint-modal" class="modal hidden">
+        <div class="modal-content glass">
+            <h3>위치 옵션</h3>
+            <div class="waypoint-options">
+                <button class="waypoint-btn" data-action="new-dest">
+                    <span class="waypoint-icon">🏁</span>
+                    <span>새 목적지로 설정</span>
+                </button>
+                <button class="waypoint-btn" data-action="waypoint">
+                    <span class="waypoint-icon">➕</span>
+                    <span>경유지로 추가</span>
+                </button>
+                <button class="waypoint-btn" data-action="final-dest">
+                    <span class="waypoint-icon">🏁➡️</span>
+                    <span>최종 목적지로 추가</span>
+                </button>
+                <button class="waypoint-btn cancel" data-action="cancel">
+                    <span>취소</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 나의 기록 모달 -->
+    <div id="my-records-modal" class="modal hidden">
+        <div class="modal-content glass my-records-content">
+            <h3>🏆 나의 활동</h3>
+            <div class="records-tabs">
+                <button class="tab-btn active" data-tab="routes">이동</button>
+                <button class="tab-btn" data-tab="messages">대화</button>
+                <button class="tab-btn" data-tab="comments">댓글</button>
+            </div>
+            <div class="records-body">
+                <div id="records-list" class="records-list">
+                    <!-- JS로 동적 채움 -->
+                    <p class="empty-state">데이터를 불러오는 중...</p>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="close-records-btn" class="secondary-btn">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OpenLayers JS -->
+    <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
+
+    <!-- Navigation HUD (body 직계 자식으로 이동 - 뷰포트 기준 중앙 정렬) -->
+    <div id="navigation-hud" class="navigation-hud hidden">
+        <div id="hud-panel" class="hud-panel">
+            <div class="hud-main">
+                <div class="hud-icon large" id="nav-next-turn-icon"></div>
+                <div class="hud-value large" id="nav-next-dist">0m</div>
+            </div>
+            <div class="hud-divider"></div>
+            <div class="hud-sub">
+                <div class="hud-icon small" id="nav-second-icon"></div>
+                <div class="hud-value small" id="nav-second-dist">0m</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Modules -->
+    <script src="js/icons.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/data_collector.js"></script>
+    <script src="js/path_manager.js"></script>
+    <script src="js/route_manager.js"></script>
+    <script src="js/map_manager.js"></script>
+    <script src="js/social_manager.js"></script>
+
+    <script src="js/ui_manager.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
