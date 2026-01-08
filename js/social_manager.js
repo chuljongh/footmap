@@ -722,6 +722,9 @@ const SocialManager = {
     },
 
     async showWriteModal() {
+        // [FIX] 대화 모드가 열려있다면 닫기
+        if (this.isTalkMode) this.closeTalkMode();
+
         // [수정] 현위치가 없더라도 목적지(검색 결과)가 있으면 작성 가능하게 변경
         let targetCoords = (AppState.destination && AppState.destination.coords)
             ? AppState.destination.coords

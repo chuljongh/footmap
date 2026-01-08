@@ -4,28 +4,64 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // 스플래시 화면 표시 (2초) 후 온보딩 또는 메인 화면으로 전환
-    setTimeout(async () => {
-        // 1. 매니저 초기화
+    console.log('App initialization started...');
+
+    // 스플래시 화면 표시 후 전환 (최소 2초 보장)
+    const splashTimeout = new Promise(resolve => setTimeout(resolve, 2000));
+
+    // 1. 매니저 초기화 (비동기 병렬 처리 시도)
+    const initApp = async () => {
         try {
-            SocialManager.init(); // 소셜 기능 (톡) 활성화
-            UIManager.init();     // UI 이벤트 바인딩
+            // 소셜 기능 초기화 (내부적으로 loadMessages 비동기 처리됨)
+            if (typeof SocialManager !== 'undefined') {
+                SocialManager.init();
+            }
+        } catch (e) { console.error('SocialManager init failed:', e); }
 
-            // 데이터 수집기 (IndexedDB)
-            await DataCollector.init();
+        try {
+            // UI 이벤트 바인딩
+            if (typeof UIManager !== 'undefined') {
+                UIManager.init();
+            }
+        } catch (e) { console.error('UIManager init failed:', e); }
+
+        try {
+            // 데이터 수집기 (IndexedDB) - 모바일에서 실패할 확률이 높으므로 타임아웃 처리
+            if (typeof DataCollector !== 'undefined') {
+                const dbInit = DataCollector.init();
+                // 3초 내에 완료되지 않으면 포기하고 진행
+                await Promise.race([
+                    dbInit,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('DB Init Timeout')), 3000))
+                ]);
+            }
         } catch (e) {
-            console.error('초기화 중 오류 발생:', e);
+            console.warn('DataCollector init skipped or failed:', e);
         }
+    };
 
-        // 2. 저장된 설정 로드 및 화면 전환
-        const onboardingComplete = UIManager.loadSavedSettings();
+    // 초기화와 스플래시 타이머를 동시에 실행
+    await Promise.allSettled([initApp(), splashTimeout]);
+
+    // 2. 저장된 설정 로드 및 화면 전환
+    try {
+        const onboardingComplete = (typeof UIManager !== 'undefined')
+            ? UIManager.loadSavedSettings()
+            : false;
 
         if (onboardingComplete) {
             Utils.showScreen('main-screen');
-            MapManager.init(); // 지도 로드
-            UIManager.updateModeIndicator();
+            if (typeof MapManager !== 'undefined') {
+                MapManager.init(); // 지도 로드
+            }
+            if (typeof UIManager !== 'undefined') {
+                UIManager.updateModeIndicator();
+            }
         } else {
             Utils.showScreen('permission-screen');
         }
-    }, 2000);
+    } catch (e) {
+        console.error('Final transition failed, forcing main screen:', e);
+        Utils.showScreen('main-screen'); // 최후의 보루
+    }
 });
