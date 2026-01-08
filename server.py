@@ -22,7 +22,7 @@ CORS(app)
 
 db = SQLAlchemy(app)
 
-PORT = 8000
+PORT = int(os.environ.get('PORT', 8000))
 KAKAO_REST_API_KEY = "63106d5c2ee3c16a39a6dfb41960da8a"
 
 # ========================================
