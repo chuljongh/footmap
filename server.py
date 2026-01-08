@@ -309,46 +309,6 @@ def delete_message(msg_id):
     db.session.commit()
     return jsonify({'success': True})
 
-@app.route('/api/messages/<msg_id>/vote', methods=['POST'])
-def vote_message(msg_id):
-    """좋아요/싫어요 투표"""
-    data = request.json
-    vote_type = data.get('type')  # 'up' or 'down'
-    user_id = data.get('userId', 'anonymous')
-
-    if vote_type not in ['up', 'down']:
-        return jsonify({'error': 'Invalid vote type'}), 400
-
-    msg = Message.query.get(msg_id)
-    if not msg:
-        return jsonify({'error': 'Message not found'}), 404
-
-    # 기존 투표 확인
-    existing_vote = Vote.query.filter_by(message_id=msg_id, user_id=user_id).first()
-
-    if existing_vote:
-        if existing_vote.vote_type == vote_type:
-            return jsonify({'error': 'Already voted', 'likes': msg.likes, 'dislikes': msg.dislikes}), 400
-
-        # 반대 투표로 변경
-        if existing_vote.vote_type == 'up':
-            msg.likes -= 1
-        else:
-            msg.dislikes -= 1
-        existing_vote.vote_type = vote_type
-    else:
-        # 새 투표
-        vote = Vote(message_id=msg_id, user_id=user_id, vote_type=vote_type)
-        db.session.add(vote)
-
-    # 새 투표 반영
-    if vote_type == 'up':
-        msg.likes += 1
-    else:
-        msg.dislikes += 1
-
-    db.session.commit()
-    return jsonify({'success': True, 'likes': msg.likes, 'dislikes': msg.dislikes})
 
 # ========================================
 # 댓글 API
@@ -454,6 +414,68 @@ def get_user_saved_messages(user_id):
     messages_dict = {m.id: m for m in messages}
     result = [messages_dict[mid].to_dict() for mid in message_ids if mid in messages_dict]
     return jsonify(result)
+
+@app.route('/api/messages/<message_id>/vote', methods=['POST'])
+def vote_message(message_id):
+    """메시지 좋아요/싫어요 투표 (토글/스위칭 로직 적용)"""
+    data = request.json
+    user_id = data.get('userId')
+    vote_type = data.get('type')  # 'up' or 'down'
+
+    if not user_id or vote_type not in ['up', 'down']:
+        return jsonify({'error': 'Invalid data'}), 400
+
+    ensure_user(user_id)
+    msg = Message.query.get(message_id)
+    if not msg:
+        return jsonify({'error': 'Message not found'}), 404
+
+    # 기존 투표 조회
+    existing_vote = Vote.query.filter_by(message_id=message_id, user_id=user_id).first()
+
+    current_status = None # 'up', 'down', or None
+
+    if existing_vote:
+        if existing_vote.vote_type == vote_type:
+            # Case 1: 같은 버튼 클릭 -> 투표 취소 (Toggle Off)
+            db.session.delete(existing_vote)
+            if vote_type == 'up':
+                msg.likes = max(0, msg.likes - 1)
+            else:
+                msg.dislikes = max(0, msg.dislikes - 1)
+            current_status = None
+        else:
+            # Case 2: 다른 버튼 클릭 -> 투표 변경 (Switch)
+            # 기존꺼 취소
+            if existing_vote.vote_type == 'up':
+                msg.likes = max(0, msg.likes - 1)
+            else:
+                msg.dislikes = max(0, msg.dislikes - 1)
+
+            # 새꺼 반영
+            existing_vote.vote_type = vote_type
+            if vote_type == 'up':
+                msg.likes += 1
+            else:
+                msg.dislikes += 1
+            current_status = vote_type
+    else:
+        # Case 3: 신규 투표 (New)
+        new_vote = Vote(message_id=message_id, user_id=user_id, vote_type=vote_type)
+        db.session.add(new_vote)
+        if vote_type == 'up':
+            msg.likes += 1
+        else:
+            msg.dislikes += 1
+        current_status = vote_type
+
+    db.session.commit()
+
+    return jsonify({
+        'likes': msg.likes,
+        'dislikes': msg.dislikes,
+        'userVote': current_status
+    })
 
 @app.route('/api/messages/<msg_id>/save', methods=['POST'])
 def save_message(msg_id):

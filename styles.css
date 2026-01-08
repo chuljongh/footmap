@@ -174,14 +174,6 @@ body .hidden {
     animation-delay: 0.4s;
 }
 
-.loading-status {
-    margin-top: var(--spacing-md);
-    font-size: 13px;
-    color: var(--text-secondary); /* var(--text-muted)에서 더 밝게 변경 */
-    letter-spacing: 0.5px;
-    font-weight: 500;
-    transition: opacity 0.3s ease;
-}
 
 /* ========================================
    온보딩 화면
@@ -246,7 +238,6 @@ body .hidden {
     max-height: 320px;
     object-fit: contain; /* cover에서 contain으로 변경하여 짤림 방지 */
     z-index: 10;
-    filter: drop-shadow(0 5px 15px rgba(0, 212, 170, 0.2));
 }
 
 .mode-icon-img {
@@ -3118,3 +3109,39 @@ body.search-hidden .top-bar-wrapper {
     display: flex;
     flex-direction: column;
 }
+
+/* Single Line Footer Layout */
+.place-msg-footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 6px;
+}
+.place-msg-actions-left {
+    display: flex;
+    gap: 10px;
+}
+.action-btn-clean {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+.action-btn-clean:hover {
+    opacity: 1;
+    color: var(--text-primary);
+}
+.place-msg-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-align: right;
+    margin-top: 0;
+}
+

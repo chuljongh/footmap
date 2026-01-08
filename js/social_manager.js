@@ -564,11 +564,47 @@ const SocialManager = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type, userId })
             });
-            const result = await response.json();
-            if (!response.ok) return Utils.showToast(result.error || '오류');
 
-            const span = btnElement.querySelector('span');
-            if (span) span.textContent = type === 'up' ? result.likes : result.dislikes;
+            if (!response.ok) {
+                const err = await response.json();
+                return Utils.showToast(err.error || '오류 발생');
+            }
+
+            const result = await response.json();
+
+            // 1. 로컬 데이터 업데이트
+            const msg = this.messages.find(m => m.id === id);
+            if (msg) {
+                msg.likes = result.likes;
+                msg.dislikes = result.dislikes;
+                msg.userVote = result.userVote;
+            }
+
+            // 2. UI 일괄 업데이트 (DOM에 존재하는 모든 해당 메시지의 버튼들)
+            // 댓글 탭, 장소 탭, 태그 탭 등 모든 곳 동기화
+            const allLikeBtns = document.querySelectorAll(`button[data-action="like"][data-msg-id="${id}"]`);
+
+            allLikeBtns.forEach(btn => {
+                const btnType = btn.dataset.type; // 'up' or 'down'
+
+                // 숫자 업데이트
+                const count = btnType === 'up' ? result.likes : result.dislikes;
+                // 기존 아이콘 유지하면서 숫자만 변경하거나 전체 텍스트 변경
+                // 간단히 전체 텍스트 업데이트 (아이콘 포함)
+                btn.innerHTML = btnType === 'up' ? `👍 ${count}` : `👎 ${count}`;
+
+                // (Optional) 활성화 스타일 처리
+                if (result.userVote === btnType) {
+                     btn.style.opacity = '1';
+                     btn.style.fontWeight = 'bold';
+                     btn.style.color = Config.COLORS.Highlight;
+                } else {
+                     btn.style.opacity = '0.8';
+                     btn.style.fontWeight = 'normal';
+                     btn.style.color = '';
+                }
+            });
+
         } catch (e) { console.error(e); }
     },
 
@@ -1043,10 +1079,16 @@ const SocialManager = {
 
     createPlaceMsgHTML(m) {
         return `
-            <div class="place-message-item" data-action="open-thread" data-msg-id="${m.id}">
-                <div class="place-msg-text">${m.text}</div>
-                <div class="place-msg-meta">
-                    by ${m.userId} · ${new Date(m.timestamp).toLocaleDateString()}
+            <div class="place-message-item" data-msg-id="${m.id}">
+                <div class="place-msg-text" data-action="open-thread" data-msg-id="${m.id}">${m.text}</div>
+                <div class="place-msg-footer-row">
+                    <div class="place-msg-actions-left">
+                         <button class="action-btn-clean" data-action="like" data-msg-id="${m.id}" data-type="up">👍 ${m.likes || 0}</button>
+                         <button class="action-btn-clean" data-action="like" data-msg-id="${m.id}" data-type="down">👎 ${m.dislikes || 0}</button>
+                    </div>
+                    <div class="place-msg-meta" data-action="open-thread" data-msg-id="${m.id}">
+                        by ${m.userId} · ${new Date(m.timestamp).toLocaleDateString()}
+                    </div>
                 </div>
             </div>
         `;
@@ -1066,7 +1108,7 @@ const SocialManager = {
 
                 <!-- View B: 검색 결과 리스트 (초기엔 숨김) -->
                 <div id="tags-result-view" class="hidden">
-                    <div id="tag-filtered-list"></div>
+                    <div id="tag-filtered-list" class="place-messages-list"></div>
                     <div class="tag-research-btn-container">
                         <button id="tag-research-btn" class="tag-research-btn">🔄 태그 재검색</button>
                     </div>
@@ -1157,14 +1199,7 @@ const SocialManager = {
         if (matchedMessages.length === 0) {
             listContainer.innerHTML = '<div class="empty-state">대화가 없습니다.</div>';
         } else {
-            listContainer.innerHTML = matchedMessages.map(m => `
-                <div class="place-message-item" data-action="open-thread" data-msg-id="${m.id}">
-                    <div class="place-msg-text">${m.text || ''}</div>
-                    <div class="place-msg-meta">
-                        by ${m.userId || '익명'} · ${m.timestamp ? new Date(m.timestamp).toLocaleDateString() : ''}
-                    </div>
-                </div>
-            `).join('');
+            listContainer.innerHTML = matchedMessages.map(m => this.createPlaceMsgHTML(m)).join('');
         }
     },
 
