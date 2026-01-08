@@ -131,14 +131,12 @@ const UIManager = {
                             // 잠시 딜레이 후 안내 시작 (지도 이동 애니메이션 등 고려)
                             setTimeout(() => {
                                 this.handleNavigate();
-                                console.log('Zero-Touch Navigation Started for:', text);
                             }, 500);
                         }
                     }
                 }
             } catch (e) {
                 // 권한 거부 등 무시
-                console.log('Clipboard read failed:', e);
             }
         });
     },
@@ -250,7 +248,7 @@ const UIManager = {
         // 네비게이션
         document.getElementById('navigate-btn')?.addEventListener('click', () => this.handleNavigate());
         document.getElementById('stop-nav-btn')?.addEventListener('click', (e) => { e.stopPropagation(); this.handleNavigate(true); });
-        document.getElementById('report-btn')?.addEventListener('click', (e) => { e.stopPropagation(); alert('🚨 신고되었습니다!'); });
+        document.getElementById('report-btn')?.addEventListener('click', (e) => { e.stopPropagation(); Utils.showToast('🚨 신고되었습니다!'); });
 
         // 오버레이 설정
         document.getElementById('opacity-slider')?.addEventListener('input', (e) => {
@@ -303,6 +301,7 @@ const UIManager = {
             }
             try {
                 const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
+                if (!response.ok) throw new Error('Search failed');
                 const data = await response.json();
                 list.innerHTML = '';
                 if (data.documents && data.documents.length > 0) {
@@ -446,7 +445,7 @@ const UIManager = {
                 }, 300);
             } else if (action === 'final-dest') {
                 if (!AppState.destination) {
-                    alert('기존 목적지가 없습니다. 새 목적지로 설정합니다.');
+                    Utils.showToast('기존 목적지가 없습니다. 새 목적지로 설정합니다.');
                     this.handleWaypointAction('new-dest');
                     return;
                 }
@@ -518,7 +517,7 @@ const UIManager = {
                 this.updateModeIndicator();
                 AppState.trajectoryLayer.getSource().clear();
                 MapManager.loadDummyTrajectories();
-                alert(`모드가 '${AppState.userMode === 'walking' ? '보행' : '휠체어'} 모드'로 변경되었습니다.`);
+                Utils.showToast(`모드가 '${AppState.userMode === 'walking' ? '보행' : '휠체어'} 모드'로 변경되었습니다.`);
                 break;
             case 'overlay-settings':
                 document.getElementById('overlay-settings-modal')?.classList.remove('hidden');
@@ -564,16 +563,19 @@ const UIManager = {
             switch (tabName) {
                 case 'routes':
                     const routesRes = await fetch(`/api/users/${encodeURIComponent(userId)}/routes`);
+                    if (!routesRes.ok) throw new Error('Failed to load routes');
                     items = await routesRes.json();
                     renderFn = this.renderRouteItem;
                     break;
                 case 'messages':
                     const msgsRes = await fetch(`/api/users/${encodeURIComponent(userId)}/messages`);
+                    if (!msgsRes.ok) throw new Error('Failed to load messages');
                     items = await msgsRes.json();
                     renderFn = this.renderMessageItem;
                     break;
                 case 'comments':
                     const cmtsRes = await fetch(`/api/users/${encodeURIComponent(userId)}/comments`);
+                    if (!cmtsRes.ok) throw new Error('Failed to load comments');
                     items = await cmtsRes.json();
                     renderFn = this.renderCommentItem;
                     break;
@@ -642,7 +644,7 @@ const UIManager = {
 
         // 탭 숨기기
         const tabsEl = modal.querySelector('.tabs');
-        if (tabsEl) tabsEl.style.display = 'none';
+        if (tabsEl) tabsEl.classList.add('hidden');
 
         // 목록 로드
         this.loadSavedMessagesList();
@@ -663,7 +665,7 @@ const UIManager = {
             }
 
             listEl.innerHTML = messages.map(m => `
-                <div class="record-item saved-msg-item" data-msg-id="${m.id}" style="cursor: pointer;">
+                <div class="record-item saved-msg-item" data-msg-id="${m.id}">
                     <span class="icon">💬</span>
                     <div class="info">
                         <div class="title">${m.text}</div>
@@ -689,7 +691,7 @@ const UIManager = {
     async handleSearch() {
         const input = this.elements['search-input'];
         const query = input?.value.trim();
-        if (!query) { alert('주소를 입력해주세요.'); return false; }
+        if (!query) { Utils.showToast('주소를 입력해주세요.'); return false; }
         try {
             const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
             if (!response.ok) throw new Error('Network response was not ok');
@@ -702,12 +704,12 @@ const UIManager = {
                 if (overlayDest) overlayDest.textContent = query;
                 return true; // Search success
             } else {
-                alert('검색 결과가 없습니다.');
+                Utils.showToast('검색 결과가 없습니다.');
                 return false;
             }
         } catch (e) {
             console.error(e);
-            alert('검색 에러: ' + e.message);
+            Utils.showToast('검색 에러: ' + e.message);
             return false;
         }
     },

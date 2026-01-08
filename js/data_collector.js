@@ -35,7 +35,6 @@ const DataCollector = {
             // 전송 성공 시 IDB 마크 업데이트
             await this.markAsSynced(idbId);
         } catch (e) {
-            console.warn('저장 중에 오프라인 상태임이 감지되었습니다. 나중에 동기화됩니다.');
         }
     },
 
@@ -123,7 +122,6 @@ const DataCollector = {
 
             if (unsynced.length === 0) return;
 
-            console.log(`[Sync] 동기화되지 않은 ${unsynced.length}개의 데이터를 서버로 전송합니다...`);
 
             for (const route of unsynced) {
                 try {
@@ -134,7 +132,6 @@ const DataCollector = {
                     break; // 네트워크 에러 가능성이 높으므로 중단
                 }
             }
-            console.log('[Sync] 동기화 시도가 완료되었습니다.');
         };
     }
 };

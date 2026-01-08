@@ -2,7 +2,6 @@
 // 앱 초기화 (Main Entry)
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 DOMContentLoaded fired');
 
     // 로딩 상태 메시지 업데이트 헬퍼
     const updateLoadingStatus = (msg) => {
@@ -16,7 +15,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 스플래시 화면 표시 후 온보딩 또는 메인 화면으로 전환
     setTimeout(async () => {
         try {
-            console.log('📦 Initializing Managers (Parallel)...');
             updateLoadingStatus('데이터 동기화 중...');
 
             // 병렬 초기화로 부팅 속도 개선
@@ -30,7 +28,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             SensorManager.init();
             DataCollector.syncToServer(); // 초기 동기화 시도
 
-            console.log('✅ Managers initialized');
         } catch (err) {
             console.error('❌ Init Error:', err);
             updateLoadingStatus('초기화 오류 발생');
@@ -50,24 +47,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 네트워크 회복 시 재동기화 (Zero-Touch 보장)
         window.addEventListener('online', () => {
-            console.log('🌐 Network online. Syncing routes...');
             DataCollector.syncToServer();
         });
 
         const onboardingComplete = UIManager.loadSavedSettings();
 
-        console.log('⏱️ Switching to main screen...');
         const screenSwitchTime = Date.now();
 
         if (onboardingComplete) {
             Utils.showScreen('main-screen');
-            console.log(`✅ Screen switched in ${Date.now() - screenSwitchTime}ms`);
 
             updateLoadingStatus('지도 초기화 중...');
-            console.log('🗺️ Initializing MapManager...');
             const mapInitTime = Date.now();
             MapManager.init(); // 지도 초기화
-            console.log(`✅ MapManager initialized in ${Date.now() - mapInitTime}ms`);
 
             UIManager.updateModeIndicator();
         } else {

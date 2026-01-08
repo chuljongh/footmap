@@ -21,7 +21,6 @@ const RouteManager = {
     // 경로 스타일 함수 (화살표 포함)
     routeStyleFunction(feature, resolution) {
         // 디버깅: 화살표 스타일 생성 여부 확인 (최초 1회만 로그가 나오진 않지만, 문제 발생 시 확인용)
-        // console.log('RouteStyleFunction called. Resolution:', resolution);
 
         const isFuture = feature.get('isFuture');
         const styles = [];

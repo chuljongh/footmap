@@ -224,14 +224,13 @@ const MapManager = {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
 
         const ZOOM_THRESHOLD = 300; // 300m 전방에서 줌인
-        const ZOOM_LEVEL_DETAIL = 18; // 상세 줌 레벨
+        const ZOOM_LEVEL_DETAIL = Config.ZOOM_LEVEL_DETAIL; // 상세 줌 레벨
 
         if (distanceToNextTurn <= ZOOM_THRESHOLD) {
             // [Detail Mode] 턴 접근 시
             if (!AppState.isZoomedIn) {
                 AppState.isZoomedIn = true;
                 this.animateZoomToLocation(AppState.currentPosition, ZOOM_LEVEL_DETAIL);
-                console.log('🔍 Smart Zoom: IN (Detail Mode)');
             } else {
                 // 이미 줌인 상태면 현위치 추적만 (팬)
                 const view = AppState.map.getView();
@@ -246,7 +245,6 @@ const MapManager = {
             if (AppState.isZoomedIn) {
                 AppState.isZoomedIn = false;
                 this.fitViewToRoute();
-                console.log('🗺️ Smart Zoom: OUT (Overview Mode)');
             }
         }
     },

@@ -7,10 +7,8 @@ const SensorManager = {
     VARIANCE_THRESHOLD: 1.5, // 도보와 휠체어를 구분하는 가속도 분산 임계값
 
     init() {
-        console.log('📡 SensorManager 초기화...');
         if (window.DeviceMotionEvent) {
             window.addEventListener('devicemotion', (e) => this.handleMotion(e));
-            console.log('✅ 가속도 센서 리스너 등록 완료');
         } else {
             console.warn('⚠️ 이 브라우저는 가속도 센서를 지원하지 않습니다.');
         }
@@ -61,7 +59,6 @@ const SensorManager = {
     setMode(mode) {
         if (AppState.userMode === mode) return;
 
-        console.log(`🚀 이동수단 감지: ${AppState.userMode} -> ${mode}`);
         AppState.userMode = mode;
 
         // UI 업데이트
@@ -71,7 +68,6 @@ const SensorManager = {
 
         // 차량 모드일 경우 기록 중지 등 추가 로직 가능
         if (mode === 'vehicle') {
-            console.log('ℹ️ 차량 이동 중: 궤적 기록을 일시 중지하거나 필터링합니다.');
         }
     }
 };

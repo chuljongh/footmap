@@ -5,11 +5,14 @@ const SocialManager = {
     messages: [],
     messageLayer: null,
     isTalkMode: false, // 대화 모드 활성화 여부
+    elements: {}, // DOM 요소 캐시
 
     async init() {
         // [FIX] 중복 초기화 방지
         if (this._initialized) return;
         this._initialized = true;
+
+        this.cacheElements();
 
         // 비차단(Non-blocking): 메시지 로드를 백그라운드로 처리
         this.loadMessages().then(() => {
@@ -23,6 +26,19 @@ const SocialManager = {
             AppState.map.on('postrender', () => this.updateBubblePositions());
             AppState.map.on('moveend', () => this.showNearbyMessages(true)); // 지도 이동 후 목록 갱신
         }
+    },
+
+    cacheElements() {
+        const ids = [
+            'chat-btn', 'write-btn', 'write-modal', 'write-input', 'write-tags',
+            'write-cancel-btn', 'write-save-btn', 'curr-char', 'close-thread-btn',
+            'message-cards-container', 'message-overlay', 'thread-panel',
+            'thread-content', 'thread-comment-input', 'thread-comment-submit',
+            'write-modal-title', 'thread-place-name'
+        ];
+        ids.forEach(id => {
+            this.elements[id] = document.getElementById(id);
+        });
     },
 
     // ========================================
@@ -60,7 +76,7 @@ const SocialManager = {
 
     bindEvents() {
         // 대화 버튼 토글
-        document.getElementById('chat-btn')?.addEventListener('click', () => {
+        this.elements['chat-btn']?.addEventListener('click', () => {
             if (this.isTalkMode) {
                 this.closeTalkMode();
             } else {
@@ -69,11 +85,11 @@ const SocialManager = {
         });
 
         // 글쓰기 모달 관련
-        document.getElementById('write-btn')?.addEventListener('click', () => this.showWriteModal());
-        document.getElementById('write-cancel-btn')?.addEventListener('click', () => this.closeWriteModal());
-        document.getElementById('write-save-btn')?.addEventListener('click', () => this.saveNewMessage());
-        document.getElementById('write-input')?.addEventListener('input', (e) => {
-            const charEl = document.getElementById('curr-char');
+        this.elements['write-btn']?.addEventListener('click', () => this.showWriteModal());
+        this.elements['write-cancel-btn']?.addEventListener('click', () => this.closeWriteModal());
+        this.elements['write-save-btn']?.addEventListener('click', () => this.saveNewMessage());
+        this.elements['write-input']?.addEventListener('input', (e) => {
+            const charEl = this.elements['curr-char'];
             if (charEl) charEl.textContent = e.target.value.length;
         });
 
@@ -86,10 +102,10 @@ const SocialManager = {
         });
 
         // 스레드 패널 닫기
-        document.getElementById('close-thread-btn')?.addEventListener('click', () => this.closeThreadPanel());
+        this.elements['close-thread-btn']?.addEventListener('click', () => this.closeThreadPanel());
 
         // 메시지 오버레이 이벤트 위임 (말풍선 액션 처리)
-        document.getElementById('message-cards-container')?.addEventListener('click', (e) => {
+        this.elements['message-cards-container']?.addEventListener('click', (e) => {
             const target = e.target.closest('[data-action]');
             if (!target) return;
 
@@ -113,7 +129,7 @@ const SocialManager = {
         });
 
         // 스레드 패널 이벤트 위임
-        document.getElementById('thread-panel')?.addEventListener('click', (e) => {
+        this.elements['thread-panel']?.addEventListener('click', (e) => {
             const target = e.target.closest('[data-action]');
             if (!target) return;
 
@@ -149,14 +165,14 @@ const SocialManager = {
                     this.handleUnsave(msgId);
                     break;
                 case 'focus-comment':
-                    document.getElementById('thread-comment-input')?.focus();
+                    this.elements['thread-comment-input']?.focus();
                     break;
             }
         });
 
         // 댓글 제출
-        document.getElementById('thread-comment-submit')?.addEventListener('click', () => this.submitThreadComment());
-        document.getElementById('thread-comment-input')?.addEventListener('keypress', (e) => {
+        this.elements['thread-comment-submit']?.addEventListener('click', () => this.submitThreadComment());
+        this.elements['thread-comment-input']?.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.submitThreadComment();
         });
     },
@@ -166,7 +182,7 @@ const SocialManager = {
     // ========================================
     async openTalkMode() {
         this.isTalkMode = true;
-        const overlay = document.getElementById('message-overlay');
+        const overlay = this.elements['message-overlay'];
         if (overlay) {
             overlay.classList.remove('hidden');
         }
@@ -180,8 +196,8 @@ const SocialManager = {
 
     // 외부 클릭 핸들러 (Arrow function for binding)
     handleOutsideClick: (e) => {
-        const overlay = document.getElementById('message-overlay');
-        const chatBtn = document.getElementById('chat-btn');
+        const overlay = this.elements['message-overlay'];
+        const chatBtn = this.elements['chat-btn'];
 
         // 오버레이 내부나 대화 버튼을 클릭한 게 아니면 닫기
         // [FIX] 버튼 삭제 시 (isConnected: false) 로직이 닫히는 것을 방지
@@ -194,7 +210,7 @@ const SocialManager = {
 
     closeTalkMode() {
         this.isTalkMode = false;
-        const overlay = document.getElementById('message-overlay');
+        const overlay = this.elements['message-overlay'];
         if (overlay) {
             overlay.classList.add('hidden');
             overlay.classList.add('pointer-events-none');
@@ -202,7 +218,7 @@ const SocialManager = {
             overlay.onclick = null;
         }
         // [FIX] 컨테이너 초기화 (다음 오픈 시 새로운 내용 표시)
-        const container = document.getElementById('message-cards-container');
+        const container = this.elements['message-cards-container'];
         if (container) container.innerHTML = '';
         // 외부 클릭 감지 해제
         document.removeEventListener('click', this.handleOutsideClick);
@@ -210,7 +226,7 @@ const SocialManager = {
 
     // 글쓰기 모달 닫기 (DRY)
     closeWriteModal() {
-        document.getElementById('write-modal')?.classList.add('hidden');
+        this.elements['write-modal']?.classList.add('hidden');
     },
 
     async showNearbyMessages(isRefresh = false) {
@@ -221,7 +237,7 @@ const SocialManager = {
             const success = await this.loadMessages();
             if (!success && this.messages.length === 0) {
                 // Fetch failed AND no cache
-                const container = document.getElementById('message-cards-container');
+                const container = this.elements['message-cards-container'];
                 if (container) {
                     container.innerHTML = '<div class="empty-state-text">네트워크 연결을 확인해주세요.</div>';
                 }
@@ -257,7 +273,7 @@ const SocialManager = {
     },
 
     renderMessageCards(messages) {
-        const container = document.getElementById('message-cards-container');
+        const container = this.elements['message-cards-container'];
         const currentUser = AppState.userProfile?.nickname || '익명';
 
         if (messages.length === 0) {
@@ -293,7 +309,7 @@ const SocialManager = {
             container.appendChild(msgCard);
 
             // 오버레이 설정
-            const overlay = document.getElementById('message-overlay');
+            const overlay = this.elements['message-overlay'];
             if (overlay) {
                 overlay.classList.remove('pointer-events-none');
                 overlay.classList.add('pointer-events-auto');
@@ -313,7 +329,7 @@ const SocialManager = {
         }
 
         // 메시지가 있을 때: 오버레이 배경 클릭 무시
-        const overlay = document.getElementById('message-overlay');
+        const overlay = this.elements['message-overlay'];
         if (overlay) {
             overlay.classList.add('pointer-events-none');
             overlay.classList.remove('pointer-events-auto');
@@ -365,9 +381,6 @@ const SocialManager = {
     },
 
     // ========================================
-    // 말풍선 위치 업데이트 (지도 좌표 기반 단순히 배치) -- Reverted
-    // ========================================
-    // ========================================
     // 말풍선 위치 업데이트 (충돌 회피 및 지능형 배치)
     // ========================================
     _layoutPending: false,
@@ -404,7 +417,7 @@ const SocialManager = {
             const pixel = AppState.map.getPixelFromCoordinate(ol.proj.fromLonLat(msg.coords));
 
             if (!pixel) {
-                el.style.display = 'none';
+                el.classList.add('hidden');
                 return;
             }
 
@@ -445,9 +458,9 @@ const SocialManager = {
             const totalShift = currentRect.top - originalY;
 
             if (currentRect.top + height > bottomLimit || totalShift > Config.MAX_BUBBLE_SHIFT) {
-                el.style.display = 'none';
+                el.classList.add('hidden');
             } else {
-                el.style.display = 'block';
+                el.classList.remove('hidden');
                 el.style.setProperty('--bubble-x', `${currentRect.left}px`);
                 el.style.setProperty('--bubble-y', `${currentRect.top}px`);
                 el.style.zIndex = 1000 + index; // 쌓임 순서 제어
@@ -537,7 +550,7 @@ const SocialManager = {
                 input.value = '';
                 this.expandCard(msgId); // 재로딩
             }
-        } catch (e) { alert('댓글 저장 실패'); }
+        } catch (e) { Utils.showToast('댓글 저장 실패'); }
     },
 
     // ========================================
@@ -552,7 +565,7 @@ const SocialManager = {
                 body: JSON.stringify({ type, userId })
             });
             const result = await response.json();
-            if (!response.ok) return alert(result.error || '오류');
+            if (!response.ok) return Utils.showToast(result.error || '오류');
 
             const span = btnElement.querySelector('span');
             if (span) span.textContent = type === 'up' ? result.likes : result.dislikes;
@@ -567,7 +580,7 @@ const SocialManager = {
             navigator.share({ title: '발길맵 대화', text: msg.text });
         } else {
             navigator.clipboard.writeText(msg.text);
-            alert('내용이 복사되었습니다.');
+            Utils.showToast('내용이 복사되었습니다.');
         }
     },
 
@@ -587,7 +600,7 @@ const SocialManager = {
                 this.showNearbyMessages(true);
             } catch (error) {
                 console.error('Error updating message:', error);
-                alert('메시지 수정에 실패했습니다.');
+                Utils.showToast('메시지 수정에 실패했습니다.');
             }
         }
     },
@@ -606,7 +619,7 @@ const SocialManager = {
                 this.showNearbyMessages(true);
             } catch (error) {
                 console.error('Error deleting message:', error);
-                alert('메시지 삭제에 실패했습니다.');
+                Utils.showToast('메시지 삭제에 실패했습니다.');
             }
         }
     },
@@ -626,7 +639,7 @@ const SocialManager = {
             this.switchTab(this.currentTab); // 현재 탭 새로고침
         } catch (error) {
             console.error('Error saving message:', error);
-            alert('저장에 실패했습니다.');
+            Utils.showToast('저장에 실패했습니다.');
         }
     },
 
@@ -645,12 +658,12 @@ const SocialManager = {
             this.switchTab(this.currentTab); // 현재 탭 새로고침
         } catch (error) {
             console.error('Error unsaving message:', error);
-            alert('저장 취소에 실패했습니다.');
+            Utils.showToast('저장 취소에 실패했습니다.');
         }
     },
 
     async submitThreadComment() {
-        const input = document.getElementById('thread-comment-input');
+        const input = this.elements['thread-comment-input'];
         const text = input?.value.trim();
         if (!text || !this.currentMessageId) return;
 
@@ -669,7 +682,7 @@ const SocialManager = {
             this.loadComments(this.currentMessageId);
         } catch (error) {
             console.error('Error posting comment:', error);
-            alert('댓글 작성에 실패했습니다.');
+            Utils.showToast('댓글 작성에 실패했습니다.');
         }
     },
 
@@ -680,23 +693,23 @@ const SocialManager = {
             : AppState.currentPosition;
 
         if (!targetCoords) {
-            return alert('위치 확인이 안되고 있어요. 주소를 검색하시면 대화를 작성하실 수 있어요');
+            return Utils.showToast('위치 확인이 안되고 있어요. 주소를 검색하시면 대화를 작성하실 수 있어요');
         }
 
-        const titleEl = document.getElementById('write-modal-title');
+        const titleEl = this.elements['write-modal-title'];
         if (titleEl) {
             titleEl.textContent = '글 남기기 : 📍 위치 확인 중...';
         }
 
         // 입력값 초기화
-        const input = document.getElementById('write-input');
-        const tagInput = document.getElementById('write-tags');
+        const input = this.elements['write-input'];
+        const tagInput = this.elements['write-tags'];
         if (input) input.value = '';
         if (tagInput) tagInput.value = '';
-        const currCharEl = document.getElementById('curr-char');
+        const currCharEl = this.elements['curr-char'];
         if (currCharEl) currCharEl.textContent = '0';
 
-        document.getElementById('write-modal')?.classList.remove('hidden');
+        this.elements['write-modal']?.classList.remove('hidden');
 
         // [Refined] 플로팅 라벨 자동 숨김 설정
         this.setupLabelAutoFade(input, document.querySelector('label[for="write-input"]'));
@@ -758,7 +771,6 @@ const SocialManager = {
     currentTab: 'comments',
 
     async openThreadPanel(messageId) {
-        console.log('[DEBUG] Opening Thread Panel for ID:', messageId);
         const panel = document.getElementById('thread-panel');
         if (!panel) return;
 
@@ -767,7 +779,7 @@ const SocialManager = {
         if (!msg) return;
 
         // 장소 이름 업데이트 (주소 없으면 역지오코딩 시도)
-        const placeNameEl = document.getElementById('thread-place-name');
+        const placeNameEl = this.elements['thread-place-name'];
         if (placeNameEl) {
             if (msg.address) {
                 placeNameEl.textContent = '📍 ' + msg.address;
@@ -923,10 +935,21 @@ const SocialManager = {
         const container = document.getElementById('thread-content');
 
         // 1. 같은 장소 (주소 일치) 대화 필터링
+        // 1. 같은 장소 (주소 일치) 대화 필터링
+        // [FIX] 주소가 없어도 거리가 매우 가까우면(20m 이내) 같은 장소로 간주
         const samePlaceMessages = this.messages.filter(m => {
             if (m.id === this.currentMessageId) return false;
-            // 주소가 있으면서 정확히 일치하는 경우
-            return m.address && msg.address && m.address === msg.address;
+
+            // 1) 주소가 모두 있고 정확히 일치하는 경우
+            if (m.address && msg.address && m.address === msg.address) return true;
+
+            // 2) 좌표 기반 거리 체크 (20m 이내)
+            if (m.coords && msg.coords) {
+                const dist = ol.sphere.getDistance(msg.coords, m.coords);
+                if (dist <= 20) return true;
+            }
+
+            return false;
         });
 
         // HTML 생성
@@ -939,11 +962,11 @@ const SocialManager = {
         html += '</div>';
 
         // 하단 리스트 컨테이너 (근처 대화용)
-        html += `<div id="nearby-list-container" class="place-messages-list" style="margin-top:0;"></div>`;
+        html += `<div id="nearby-list-container" class="place-messages-list"></div>`;
 
         // "근처 이야기 보기" 버튼
         html += `
-            <div id="load-nearby-btn" class="load-nearby-btn" style="margin-top:16px;">
+            <div id="load-nearby-btn" class="load-nearby-btn">
                 🚩 이 장소 근처의 다른 이야기 보기
             </div>
         `;
@@ -955,15 +978,18 @@ const SocialManager = {
         this.cachedNearbySorted = null;
 
         // 버튼 이벤트 바인딩
-        setTimeout(() => {
+        // 버튼 이벤트 바인딩
+        // [FIX] Ensure DOM is ready (microtask)
+        requestAnimationFrame(() => {
             const btn = document.getElementById('load-nearby-btn');
             if (btn) {
                 btn.onclick = () => this.loadNearbyMessages(msg);
             }
-        }, 0);
+        });
     },
 
     loadNearbyMessages(currentMsg) {
+        // [FIX] Dynamic Element Query
         const btn = document.getElementById('load-nearby-btn');
         const container = document.getElementById('nearby-list-container');
         if (!container) return;
@@ -989,8 +1015,8 @@ const SocialManager = {
         const nextBatch = this.cachedNearbySorted.slice(this.nearbyCursor, this.nearbyCursor + limit);
 
         if (nextBatch.length === 0) {
-            alert('더 이상 불러올 대화가 없습니다.');
-            if (btn) btn.style.display = 'none';
+            Utils.showToast('더 이상 불러올 대화가 없습니다.');
+            if (btn) btn.classList.add('hidden');
             return;
         }
 
@@ -1006,12 +1032,12 @@ const SocialManager = {
             if (btn) {
                 // 버튼을 컨테이너의 가장 마지막 형제 요소로 이동 (thread-content의 자식으로 유지하되 순서 변경)
                 // insertAdjacentElement 사용이 더 안전
-                const threadContent = document.getElementById('thread-content');
+                const threadContent = this.elements['thread-content'];
                 threadContent.appendChild(btn);
-                btn.style.display = 'block';
+                btn.classList.remove('hidden');
             }
         } else {
-            if (btn) btn.style.display = 'none';
+            if (btn) btn.classList.add('hidden');
         }
     },
 
@@ -1143,7 +1169,7 @@ const SocialManager = {
     },
 
     closeThreadPanel() {
-        const panel = document.getElementById('thread-panel');
+        const panel = this.elements['thread-panel'];
         if (panel) panel.classList.remove('open');
     },
 
@@ -1169,8 +1195,8 @@ const SocialManager = {
     },
 
     async saveNewMessage() {
-        const text = document.getElementById('write-input')?.value || '';
-        const tagInput = document.getElementById('write-tags');
+        const text = this.elements['write-input']?.value || '';
+        const tagInput = this.elements['write-tags'];
         const rawTags = tagInput ? tagInput.value : '';
 
         // [NEW] Smart Tag Parsing: Split by space, comma, period and auto-prepend #
@@ -1184,22 +1210,18 @@ const SocialManager = {
             parsedTags = tagArray.join(' '); // Join with spaces for server compatibility
         }
 
-        // [DEBUG] 좌표 디버깅
-        console.log('[DEBUG] AppState.destination:', AppState.destination);
-        console.log('[DEBUG] AppState.currentPosition:', AppState.currentPosition);
 
         let targetCoords = (AppState.destination && AppState.destination.coords)
             ? AppState.destination.coords
             : AppState.currentPosition;
 
-        console.log('[DEBUG] Target Coords:', targetCoords);
 
-        if (!targetCoords) return alert('전송할 위치 정보가 없습니다.');
+        if (!targetCoords) return Utils.showToast('전송할 위치 정보가 없습니다.');
 
         // 좌표 포맷 확인 (List/Array 형태여야 함)
         if (!Array.isArray(targetCoords) || targetCoords.length !== 2) {
             console.error('[DEBUG] Invalid Coords Format:', targetCoords);
-            return alert('위치 정보 형식이 올바르지 않습니다.');
+            return Utils.showToast('위치 정보 형식이 올바르지 않습니다.');
         }
 
         const payload = {
@@ -1209,7 +1231,6 @@ const SocialManager = {
             coords: targetCoords
         };
 
-        console.log('[DEBUG] Sending Payload:', payload);
 
         try {
             const response = await fetch('/api/messages', {
@@ -1231,8 +1252,8 @@ const SocialManager = {
             this.closeWriteModal();
             Utils.showToast('📍 메시지를 남겼습니다!'); // [FIX] this.showToast -> Utils.showToast
         } catch (e) {
-            console.error('[DEBUG] Save Failed:', e);
-            alert('저장 실패: ' + e.message);
+            console.error('Save Failed:', e);
+            Utils.showToast('저장 실패: ' + e.message);
         }
     },
 
@@ -1243,7 +1264,7 @@ const SocialManager = {
         // 1. 거리 50m 이내 메시지 찾기
         const nearby = this.messages.filter(m => {
             const dist = ol.sphere.getDistance(m.coords, targetCoords);
-            return dist < 50;
+            return dist < Config.NEARBY_MESSAGE_THRESHOLD;
         });
 
         if (nearby.length === 0) return null;
@@ -1261,7 +1282,7 @@ const SocialManager = {
         const nearby = this.messages.filter(m => {
             if (!m.coords) return false;
             const dist = ol.sphere.getDistance(m.coords, targetCoords);
-            return dist < 100;
+            return dist < Config.BEST_MESSAGE_THRESHOLD;
         });
 
         if (nearby.length === 0) return [];

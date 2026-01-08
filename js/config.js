@@ -8,6 +8,8 @@ const Config = {
     // 기본 위치 (서울 시청)
     DEFAULT_CENTER: [126.9780, 37.5665],
     DEFAULT_ZOOM: 16,
+    ZOOM_LEVEL_DETAIL: 18,
+    ZOOM_LEVEL_OVERVIEW: 15,
 
     // 반응형 브레이크포인트
     BREAKPOINT_MOBILE: 768,
@@ -24,6 +26,8 @@ const Config = {
     TRAJECTORY_DEBOUNCE_MS: 300, // 궤적 로드 디바운싱 (ms)
     TRAJECTORY_INITIAL_DELAY: 2000, // 초기 궤적 로드 지연 (ms)
     TRAJECTORY_MINT: '#00D4AA',  // 궤적 기본 색상 (민트)
+    NEARBY_MESSAGE_THRESHOLD: 50,  // 근처 메시지 거리 (m)
+    BEST_MESSAGE_THRESHOLD: 100,  // 목적지 베스트 메시지 범위 (m)
     FOOTPRINT_OPACITY: 0.3,      // 발자국 개별 투명도 (중첩 효과용)
 
     // 말풍선 레이아웃 엔진 상수
