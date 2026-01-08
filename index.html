@@ -223,20 +223,23 @@
                 <span id="thread-place-name" class="thread-place">장소 이름</span>
             </div>
 
-            <!-- 3단 탭 -->
-            <div class="thread-tabs">
-                <button class="tab-btn active" data-tab="comments">댓글</button>
-                <button class="tab-btn" data-tab="place">이 장소</button>
-                <button class="tab-btn" data-tab="tags">해시태그</button>
-            </div>
+            <!-- 스크롤 영역 (탭 포함) -->
+            <div class="thread-scroll-area">
+                <!-- 3단 탭 -->
+                <div class="thread-tabs">
+                    <button class="tab-btn active" data-tab="comments">댓글</button>
+                    <button class="tab-btn" data-tab="place">이 장소</button>
+                    <button class="tab-btn" data-tab="tags">해시태그</button>
+                </div>
 
-            <!-- 컨텐츠 영역 (탭별로 동적 렌더링) -->
-            <div class="thread-content" id="thread-content">
-                <!-- JS로 탭 컨텐츠 주입 -->
+                <!-- 컨텐츠 영역 (탭별로 동적 렌더링) -->
+                <div class="thread-content" id="thread-content">
+                    <!-- JS로 탭 컨텐츠 주입 -->
+                </div>
             </div>
 
             <!-- 하단 고정 입력창 -->
-            <div class="thread-input-bar">
+            <div class="thread-input-bar hidden">
                 <input type="text" id="thread-comment-input" placeholder="댓글을 입력하세요...">
                 <button id="thread-comment-submit">등록</button>
             </div>

@@ -120,6 +120,12 @@ const SocialManager = {
             const action = target.dataset.action;
             const msgId = target.dataset.msgId;
 
+            // [NEW] 댓글 버튼 클릭 시 입력창 표시
+            if (action === 'focus-comment') {
+                const inputBar = document.querySelector('.thread-input-bar');
+                if (inputBar) inputBar.classList.remove('hidden');
+            }
+
             switch (action) {
                 case 'open-thread':
                     this.openThreadPanel(msgId);
@@ -764,21 +770,21 @@ const SocialManager = {
         const placeNameEl = document.getElementById('thread-place-name');
         if (placeNameEl) {
             if (msg.address) {
-                placeNameEl.textContent = msg.address;
+                placeNameEl.textContent = '📍 ' + msg.address;
             } else {
-                placeNameEl.textContent = '위치 확인 중...';
+                placeNameEl.textContent = '📍 위치 확인 중...';
                 try {
                     const manager = window.MapManager || MapManager;
                     if (manager && typeof manager.getAddressFromCoords === 'function') {
                         const addr = await manager.getAddressFromCoords(msg.coords);
-                        placeNameEl.textContent = addr;
+                        placeNameEl.textContent = '📍 ' + addr;
                         // 캐시에 저장 (선택 사항)
                         msg.address = addr;
                     } else {
-                        placeNameEl.textContent = `${msg.coords[1].toFixed(5)}, ${msg.coords[0].toFixed(5)}`;
+                        placeNameEl.textContent = '📍 ' + `${msg.coords[1].toFixed(5)}, ${msg.coords[0].toFixed(5)}`;
                     }
                 } catch (e) {
-                    placeNameEl.textContent = `${msg.coords[1].toFixed(5)}, ${msg.coords[0].toFixed(5)}`;
+                    placeNameEl.textContent = '📍 ' + `${msg.coords[1].toFixed(5)}, ${msg.coords[0].toFixed(5)}`;
                 }
             }
         }
@@ -788,6 +794,10 @@ const SocialManager = {
 
         // 기본 탭(댓글) 렌더링
         this.switchTab('comments');
+
+        // [NEW] 입력창 초기화 (숨김)
+        const inputBar = document.querySelector('.thread-input-bar');
+        if (inputBar) inputBar.classList.add('hidden');
 
         // 패널 열기
         panel.classList.add('open');
@@ -894,11 +904,11 @@ const SocialManager = {
                 } else {
                     list.innerHTML = comments.map(c => `
                         <div class="comment-item">
+                            <div class="comment-text">${c.text}</div>
                             <div class="comment-header">
                                 <span class="comment-user">${c.userId}</span>
                                 <span class="comment-time">${new Date(c.timestamp).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
-                            <div class="comment-text">${c.text}</div>
                         </div>
                     `).join('');
                 }
@@ -911,43 +921,225 @@ const SocialManager = {
         if (!msg) return;
 
         const container = document.getElementById('thread-content');
-        const nearbyMessages = this.messages.filter(m => {
-            if (m.id === this.currentMessageId || !m.coords || !msg.coords) return false;
-            const dist = ol.sphere.getDistance(msg.coords, m.coords);
-            return dist < Config.NEARBY_MESSAGE_DISTANCE;
+
+        // 1. 같은 장소 (주소 일치) 대화 필터링
+        const samePlaceMessages = this.messages.filter(m => {
+            if (m.id === this.currentMessageId) return false;
+            // 주소가 있으면서 정확히 일치하는 경우
+            return m.address && msg.address && m.address === msg.address;
         });
 
-        if (nearbyMessages.length === 0) {
-            container.innerHTML = '<div class="empty-state">이 장소에 다른 대화가 없습니다.</div>';
-        } else {
-            container.innerHTML = `
-                <div class="place-messages-list">
-                    ${nearbyMessages.map(m => `
-                        <div class="place-message-item" data-action="open-thread" data-msg-id="${m.id}">
-                            <div class="place-msg-text">${m.text}</div>
-                            <div class="place-msg-meta">
-                                by ${m.userId} · 👍 ${m.likes || 0}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+        // HTML 생성
+        let html = '<div class="place-messages-list" id="place-list-container">';
+
+        // 같은 장소 대화가 있으면 표시
+        if (samePlaceMessages.length > 0) {
+            html += samePlaceMessages.map(m => this.createPlaceMsgHTML(m)).join('');
         }
+        html += '</div>';
+
+        // 하단 리스트 컨테이너 (근처 대화용)
+        html += `<div id="nearby-list-container" class="place-messages-list" style="margin-top:0;"></div>`;
+
+        // "근처 이야기 보기" 버튼
+        html += `
+            <div id="load-nearby-btn" class="load-nearby-btn" style="margin-top:16px;">
+                🚩 이 장소 근처의 다른 이야기 보기
+            </div>
+        `;
+
+        container.innerHTML = html;
+
+        // 페이징 상태 초기화
+        this.nearbyCursor = 0;
+        this.cachedNearbySorted = null;
+
+        // 버튼 이벤트 바인딩
+        setTimeout(() => {
+            const btn = document.getElementById('load-nearby-btn');
+            if (btn) {
+                btn.onclick = () => this.loadNearbyMessages(msg);
+            }
+        }, 0);
+    },
+
+    loadNearbyMessages(currentMsg) {
+        const btn = document.getElementById('load-nearby-btn');
+        const container = document.getElementById('nearby-list-container');
+        if (!container) return;
+
+        // 1. 처음 로드 시에만 거리 계산 및 정렬 수행 (거리 제한 없음)
+        if (!this.cachedNearbySorted) {
+            this.cachedNearbySorted = this.messages.filter(m => {
+                if (m.id === currentMsg.id) return false;
+                // 같은 주소는 이미 위에서 보여줬으므로 제외
+                if (m.address && currentMsg.address && m.address === currentMsg.address) return false;
+                if (!m.coords || !currentMsg.coords) return false;
+                return true;
+            }).map(m => {
+                return {
+                    ...m,
+                    distance: ol.sphere.getDistance(currentMsg.coords, m.coords)
+                };
+            }).sort((a, b) => a.distance - b.distance); // 거리순 정렬
+        }
+
+        // 2. 커서 기반으로 10개씩 슬라이싱
+        const limit = 10;
+        const nextBatch = this.cachedNearbySorted.slice(this.nearbyCursor, this.nearbyCursor + limit);
+
+        if (nextBatch.length === 0) {
+            alert('더 이상 불러올 대화가 없습니다.');
+            if (btn) btn.style.display = 'none';
+            return;
+        }
+
+        // 3. 목록 추가
+        const batchHTML = nextBatch.map(m => this.createPlaceMsgHTML(m)).join('');
+        container.insertAdjacentHTML('beforeend', batchHTML);
+
+        // 4. 커서 업데이트
+        this.nearbyCursor += limit;
+
+        // 5. 버튼 처리: 아직 더 불러올 게 있으면 버튼을 목록의 최하단으로 이동
+        if (this.nearbyCursor < this.cachedNearbySorted.length) {
+            if (btn) {
+                // 버튼을 컨테이너의 가장 마지막 형제 요소로 이동 (thread-content의 자식으로 유지하되 순서 변경)
+                // insertAdjacentElement 사용이 더 안전
+                const threadContent = document.getElementById('thread-content');
+                threadContent.appendChild(btn);
+                btn.style.display = 'block';
+            }
+        } else {
+            if (btn) btn.style.display = 'none';
+        }
+    },
+
+    createPlaceMsgHTML(m) {
+        return `
+            <div class="place-message-item" data-action="open-thread" data-msg-id="${m.id}">
+                <div class="place-msg-text">${m.text}</div>
+                <div class="place-msg-meta">
+                    by ${m.userId} · ${new Date(m.timestamp).toLocaleDateString()}
+                </div>
+            </div>
+        `;
     },
 
     renderTagsTab() {
         const container = document.getElementById('thread-content');
         container.innerHTML = `
             <div class="tags-tab-content">
-                <div class="tags-search-bar">
-                    <input type="text" placeholder="태그 검색..." class="tags-search-input">
+                <!-- View A: 검색 및 태그 클라우드 -->
+                <div id="tags-main-view">
+                    <div class="tags-search-bar">
+                        <input type="text" id="tag-search-input" placeholder="태그 검색 (#없이 입력)..." class="tags-search-input">
+                    </div>
+                    <div id="tags-cloud-container" class="tags-cloud-container"></div>
                 </div>
-                <div class="empty-state">
-                    <p>🏷️ 해시태그 네트워크 그래프 (준비 중)</p>
-                    <p style="font-size: 12px; color: var(--text-muted);">Phase 4-4에서 구현 예정</p>
+
+                <!-- View B: 검색 결과 리스트 (초기엔 숨김) -->
+                <div id="tags-result-view" class="hidden">
+                    <div id="tag-filtered-list"></div>
+                    <div class="tag-research-btn-container">
+                        <button id="tag-research-btn" class="tag-research-btn">🔄 태그 재검색</button>
+                    </div>
                 </div>
             </div>
         `;
+
+        // 1. 데이터 가공 (빈도수 계산)
+        const tagCounts = {};
+        this.messages.forEach(msg => {
+            if (!msg.tags) return;
+            const tags = msg.tags.split(' ').map(t => t.replace('#', '').trim()).filter(t => t);
+            tags.forEach(t => {
+                tagCounts[t] = (tagCounts[t] || 0) + 1;
+            });
+        });
+
+        // 2. 리스트 변환 및 정렬
+        const sortedTags = Object.keys(tagCounts).map(tag => ({
+            tag: tag,
+            count: tagCounts[tag]
+        })).sort((a, b) => b.count - a.count);
+
+        this.allTags = sortedTags;
+
+        // 3. 초기 렌더링
+        this.renderTagCloud(sortedTags);
+
+        // 4. 이벤트 바인딩
+        const input = document.getElementById('tag-search-input');
+        if (input) {
+            input.oninput = (e) => {
+                const keyword = e.target.value.trim().toLowerCase();
+                const filtered = this.allTags.filter(t => t.tag.toLowerCase().includes(keyword));
+                this.renderTagCloud(filtered);
+            };
+        }
+
+        // 재검색 버튼
+        const researchBtn = document.getElementById('tag-research-btn');
+        if (researchBtn) {
+            researchBtn.onclick = () => {
+                document.getElementById('tags-result-view').classList.add('hidden');
+                document.getElementById('tags-main-view').classList.remove('hidden');
+            };
+        }
+    },
+
+    renderTagCloud(tags) {
+        const container = document.getElementById('tags-cloud-container');
+        if (!container) return;
+
+        const self = this;
+
+        if (tags.length === 0) {
+            container.innerHTML = '<div class="empty-state">해당하는 태그가 없습니다.</div>';
+            return;
+        }
+
+        container.innerHTML = tags.map(t => `
+            <span class="tag-chip" data-tag="${t.tag}">
+                #${t.tag} <span class="tag-count">${t.count}</span>
+            </span>
+        `).join('');
+
+        container.onclick = function(e) {
+            const chip = e.target.closest('.tag-chip');
+            if (chip && chip.dataset.tag) {
+                self.showTaggedMessages(chip.dataset.tag);
+            }
+        };
+    },
+
+    showTaggedMessages(tag) {
+        const mainView = document.getElementById('tags-main-view');
+        const resultView = document.getElementById('tags-result-view');
+        const listContainer = document.getElementById('tag-filtered-list');
+
+        if (!listContainer || !mainView || !resultView) return;
+
+        const matchedMessages = this.messages.filter(m => m.tags && m.tags.includes(tag));
+
+        // 클래스 토글 방식으로 뷰 전환
+        mainView.classList.add('hidden');
+        resultView.classList.remove('hidden');
+
+        // 리스트 렌더링
+        if (matchedMessages.length === 0) {
+            listContainer.innerHTML = '<div class="empty-state">대화가 없습니다.</div>';
+        } else {
+            listContainer.innerHTML = matchedMessages.map(m => `
+                <div class="place-message-item" data-action="open-thread" data-msg-id="${m.id}">
+                    <div class="place-msg-text">${m.text || ''}</div>
+                    <div class="place-msg-meta">
+                        by ${m.userId || '익명'} · ${m.timestamp ? new Date(m.timestamp).toLocaleDateString() : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
     },
 
     closeThreadPanel() {
