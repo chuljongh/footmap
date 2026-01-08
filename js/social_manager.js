@@ -196,11 +196,10 @@ const SocialManager = {
 
     // 외부 클릭 핸들러 (Arrow function for binding)
     handleOutsideClick: (e) => {
-        const overlay = this.elements['message-overlay'];
-        const chatBtn = this.elements['chat-btn'];
+        const overlay = SocialManager.elements['message-overlay'];
+        const chatBtn = SocialManager.elements['chat-btn'];
 
         // 오버레이 내부나 대화 버튼을 클릭한 게 아니면 닫기
-        // [FIX] 버튼 삭제 시 (isConnected: false) 로직이 닫히는 것을 방지
         if (!e.target.isConnected) return;
 
         if (overlay && !overlay.contains(e.target) && chatBtn && !chatBtn.contains(e.target)) {

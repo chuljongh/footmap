@@ -495,6 +495,11 @@ const UIManager = {
     },
 
     openMenu() {
+        // [FIX] 대화 모드가 열려있다면 닫기
+        if (typeof SocialManager !== 'undefined' && SocialManager.isTalkMode) {
+            SocialManager.closeTalkMode();
+        }
+
         this.elements['side-menu']?.classList.add('open');
         this.elements['menu-overlay']?.classList.add('visible');
     },
