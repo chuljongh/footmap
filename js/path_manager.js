@@ -30,11 +30,10 @@ const PathManager = {
             source.addFeature(lineFeature);
 
             // 2. 발자국 피처 (접근로/골목 시각화)
-            // [FIX] 화면 가로폭이 100m 이하일 때만 발자국 렌더링
-            const mapExtent = AppState.map.getView().calculateExtent(AppState.map.getSize());
-            const mapWidthMeters = ol.extent.getWidth(mapExtent); // 3857 좌표계 기준 미터 단위
+            // 줌 레벨 16.5 이상에서 발자국 렌더링
+            const currentZoom = AppState.map.getView().getZoom();
 
-            if (mapWidthMeters <= 100) {
+            if (currentZoom >= 16.5) {
                 // 건물 접근 시나 골목길(짧은 거리)에서 더 촘촘하게 표시되도록 함
                 const dist = new ol.geom.LineString(coords).getLength();
                 const stepDist = 15; // 15미터마다 발자국 하나
