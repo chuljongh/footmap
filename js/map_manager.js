@@ -356,12 +356,19 @@ const MapManager = {
         }
 
         if (AppState.isNavigating) {
-            AppState.routeHistory.push({
-                coords: coords,
-                timestamp: Date.now(),
-                mode: AppState.userMode,
-                heading: heading
-            });
+            // [Optimization] 데이터 중복 방지 및 유효 데이터 수집
+            // 마지막 기록 지점으로부터 3미터 이상 이동했을 때만 기록
+            const lastPoint = AppState.routeHistory[AppState.routeHistory.length - 1];
+            const distanceMoved = lastPoint ? Utils.calculateDistance(lastPoint.coords, coords) : 999;
+
+            if (distanceMoved >= 3) {
+                AppState.routeHistory.push({
+                    coords: coords,
+                    timestamp: Date.now(),
+                    mode: AppState.userMode,
+                    heading: heading
+                });
+            }
 
             if (AppState.activeRoute) {
                 UIManager.updateNavigationHUD(AppState.activeRoute);
