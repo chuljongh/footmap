@@ -26,16 +26,44 @@ const DataCollector = {
 
     // 서버 전송 및 로컬 저장 통합
     async saveRoute(routeData) {
-        // 1. IndexedDB 저장
+        // 1. IndexedDB 저장 (항상 수행)
         const idbId = await this.saveToIndexedDB(routeData);
 
-        // 2. 서버 전송 시도
-        try {
-            await this.saveToServer(routeData);
-            // 전송 성공 시 IDB 마크 업데이트
-            await this.markAsSynced(idbId);
-        } catch (e) {
+        // 2. 서버 전송 시도 (네트워크 상태 체크)
+        if (this.checkSyncEligibility()) {
+            try {
+                await this.saveToServer(routeData);
+                // 전송 성공 시 IDB 마크 업데이트
+                await this.markAsSynced(idbId);
+            } catch (e) {
+                console.warn('Immediate sync failed, stored locally:', e);
+            }
+        } else {
+            console.log('Sync deferred: Wi-Fi only or Data Saver active.');
         }
+    },
+
+    // 현재 네트워크 환경이 전송에 적합한지 확인
+    checkSyncEligibility() {
+        if (!navigator.onLine) return false;
+
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (connection) {
+            // Wi-Fi 환경이거나 '데이터 절약 모드'가 아닐 때만 전송
+            const isWifi = connection.type === 'wifi';
+            const isLowDataMode = connection.saveData === true;
+
+            // 안드로이드 크롬 등 지원 기기에서 Wi-Fi 체크
+            if (connection.type && connection.type !== 'unknown') {
+                return isWifi;
+            }
+
+            // 일반 브라우저에서는 '데이터 절약 모드'가 아닐 때 전송 허용
+            return !isLowDataMode;
+        }
+
+        // 구형 브라우저나 API 미지원 시 기본적으로 전송 허용
+        return true;
     },
 
     async markAsSynced(id) {
