@@ -9,8 +9,21 @@
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
 
-    <!-- Main CSS (v1.1 patch) -->
-    <link rel="stylesheet" href="styles.css?v=1.1">
+    <!-- Main CSS (v1.2 patch) -->
+    <link rel="stylesheet" href="styles.css?v=1.2">
+
+    <!-- Browser Zoom Prevention (Native App Experience) -->
+    <script>
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) e.preventDefault();
+        }, { passive: false });
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) e.preventDefault();
+            lastTouchEnd = now;
+        }, false);
+    </script>
 
     <!-- Kakao Maps SDK (로컬 API 사용, autoload=false) -->
     <script type="text/javascript"

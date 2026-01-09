@@ -8,6 +8,7 @@ const MapManager = {
         this.getCurrentPosition();
         this.setupMapInteractionListeners();
         this.setupMapClickHandler();
+        this.setupZoomScaling();
     },
 
     // 지도 더블클릭/투터치로 목적지 설정
@@ -30,7 +31,6 @@ const MapManager = {
         let lastTwoFingerTime = 0;
 
         mapElement.addEventListener('touchstart', (e) => {
-            if (AppState.isNavigating) return;
 
             // 두 손가락 터치 감지
             if (e.touches.length === 2) {
@@ -45,7 +45,11 @@ const MapManager = {
 
                     if (coordinate) {
                         const coords = ol.proj.toLonLat(coordinate);
-                        this.setDestinationByClick(coords);
+                        if (AppState.isNavigating) {
+                            UIManager.showWaypointModal(coords);
+                        } else {
+                            this.setDestinationByClick(coords);
+                        }
                     }
                     lastTwoFingerTime = 0;
                 } else {
@@ -53,6 +57,25 @@ const MapManager = {
                 }
             }
         }, { passive: true });
+    },
+
+    setupZoomScaling() {
+        if (!AppState.map) return;
+        const view = AppState.map.getView();
+        const update = () => {
+            const zoom = view.getZoom();
+            // [Scaling Logic] Zoom 16: 1.0, Zoom 14: 0.7, Zoom 18: 1.3
+            let scale = 1.0;
+            if (zoom <= 14) scale = 0.7;
+            else if (zoom <= 15) scale = 0.85;
+            else if (zoom <= 16) scale = 1.0;
+            else if (zoom <= 17) scale = 1.15;
+            else scale = 1.3;
+
+            document.documentElement.style.setProperty('--marker-scale', scale.toString());
+        };
+        view.on('change:resolution', update);
+        update();
     },
 
     // 좌표로 주소 가져오기 (Reverse Geocoding)
