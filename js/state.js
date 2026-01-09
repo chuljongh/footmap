@@ -35,5 +35,9 @@ const AppState = {
 
     // 내비게이션 상태
     wakeLock: null,
-    currentStepIndex: 0
+    currentStepIndex: 0,
+
+    // [NEW] 접근로 데이터 최적화 (마지막 100m만 저장)
+    isInAccessZone: false,    // 목적지 100m 이내 진입 여부
+    accessHistory: []         // 접근로 데이터 (100m 이내 이동만)
 };

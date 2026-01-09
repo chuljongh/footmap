@@ -356,18 +356,35 @@ const MapManager = {
         }
 
         if (AppState.isNavigating) {
-            // [Optimization] 데이터 중복 방지 및 유효 데이터 수집
-            // 마지막 기록 지점으로부터 3미터 이상 이동했을 때만 기록
-            const lastPoint = AppState.routeHistory[AppState.routeHistory.length - 1];
+            // [NEW] 목적지 100m 이내 진입 감지 (접근로 데이터 최적화)
+            if (AppState.destination && !AppState.isInAccessZone) {
+                const distToDestination = Utils.calculateDistance(coords, AppState.destination.coords);
+                if (distToDestination <= 100) {
+                    AppState.isInAccessZone = true;
+                    AppState.accessHistory = []; // 접근로 기록 시작
+                    console.log('📍 접근 구역 진입: 목적지까지 100m 이내');
+                }
+            }
+
+            // [Optimization] 데이터 중복 방지: 3미터 이상 이동 시에만 기록
+            const targetHistory = AppState.isInAccessZone ? AppState.accessHistory : AppState.routeHistory;
+            const lastPoint = targetHistory[targetHistory.length - 1];
             const distanceMoved = lastPoint ? Utils.calculateDistance(lastPoint.coords, coords) : 999;
 
             if (distanceMoved >= 3) {
-                AppState.routeHistory.push({
+                const pointData = {
                     coords: coords,
                     timestamp: Date.now(),
                     mode: AppState.userMode,
                     heading: heading
-                });
+                };
+
+                // [NEW] 접근 구역 진입 후에는 accessHistory에만 저장
+                if (AppState.isInAccessZone) {
+                    AppState.accessHistory.push(pointData);
+                } else {
+                    AppState.routeHistory.push(pointData);
+                }
             }
 
             if (AppState.activeRoute) {

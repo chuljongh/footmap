@@ -779,35 +779,50 @@ const UIManager = {
             }
             if (AppState.map) AppState.map.render();
 
-            // 3. Data Saving (Async, Safe)
+            // 3. Data Saving (Async, Safe) - [OPTIMIZED] 접근로(100m 이내) 데이터만 저장
             try {
-                const routeToSave = AppState.activeRoute;
-                // Safe copy of history
-                const historyToSave = (AppState.routeHistory && Array.isArray(AppState.routeHistory))
-                    ? [...AppState.routeHistory]
+                // [NEW] accessHistory 우선 사용 (목적지 100m 이내 데이터만)
+                const historyToSave = AppState.isInAccessZone && AppState.accessHistory.length > 0
+                    ? [...AppState.accessHistory]
                     : [];
 
-                if (routeToSave && historyToSave.length > 0) {
+                if (historyToSave.length > 0 && AppState.destination) {
                     const userId = AppState.userProfile?.nickname || '익명';
-                    const distance = (routeToSave.distance || 0) / 1000;
-                    const duration = routeToSave.duration || 0;
+
+                    // [NEW] 접근로 거리 계산 (100m 이내 구간만)
+                    let accessDistance = 0;
+                    for (let i = 1; i < historyToSave.length; i++) {
+                        accessDistance += Utils.calculateDistance(
+                            historyToSave[i - 1].coords,
+                            historyToSave[i].coords
+                        );
+                    }
+
                     const startCoords = historyToSave[0]?.coords?.join(',') || '';
-                    const endCoords = AppState.destination?.coords?.join(',') || '';
+                    const endCoords = historyToSave[historyToSave.length - 1]?.coords?.join(',') || '';
 
                     // DataCollector를 통한 저장 (IndexedDB + Server)
                     DataCollector.saveRoute({
-                        distance,
-                        duration,
-                        mode: AppState.userMode || 'pedestrian',
+                        distance: accessDistance / 1000, // km 변환
+                        duration: (historyToSave[historyToSave.length - 1]?.timestamp - historyToSave[0]?.timestamp) / 1000,
+                        mode: AppState.userMode || 'walking',
                         startCoords,
                         endCoords,
-                        points: historyToSave // 전체 궤적 데이터 전달
+                        destinationCoords: AppState.destination.coords.join(','),
+                        points: historyToSave // 접근로 데이터만 전달
                     }).catch(e => console.error('Route save err:', e));
+
+                    console.log(`📊 접근로 데이터 저장: ${historyToSave.length}개 지점, ${(accessDistance).toFixed(0)}m`);
+                } else {
+                    console.log('⚠️ 접근 구역 진입 기록 없음 - 데이터 저장 생략');
                 }
             } catch (err) {
                 console.error('Save setup err:', err);
             }
 
+            // [NEW] 상태 초기화
+            AppState.isInAccessZone = false;
+            AppState.accessHistory = [];
             AppState.activeRoute = null;
             MapManager.clearWaypoints();
 
