@@ -30,26 +30,21 @@ const PathManager = {
             source.addFeature(lineFeature);
 
             // 2. 발자국 피처 (접근로/골목 시각화)
-            // 줌 레벨 16.5 이상에서 발자국 렌더링
-            const currentZoom = AppState.map.getView().getZoom();
+            // [FIX] 발자국 피처는 항상 생성, 표시 여부는 스타일 함수에서 결정
+            const dist = new ol.geom.LineString(coords).getLength();
+            const stepDist = 15; // 15미터마다 발자국 하나
 
-            if (currentZoom >= 16.5) {
-                // 건물 접근 시나 골목길(짧은 거리)에서 더 촘촘하게 표시되도록 함
-                const dist = new ol.geom.LineString(coords).getLength();
-                const stepDist = 15; // 15미터마다 발자국 하나
+            for (let i = 0; i <= dist; i += stepDist) {
+                const fraction = i / dist;
+                const coord = lineFeature.getGeometry().getCoordinateAt(fraction);
 
-                for (let i = 0; i <= dist; i += stepDist) {
-                    const fraction = i / dist;
-                    const coord = lineFeature.getGeometry().getCoordinateAt(fraction);
-
-                    const footFeature = new ol.Feature({
-                        geometry: new ol.geom.Point(coord),
-                        userCount: route.userCount || 1,
-                        type: 'footprint',
-                        rotation: this.getSegmentRotation(coords, fraction)
-                    });
-                    source.addFeature(footFeature);
-                }
+                const footFeature = new ol.Feature({
+                    geometry: new ol.geom.Point(coord),
+                    userCount: route.userCount || 1,
+                    type: 'footprint',
+                    rotation: this.getSegmentRotation(coords, fraction)
+                });
+                source.addFeature(footFeature);
             }
         });
     },
@@ -67,8 +62,13 @@ const PathManager = {
     getTrajectoryStyle(feature) {
         const type = feature.get('type');
         const color = Config.TRAJECTORY_MINT;
+        const currentZoom = AppState.map?.getView()?.getZoom() || 15;
 
         if (type === 'road') {
+            // [FIX] 줌 레벨 16.5 이상에서는 선 숨기고 발자국만 표시
+            if (currentZoom >= 16.5) {
+                return null; // 스타일 없음 = 렌더링 안함
+            }
             return new ol.style.Style({
                 stroke: new ol.style.Stroke({
                     color: color,
@@ -76,6 +76,10 @@ const PathManager = {
                 })
             });
         } else if (type === 'footprint') {
+            // [FIX] 줌 레벨 16.5 미만에서는 발자국 숨김
+            if (currentZoom < 16.5) {
+                return null;
+            }
             // SVG 아이콘을 Data URL로 변환하여 Icon 스타일 적용
             const footprintSvg = Icons.footprint.replace('currentColor', color);
             const encodedSvg = 'data:image/svg+xml;base64,' + btoa(footprintSvg);
