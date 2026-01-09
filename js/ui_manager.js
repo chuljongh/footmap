@@ -752,6 +752,9 @@ const UIManager = {
             AppState.isNavigating = false;
             AppState.isUserInteracting = false;
 
+            // [NEW] Wake Lock 해제
+            this.releaseWakeLock();
+
             if (btn) {
                 const textSpan = btn.querySelector('.btn-text');
                 if (textSpan) textSpan.textContent = '경로 안내 시작';
@@ -825,6 +828,10 @@ const UIManager = {
             AppState.isNavigating = true;
             AppState.isUserInteracting = false;
             AppState.routeHistory = [];
+            AppState.currentStepIndex = 0; // 현재 단계 인덱스 초기화
+
+            // [NEW] Wake Lock - 화면 꺼짐 방지
+            this.requestWakeLock();
 
             document.body.classList.add('search-hidden');
             document.getElementById('navigation-hud')?.classList.remove('hidden');
@@ -933,34 +940,49 @@ const UIManager = {
             statsEl.textContent = `목적지까지 ${totalTime}분 | ${totalDist}`;
         }
 
-        // 기존 HUD 요소 (nav-total-dist/time)는 숨겨졌으므로 업데이트 생략
-
         if (route.legs && route.legs[0].steps && route.legs[0].steps.length > 0) {
             const steps = route.legs[0].steps;
-            const nextStep = steps[1] || steps[0];
+            const currentPos = AppState.currentPosition;
+
+            // [FIX] 현재 위치 기반으로 다음 턴까지 거리 계산
+            let stepIndex = AppState.currentStepIndex || 0;
+
+            // 현재 스텝의 목표 지점(다음 턴 위치)
+            let nextStep = steps[stepIndex + 1] || steps[stepIndex];
+            if (!nextStep) return;
+
+            const turnLocation = nextStep.maneuver.location; // [lon, lat]
+            const distanceToTurn = Utils.calculateDistance(currentPos, turnLocation);
+
+            // 턴 지점을 30m 이내로 지나쳤으면 다음 스텝으로 이동
+            if (distanceToTurn < 30 && stepIndex < steps.length - 2) {
+                AppState.currentStepIndex = stepIndex + 1;
+                stepIndex = AppState.currentStepIndex;
+                nextStep = steps[stepIndex + 1] || steps[stepIndex];
+            }
 
             // [UPDATE] SVG 아이콘 렌더링 (innerHTML 사용)
             const navNextIcon = this.elements['nav-next-turn-icon'];
             if (navNextIcon) navNextIcon.innerHTML = this.getTurnIcon(nextStep.maneuver.modifier);
 
             const navNextDist = this.elements['nav-next-dist'];
-            if (navNextDist) navNextDist.textContent = this.formatDistance(nextStep.distance);
+            if (navNextDist) navNextDist.textContent = this.formatDistance(distanceToTurn);
 
-            // [NEW] 스마트 다이내믹 줌 트리거 (거리와 다음 회전 지점 좌표 전달)
+            // [NEW] 스마트 다이내믹 줌 트리거 (현재 위치에서 턴 지점까지의 실제 거리 전달)
             if (window.MapManager && MapManager.handleDynamicZoom) {
-                MapManager.handleDynamicZoom(nextStep.distance, nextStep.maneuver.location);
+                MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
             }
 
-            const afterStep = steps[2];
+            const afterStep = steps[stepIndex + 2];
             const navSecondIcon = this.elements['nav-second-icon'];
             const navSecondDist = this.elements['nav-second-dist'];
             if (afterStep) {
                 // [UPDATE] SVG 아이콘 렌더링
                 if (navSecondIcon) navSecondIcon.innerHTML = this.getTurnIcon(afterStep.maneuver.modifier);
-                // [UPDATE] 다다음 구간 거리 포맷팅 적용
+                // 다다음 구간 거리
                 if (navSecondDist) navSecondDist.textContent = this.formatDistance(afterStep.distance);
             } else {
-                if (navSecondIcon) navSecondIcon.innerHTML = Icons.navigation; // Use Icons constant
+                if (navSecondIcon) navSecondIcon.innerHTML = Icons.navigation;
                 if (navSecondDist) navSecondDist.textContent = '🏁';
             }
         }
@@ -1031,5 +1053,34 @@ const UIManager = {
             overlay.style.setProperty('--drag-y', `${startTop + (e.touches[0].clientY - startY)}px`);
         });
         document.addEventListener('touchend', () => isDragging = false);
+    },
+
+    // [NEW] Wake Lock API - 화면 꺼짐 방지
+    async requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                AppState.wakeLock = await navigator.wakeLock.request('screen');
+                console.log('🔒 Wake Lock 활성화: 화면 꺼짐 방지');
+
+                // 화면이 다시 보이면 Wake Lock 재요청
+                document.addEventListener('visibilitychange', async () => {
+                    if (document.visibilityState === 'visible' && AppState.isNavigating) {
+                        AppState.wakeLock = await navigator.wakeLock.request('screen');
+                    }
+                });
+            } catch (err) {
+                console.warn('Wake Lock 요청 실패:', err);
+            }
+        } else {
+            console.warn('이 브라우저는 Wake Lock API를 지원하지 않습니다.');
+        }
+    },
+
+    releaseWakeLock() {
+        if (AppState.wakeLock) {
+            AppState.wakeLock.release();
+            AppState.wakeLock = null;
+            console.log('🔓 Wake Lock 해제');
+        }
     }
 };

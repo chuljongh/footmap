@@ -31,5 +31,9 @@ const AppState = {
     waypointMarkers: [],
 
     // 클립보드 중복 방지
-    lastClipboardText: ''
+    lastClipboardText: '',
+
+    // 내비게이션 상태
+    wakeLock: null,
+    currentStepIndex: 0
 };
