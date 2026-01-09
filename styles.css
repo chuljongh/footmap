@@ -443,7 +443,7 @@ body .hidden {
     align-items: center;
     gap: 0px;
     /* 간격 제거 - 최대한 붙임 */
-    z-index: 2200;
+    z-index: 1100;
     /* 오버레이(1500)보다 높고, 모달(2000)보다 낮음 */
 }
 
@@ -723,7 +723,7 @@ body .marker-number.hidden {
     right: 0;
     padding: var(--spacing-md);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    z-index: 10;
+    z-index: 1100;
 }
 
 .navigate-btn {
@@ -1032,7 +1032,7 @@ body .marker-number.hidden {
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.7);
-    z-index: 2000;
+    z-index: 3000;
 }
 
 .modal-content {
@@ -1506,7 +1506,7 @@ body .marker-number.hidden {
     /* align with top-bar-wrapper */
     left: 50%;
     transform: translateX(-50%);
-    z-index: 2000;
+    z-index: 1200;
     pointer-events: none;
     transition: all 0.3s ease;
 }
@@ -1835,7 +1835,7 @@ body.search-hidden .top-bar-wrapper {
     left: 0;
     width: 100%;
     padding: 20px 16px;
-    z-index: 2100;
+    z-index: 1100;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -2118,7 +2118,7 @@ body.search-hidden .top-bar-wrapper {
     padding: 10px 20px;
     border-radius: 20px;
     font-size: 14px;
-    z-index: 3000;
+    z-index: 5000;
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
@@ -2140,7 +2140,7 @@ body.search-hidden .top-bar-wrapper {
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 2000;
+    z-index: 3000;
     padding: var(--spacing-md);
 }
 
