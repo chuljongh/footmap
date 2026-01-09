@@ -17,19 +17,11 @@
       "purpose": "any"
     },
     {
-      "src": "/icon694.png",
+      "src": "/icon512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
-  "categories": ["navigation", "utilities"],
-  "shortcuts": [
-    {
-      "name": "새 목적지 검색",
-      "short_name": "검색",
-      "url": "/",
-      "icons": [{ "src": "/icon.webp", "sizes": "96x96" }]
-    }
-  ]
+  "categories": ["navigation", "utilities"]
 }
