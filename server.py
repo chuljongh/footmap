@@ -30,11 +30,14 @@ KAKAO_REST_API_KEY = "63106d5c2ee3c16a39a6dfb41960da8a"
 # ========================================
 class User(db.Model):
     """사용자 정보 및 활동 통계"""
-    id = db.Column(db.String(100), primary_key=True) # 닉네임을 ID로 사용 (현재 정책 유지)
-    profile_img = db.Column(db.Text) # Base64 또는 URL
+    id = db.Column(db.String(100), primary_key=True) # 닉네임을 ID로 사용
+    profile_img = db.Column(db.Text)
     points = db.Column(db.Integer, default=0)
-    total_distance = db.Column(db.Float, default=0.0) # 누적 이동 거리 (km)
-    bio = db.Column(db.String(200)) # 자기소개
+    total_distance = db.Column(db.Float, default=0.0)
+    dist_walking = db.Column(db.Float, default=0.0)
+    dist_wheelchair = db.Column(db.Float, default=0.0)
+    dist_vehicle = db.Column(db.Float, default=0.0)
+    bio = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -43,6 +46,9 @@ class User(db.Model):
             'profileImg': self.profile_img,
             'points': self.points,
             'totalDistance': self.total_distance,
+            'distWalking': self.dist_walking,
+            'distWheelchair': self.dist_wheelchair,
+            'distVehicle': self.dist_vehicle,
             'bio': self.bio,
             'createdAt': int(self.created_at.timestamp() * 1000)
         }
@@ -523,21 +529,35 @@ def get_user_routes(user_id):
 
 @app.route('/api/users/<user_id>/routes', methods=['POST'])
 def save_user_route(user_id):
-    """이동 기록 저장"""
+    """이동 기록 저장 및 통계 업데이트"""
     data = request.json
     if not data:
         return jsonify({'error': 'Missing data'}), 400
 
     ensure_user(user_id)
+    user = User.query.get(user_id)
+
+    distance = data.get('distance', 0)
+    mode = data.get('mode', 'walking')
+
+    # 통계 업데이트
+    if mode == 'walking':
+        user.dist_walking += distance
+    elif mode == 'wheelchair':
+        user.dist_wheelchair += distance
+    elif mode == 'vehicle':
+        user.dist_vehicle += distance
+
+    user.total_distance += distance
 
     route = Route(
         user_id=user_id,
-        distance=data.get('distance', 0),
+        distance=distance,
         duration=data.get('duration', 0),
-        mode=data.get('mode', 'pedestrian'),
+        mode=mode,
         start_coords=data.get('startCoords', ''),
         end_coords=data.get('endCoords', ''),
-        points_json=data.get('points', '') # 새 스키마 대응
+        points_json=data.get('points', '')
     )
     db.session.add(route)
     db.session.commit()

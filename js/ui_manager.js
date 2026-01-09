@@ -533,9 +533,23 @@ const UIManager = {
 
 
 
-    showMyRecords() {
+    async showMyRecords() {
         const modal = document.getElementById('my-records-modal');
         modal.classList.remove('hidden');
+
+        // 사용자 통계 업데이트
+        const userId = AppState.userProfile?.nickname || '익명';
+        try {
+            const res = await fetch(`/api/users/${encodeURIComponent(userId)}`);
+            if (res.ok) {
+                const userData = await res.json();
+                document.getElementById('stat-walking').textContent = `${(userData.distWalking || 0).toFixed(1)}km`;
+                document.getElementById('stat-wheelchair').textContent = `${(userData.distWheelchair || 0).toFixed(1)}km`;
+                document.getElementById('stat-vehicle').textContent = `${(userData.distVehicle || 0).toFixed(1)}km`;
+            }
+        } catch (e) {
+            console.error('Failed to load user stats:', e);
+        }
 
         // 탭 이벤트 바인딩 (최초 1회)
         if (!this._recordsTabsBound) {
