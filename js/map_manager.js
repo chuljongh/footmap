@@ -239,16 +239,16 @@ const MapManager = {
     },
 
     // 스마트 다이내믹 줌 (Smart Dynamic Zoom)
-    // 1. 목적지에 가까워질수록 전체 뷰 자동 확대 (Adaptive Zoom)
-    // 2. 회전 지점 300m 이내 접근 시 해당 영역 자동 확대 (Detail Zoom)
+    // 회전 지점 300m 이내 접근 시 해당 영역 자동 확대 (Detail Zoom)
     handleDynamicZoom(distanceToNextTurn, turnCoords) {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
 
         const ZOOM_THRESHOLD = 300; // 300m 전방에서 상세 모드 전환
 
-        if (distanceToNextTurn <= ZOOM_THRESHOLD && turnCoords) {
+        if (distanceToNextTurn <= ZOOM_THRESHOLD && turnCoords && !AppState.isZoomedIn) {
             // [Detail Mode] 회전 지점 접근 시: 현위치와 회전 지점을 상세히 관찰
             AppState.isZoomedIn = true;
+            console.log('🔍 상세 줌 모드: 회전 지점 300m 이내');
 
             const extent = ol.extent.boundingExtent([
                 ol.proj.fromLonLat(AppState.currentPosition),
@@ -260,11 +260,8 @@ const MapManager = {
                 duration: 800,
                 maxZoom: 19 // 회전 구간이므로 더 상세하게 표시
             });
-        } else {
-            // [Overview Mode] 직선/장거리 주행 시: 목적지 포함 적응형 줌
-            AppState.isZoomedIn = false;
-            this.fitViewToRoute();
         }
+        // 300m 이상일 때는 아무 동작 안함 (fitViewToRoute는 회전 완료 시에만 호출)
     },
 
     animateZoomToLocation(coords, zoomLevel) {

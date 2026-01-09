@@ -974,6 +974,10 @@ const UIManager = {
                 AppState.currentStepIndex = stepIndex + 1;
                 stepIndex = AppState.currentStepIndex;
                 nextStep = steps[stepIndex + 1] || steps[stepIndex];
+
+                // [FIX] 회전 완료 후 전체 뷰로 복귀
+                AppState.isZoomedIn = false;
+                MapManager.fitViewToRoute();
             }
 
             // [UPDATE] SVG 아이콘 렌더링 (innerHTML 사용)
@@ -983,7 +987,7 @@ const UIManager = {
             const navNextDist = this.elements['nav-next-dist'];
             if (navNextDist) navNextDist.textContent = this.formatDistance(distanceToTurn);
 
-            // [NEW] 스마트 다이내믹 줌 트리거 (현재 위치에서 턴 지점까지의 실제 거리 전달)
+            // [FIX] 스마트 다이내믹 줌 트리거 - 300m 이내에서만 상세 줌
             if (window.MapManager && MapManager.handleDynamicZoom) {
                 MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
             }
