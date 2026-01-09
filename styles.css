@@ -678,6 +678,7 @@ body .marker-number.hidden {
     display: flex;
     align-items: center;
     justify-content: center;
+    transform: scale(var(--marker-scale, 1));
 }
 
 .user-dot {
@@ -688,7 +689,6 @@ body .marker-number.hidden {
     border-radius: 50%;
     box-shadow: 0 0 12px rgba(255, 165, 0, 0.8);
     z-index: 2;
-    transform: scale(var(--marker-scale, 1));
 }
 
 .user-heading-arrow {

@@ -14,13 +14,24 @@
 
     <!-- Browser Zoom Prevention (Native App Experience) -->
     <script>
+        // Only block pinch-zoom on non-map elements
         document.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) e.preventDefault();
+            if (e.touches.length > 1) {
+                if (!e.target.closest('#map')) {
+                    e.preventDefault();
+                }
+            }
         }, { passive: false });
+
+        // Block double-tap zoom on non-interactive elements
         let lastTouchEnd = 0;
         document.addEventListener('touchend', (e) => {
             const now = Date.now();
-            if (now - lastTouchEnd <= 300) e.preventDefault();
+            if (now - lastTouchEnd <= 300) {
+                if (!e.target.closest('#map') && !e.target.closest('button') && !e.target.closest('input')) {
+                    e.preventDefault();
+                }
+            }
             lastTouchEnd = now;
         }, false);
     </script>
