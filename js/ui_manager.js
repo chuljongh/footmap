@@ -932,9 +932,9 @@ const UIManager = {
             const navNextDist = this.elements['nav-next-dist'];
             if (navNextDist) navNextDist.textContent = this.formatDistance(nextStep.distance);
 
-            // [NEW] 스마트 다이내믹 줌 트리거
+            // [NEW] 스마트 다이내믹 줌 트리거 (거리와 다음 회전 지점 좌표 전달)
             if (window.MapManager && MapManager.handleDynamicZoom) {
-                MapManager.handleDynamicZoom(nextStep.distance);
+                MapManager.handleDynamicZoom(nextStep.distance, nextStep.maneuver.location);
             }
 
             const afterStep = steps[2];

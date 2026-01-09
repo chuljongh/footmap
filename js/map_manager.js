@@ -139,28 +139,24 @@ const MapManager = {
 
     // 뷰 조정
     fitViewToRoute() {
-        const source = AppState.routeLayer?.getSource();
-        const features = source?.getFeatures();
-
-        if (features && features.length > 0) {
-            const extent = source.getExtent();
-            AppState.map.getView().fit(extent, {
-                padding: [120, 50, 160, 50],
-                duration: 500
-            });
-            return;
-        }
-
         if (!AppState.currentPosition || !AppState.destination) return;
 
-        const extent = ol.extent.boundingExtent([
-            ol.proj.fromLonLat(AppState.currentPosition),
-            ol.proj.fromLonLat(AppState.destination.coords)
-        ]);
+        // [Adaptive Zoom] 현재 위치, 모든 경유지, 최종 목적지를 포함하는 범위를 계산
+        // 목적지에 접근할수록 이 범위가 좁아지며 지도가 자동으로 확대되어 상세 정보를 보여줌
+        const points = [ol.proj.fromLonLat(AppState.currentPosition)];
+
+        if (AppState.waypoints && AppState.waypoints.length > 0) {
+            AppState.waypoints.forEach(wp => points.push(ol.proj.fromLonLat(wp)));
+        }
+
+        points.push(ol.proj.fromLonLat(AppState.destination.coords));
+
+        const extent = ol.extent.boundingExtent(points);
 
         AppState.map.getView().fit(extent, {
-            padding: [100, 50, 150, 50],
-            duration: 500
+            padding: [120, 50, 160, 50],
+            duration: 800,
+            maxZoom: 18 // 자동 확대 시 적정 상세도 유지
         });
     },
 
@@ -243,32 +239,31 @@ const MapManager = {
     },
 
     // 스마트 다이내믹 줌 (Smart Dynamic Zoom)
-    handleDynamicZoom(distanceToNextTurn) {
+    // 1. 목적지에 가까워질수록 전체 뷰 자동 확대 (Adaptive Zoom)
+    // 2. 회전 지점 300m 이내 접근 시 해당 영역 자동 확대 (Detail Zoom)
+    handleDynamicZoom(distanceToNextTurn, turnCoords) {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
 
-        const ZOOM_THRESHOLD = 300; // 300m 전방에서 줌인
-        const ZOOM_LEVEL_DETAIL = Config.ZOOM_LEVEL_DETAIL; // 상세 줌 레벨
+        const ZOOM_THRESHOLD = 300; // 300m 전방에서 상세 모드 전환
 
-        if (distanceToNextTurn <= ZOOM_THRESHOLD) {
-            // [Detail Mode] 턴 접근 시
-            if (!AppState.isZoomedIn) {
-                AppState.isZoomedIn = true;
-                this.animateZoomToLocation(AppState.currentPosition, ZOOM_LEVEL_DETAIL);
-            } else {
-                // 이미 줌인 상태면 현위치 추적만 (팬)
-                const view = AppState.map.getView();
-                const center = view.getCenter();
-                const target = ol.proj.fromLonLat(AppState.currentPosition);
-                // 너무 자주 업데이트하면 끊기므로 거리가 좀 차이나면 이동
-                // (OpenLayers animate는 부드러우므로 매번 호출해도 괜찮을 수 있음)
-                view.animate({ center: target, duration: 500 });
-            }
+        if (distanceToNextTurn <= ZOOM_THRESHOLD && turnCoords) {
+            // [Detail Mode] 회전 지점 접근 시: 현위치와 회전 지점을 상세히 관찰
+            AppState.isZoomedIn = true;
+
+            const extent = ol.extent.boundingExtent([
+                ol.proj.fromLonLat(AppState.currentPosition),
+                ol.proj.fromLonLat(turnCoords)
+            ]);
+
+            AppState.map.getView().fit(extent, {
+                padding: [150, 80, 200, 80], // 상세 뷰 여백
+                duration: 800,
+                maxZoom: 19 // 회전 구간이므로 더 상세하게 표시
+            });
         } else {
-            // [Overview Mode] 직선 주행 시
-            if (AppState.isZoomedIn) {
-                AppState.isZoomedIn = false;
-                this.fitViewToRoute();
-            }
+            // [Overview Mode] 직선/장거리 주행 시: 목적지 포함 적응형 줌
+            AppState.isZoomedIn = false;
+            this.fitViewToRoute();
         }
     },
 
