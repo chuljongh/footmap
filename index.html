@@ -9,28 +9,24 @@
     <!-- OpenLayers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
 
-    <!-- Main CSS (v1.2 patch) -->
-    <link rel="stylesheet" href="styles.css?v=1.2">
+    <!-- Main CSS (v1.3 - mobile zoom fix) -->
+    <link rel="stylesheet" href="styles.css?v=1.3">
 
     <!-- Browser Zoom Prevention (Native App Experience) -->
     <script>
-        // Only block pinch-zoom on non-map elements
+        // 모든 핀치 줌 차단 (지도 확대/축소는 OpenLayers가 처리)
         document.addEventListener('touchstart', (e) => {
             if (e.touches.length > 1) {
-                if (!e.target.closest('#map')) {
-                    e.preventDefault();
-                }
+                e.preventDefault();
             }
         }, { passive: false });
 
-        // Block double-tap zoom on non-interactive elements
+        // 더블탭 줌 차단
         let lastTouchEnd = 0;
         document.addEventListener('touchend', (e) => {
             const now = Date.now();
             if (now - lastTouchEnd <= 300) {
-                if (!e.target.closest('#map') && !e.target.closest('button') && !e.target.closest('input')) {
-                    e.preventDefault();
-                }
+                e.preventDefault();
             }
             lastTouchEnd = now;
         }, false);

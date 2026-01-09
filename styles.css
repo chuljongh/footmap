@@ -719,8 +719,8 @@ body .marker-number.hidden {
 
 /* 하단 바 */
 .bottom-bar {
-    position: absolute;
-    bottom: 0;
+    position: fixed;
+    bottom: env(safe-area-inset-bottom, 0px);
     left: 0;
     right: 0;
     padding: var(--spacing-md);
