@@ -663,11 +663,11 @@ const UIManager = {
         modal.classList.remove('hidden');
 
         // 모달 제목 변경
-        const titleEl = modal.querySelector('h2');
+        const titleEl = modal.querySelector('h3');
         if (titleEl) titleEl.textContent = '💾 저장된 대화';
 
         // 탭 숨기기
-        const tabsEl = modal.querySelector('.tabs');
+        const tabsEl = modal.querySelector('.records-tabs');
         if (tabsEl) tabsEl.classList.add('hidden');
 
         // 목록 로드
