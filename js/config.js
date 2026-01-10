@@ -22,7 +22,7 @@ const Config = {
     BOTTOM_BAR_HEIGHT: 80,      // 하단 바 높이 (px) - 말풍선 경계 계산용
     SPEED_THRESHOLD: 5,         // 이동수단 판별 임계값 (km/h)
     FLOATING_LABEL_TIMEOUT: 5000, // 플로팅 라벨 숨김 타이머 (ms)
-    MIN_FOOTPRINT_ZOOM: 16.5,   // 발자국 아이콘 렌더링 최소 줌 레벨
+    MIN_FOOTPRINT_ZOOM: 15,     // 발자국 아이콘 렌더링 최소 줌 레벨 (출입구 확인용)
     TRAJECTORY_DEBOUNCE_MS: 300, // 궤적 로드 디바운싱 (ms)
     TRAJECTORY_INITIAL_DELAY: 2000, // 초기 궤적 로드 지연 (ms)
     TRAJECTORY_MINT: '#00D4AA',  // 궤적 기본 색상 (민트)

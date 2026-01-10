@@ -63,10 +63,11 @@ const PathManager = {
         const type = feature.get('type');
         const color = Config.TRAJECTORY_MINT;
         const currentZoom = AppState.map?.getView()?.getZoom() || 15;
+        const minZoom = Config.MIN_FOOTPRINT_ZOOM; // 설정값 사용
 
         if (type === 'road') {
-            // [FIX] 줌 레벨 16.5 이상에서는 선 숨기고 발자국만 표시
-            if (currentZoom >= 16.5) {
+            // [FIX] 발자국 표시 줌 이상에서는 선 숨기고 발자국만 표시
+            if (currentZoom >= minZoom) {
                 return null; // 스타일 없음 = 렌더링 안함
             }
             return new ol.style.Style({
@@ -76,18 +77,31 @@ const PathManager = {
                 })
             });
         } else if (type === 'footprint') {
-            // [FIX] 줌 레벨 16.5 미만에서는 발자국 숨김
-            if (currentZoom < 16.5) {
+            // [FIX] 발자국 표시 줌 미만에서는 발자국 숨김
+            if (currentZoom < minZoom) {
                 return null;
             }
             // SVG 아이콘을 Data URL로 변환하여 Icon 스타일 적용
             const footprintSvg = Icons.footprint.replace('currentColor', color);
             const encodedSvg = 'data:image/svg+xml;base64,' + btoa(footprintSvg);
 
+            // [NEW] 줌 레벨에 따른 동적 스케일 (출입구 찾기 용이성)
+            // 멀리서(줌 낮음) 볼수록 더 크게 표시하여 눈에 띄게 함
+            let scale = 1.2; // 기본 크기 (줌 19 기준)
+            if (currentZoom <= 15) {
+                scale = 2.0; // 매우 큼 (동네 전체 뷰)
+            } else if (currentZoom <= 16) {
+                scale = 1.8;
+            } else if (currentZoom <= 17) {
+                scale = 1.5;
+            } else if (currentZoom <= 18) {
+                scale = 1.3;
+            }
+
             return new ol.style.Style({
                 image: new ol.style.Icon({
                     src: encodedSvg,
-                    scale: 0.6,
+                    scale: scale,
                     rotation: feature.get('rotation') || 0,
                     opacity: Config.FOOTPRINT_OPACITY
                 })
