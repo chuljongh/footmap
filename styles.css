@@ -621,12 +621,9 @@ body .hidden {
     display: none;
 }
 
-/* 입력값이 없어도 항상 표시 */
-/* #search-input:placeholder-shown~#search-clear-btn {
-    display: none;
-} */
 
 #search-input::placeholder {
+
     color: var(--text-muted);
 }
 
@@ -771,7 +768,6 @@ body .marker-number.hidden {
     font-size: 16px;
 }
 
-/* 사이드 메뉴 */
 /* 사이드 메뉴 */
 .side-menu {
     position: fixed;
