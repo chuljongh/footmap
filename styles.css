@@ -54,6 +54,15 @@
 
     /* 오버레이 투명도 기본값 */
     --overlay-opacity: 0.7;
+
+    /* 🏗️ Z-Index Layer System */
+    --z-base: 1;
+    --z-ui: 100;
+    --z-floating: 500;
+    --z-menu-overlay: 1000;
+    --z-side-menu: 1100;
+    --z-modal: 2000;
+    --z-toast: 3000;
 }
 
 /* Reset & Base */
@@ -779,7 +788,7 @@ body .marker-number.hidden {
     background: var(--bg-secondary);
     transform: translateX(-100%);
     transition: transform var(--transition-normal);
-    z-index: 9999;
+    z-index: var(--z-side-menu);
     display: flex;
     flex-direction: column;
     pointer-events: auto;
@@ -1018,7 +1027,7 @@ body .marker-number.hidden {
     pointer-events: none;
     /* 기본적으로 클릭 통과 */
     transition: all var(--transition-normal);
-    z-index: 9998;
+    z-index: var(--z-menu-overlay);
 }
 
 .menu-overlay.visible {
@@ -1088,7 +1097,7 @@ body .marker-number.hidden {
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.7);
-    z-index: 3000;
+    z-index: var(--z-modal);
 }
 
 .modal-content {
@@ -2177,7 +2186,7 @@ body.search-hidden .top-bar-wrapper {
     padding: 10px 20px;
     border-radius: 20px;
     font-size: 14px;
-    z-index: 5000;
+    z-index: var(--z-toast);
     opacity: 0;
     transition: opacity 0.3s;
     pointer-events: none;
