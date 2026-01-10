@@ -32,7 +32,20 @@ const PathManager = {
             // 2. 발자국 피처 (접근로/골목 시각화)
             // [FIX] 발자국 피처는 항상 생성, 표시 여부는 스타일 함수에서 결정
             const dist = new ol.geom.LineString(coords).getLength();
-            const stepDist = 15; // 15미터마다 발자국 하나
+
+            // [NEW] 줌 레벨에 따른 동적 간격 (줌 낮을수록 간격 넓혀 개수 감소)
+            const currentZoom = AppState.map?.getView()?.getZoom() || 15;
+            let stepDist = 15; // 기본값 (줌 19 이상: 정밀 표시)
+
+            if (currentZoom <= 15) {
+                stepDist = 50; // 줌 15: 50m 간격 (큰 간격, 적은 개수)
+            } else if (currentZoom <= 16) {
+                stepDist = 35;
+            } else if (currentZoom <= 17) {
+                stepDist = 25;
+            } else if (currentZoom <= 18) {
+                stepDist = 18;
+            }
 
             for (let i = 0; i <= dist; i += stepDist) {
                 const fraction = i / dist;
