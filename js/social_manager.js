@@ -42,28 +42,11 @@ const SocialManager = {
     },
 
     // ========================================
-    // 서버 API 연동
+    // 서버 API 연동 -> MessageService 위임
     // ========================================
     async loadMessages() {
-        try {
-            const response = await fetch('/api/messages');
-            if (response.ok) {
-                this.messages = await response.json();
-                return true;
-            } else {
-                throw new Error('Server error');
-            }
-        } catch (error) {
-            console.error('SERVER_LOAD_FAIL', error);
-            const saved = localStorage.getItem('balgil_messages');
-            if (saved) {
-                this.messages = JSON.parse(saved);
-                console.warn('Loaded from cache due to error');
-            } else {
-                this.messages = []; // 서버 연결 실패 시 빈 배열로 초기화
-            }
-            return false;
-        }
+        this.messages = await MessageService.fetchMessages();
+        return this.messages.length > 0;
     },
 
     bindEvents() {
