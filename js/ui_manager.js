@@ -284,7 +284,7 @@ const UIManager = {
 
         // 모드 캡슐 스위치 이벤트
         document.getElementById('mode-capsule-switch')?.addEventListener('click', (e) => {
-            const btn = e.target.closest('.mode-option');
+            const btn = e.target.closest('.capsule-option');
             if (!btn) return;
 
             const newMode = btn.dataset.mode;
@@ -295,7 +295,7 @@ const UIManager = {
             Utils.saveState('userMode', newMode);
 
             // UI 업데이트 (active 클래스 교체)
-            document.querySelectorAll('.mode-option').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.capsule-option').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
             // 지도 데이터 리로드
@@ -508,7 +508,7 @@ const UIManager = {
         }
 
         // 캡슐 스위치 상태 동기화
-        document.querySelectorAll('.mode-option').forEach(btn => {
+        document.querySelectorAll('.capsule-option').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.mode === AppState.userMode);
         });
 

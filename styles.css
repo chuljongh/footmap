@@ -974,7 +974,7 @@ body .marker-number.hidden {
     position: relative;
 }
 
-.mode-option {
+.capsule-option {
     flex: 1;
     display: flex;
     align-items: center;
@@ -993,18 +993,18 @@ body .marker-number.hidden {
     -webkit-tap-highlight-color: transparent;
 }
 
-.mode-option:active {
+.capsule-option:active {
     opacity: 0.7;
 }
 
-.mode-option.active {
+.capsule-option.active {
     background: var(--bg-primary);
     color: var(--text-primary);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04);
     font-weight: 600;
 }
 
-.mode-option span {
+.capsule-option span {
     font-size: 15px;
 }
 
