@@ -282,6 +282,32 @@ const UIManager = {
             }
         });
 
+        // 모드 캡슐 스위치 이벤트
+        document.getElementById('mode-capsule-switch')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.mode-option');
+            if (!btn) return;
+
+            const newMode = btn.dataset.mode;
+            if (newMode === AppState.userMode) return; // 같은 모드면 무시
+
+            // 상태 업데이트
+            AppState.userMode = newMode;
+            Utils.saveState('userMode', newMode);
+
+            // UI 업데이트 (active 클래스 교체)
+            document.querySelectorAll('.mode-option').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // 지도 데이터 리로드
+            this.updateModeIndicator();
+            AppState.trajectoryLayer?.getSource().clear();
+            MapManager.loadDummyTrajectories();
+
+            // 토스트 메시지
+            const modeName = newMode === 'walking' ? '도보' : '휠체어';
+            Utils.showToast(`${modeName} 모드로 변경했습니다.`);
+        });
+
         this.initOverlayDrag();
         this.initSearchSuggestions();
         this.initWaypointModal();
@@ -480,6 +506,12 @@ const UIManager = {
             if (opacityValEl) opacityValEl.textContent = AppState.overlayOpacity;
             Utils.updateCSSVar('--overlay-opacity', (100 - AppState.overlayOpacity) / 100);
         }
+
+        // 캡슐 스위치 상태 동기화
+        document.querySelectorAll('.mode-option').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === AppState.userMode);
+        });
+
         return onboardingComplete;
     },
 
@@ -516,14 +548,6 @@ const UIManager = {
         switch (action) {
             case 'my-records': this.showMyRecords(); break;
             case 'saved-messages': this.showSavedMessages(); break;
-            case 'mode-change':
-                AppState.userMode = AppState.userMode === 'walking' ? 'wheelchair' : 'walking';
-                Utils.saveState('userMode', AppState.userMode);
-                this.updateModeIndicator();
-                AppState.trajectoryLayer.getSource().clear();
-                MapManager.loadDummyTrajectories();
-                Utils.showToast(`모드가 '${AppState.userMode === 'walking' ? '보행' : '휠체어'} 모드'로 변경되었습니다.`);
-                break;
             case 'overlay-settings':
                 document.getElementById('overlay-settings-modal')?.classList.remove('hidden');
                 break;

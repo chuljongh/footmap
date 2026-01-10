@@ -951,6 +951,58 @@ body .marker-number.hidden {
     text-align: center;
 }
 
+/* 모드 캡슐 스위치 */
+.menu-group {
+    padding: 12px 16px;
+}
+
+.menu-label {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.mode-capsule-switch {
+    display: flex;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+}
+
+.mode-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mode-option:hover {
+    color: var(--text-secondary);
+}
+
+.mode-option.active {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    font-weight: 600;
+}
+
+.mode-option span {
+    font-size: 16px;
+}
+
 .menu-overlay {
     position: fixed;
     /* absolute -> fixed로 변경하여 전체 화면 커버 */
