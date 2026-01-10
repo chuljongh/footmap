@@ -1080,8 +1080,8 @@ const UIManager = {
             const turnLocation = nextStep.maneuver.location; // [lon, lat]
             const distanceToTurn = Utils.calculateDistance(currentPos, turnLocation);
 
-            // 턴 지점을 30m 이내로 지나쳤으면 다음 스텝으로 이동
-            if (distanceToTurn < 30 && stepIndex < steps.length - 2) {
+            // 턴 지점을 50m 이내로 지나쳤으면 다음 스텝으로 이동 (GPS 오차 고려)
+            if (distanceToTurn < 50 && stepIndex < steps.length - 2) {
                 AppState.currentStepIndex = stepIndex + 1;
                 stepIndex = AppState.currentStepIndex;
                 nextStep = steps[stepIndex + 1] || steps[stepIndex];
@@ -1101,6 +1101,12 @@ const UIManager = {
             // [FIX] 스마트 다이내믹 줌 트리거 - 300m 이내에서만 상세 줌
             if (window.MapManager && MapManager.handleDynamicZoom) {
                 MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
+            }
+
+            // [NEW] 목적지 접근 자동 확대 - 500m 이내에서 점진적 줌인
+            if (AppState.destination && window.MapManager && MapManager.handleDestinationZoom) {
+                const distToDest = Utils.calculateDistance(currentPos, AppState.destination.coords);
+                MapManager.handleDestinationZoom(distToDest);
             }
 
             const afterStep = steps[stepIndex + 2];

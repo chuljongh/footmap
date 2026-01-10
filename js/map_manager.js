@@ -272,6 +272,32 @@ const MapManager = {
         });
     },
 
+    // [NEW] 목적지 접근 시 자동 확대 (Building Entry Support)
+    // 목적지와의 거리에 따라 점진적으로 확대하여 건물 진입을 도움
+    handleDestinationZoom(distanceToDest) {
+        if (!AppState.isNavigating || AppState.isUserInteracting) return;
+
+        // Dynamic Zoom(회전 확대) 중이면 간섭하지 않음
+        if (AppState.isZoomedIn) return;
+
+        let targetZoom = null;
+        if (distanceToDest <= 50) {
+            targetZoom = 19; // 건물 입구/진입로 확인
+        } else if (distanceToDest <= 200) {
+            targetZoom = 18; // 건물 형태와 골목길
+        } else if (distanceToDest <= 500) {
+            targetZoom = 17; // 목적지 주변 인지 시작
+        }
+
+        if (targetZoom === null) return;
+
+        // 현재 줌 레벨과 차이가 0.5 이상일 때만 부드럽게 이동 (떨림 방지)
+        const currentZoom = AppState.map.getView().getZoom();
+        if (Math.abs(currentZoom - targetZoom) > 0.5) {
+            this.animateZoomToLocation(AppState.currentPosition, targetZoom);
+        }
+    },
+
     getCurrentPosition() {
         if (!navigator.geolocation) {
             console.warn('Geolocation을 지원하지 않는 브라우저입니다.');
