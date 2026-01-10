@@ -846,6 +846,15 @@ const SocialManager = {
             btn.classList.toggle('active', btn.dataset.tab === tabName);
         });
 
+        // [FIX] 댓글 탭이 아니면 하단 입력창 숨김
+        const inputBar = document.querySelector('.thread-input-bar');
+        if (inputBar) {
+            if (tabName !== 'comments') {
+                inputBar.classList.add('hidden');
+            }
+            // 댓글 탭에서는 '댓글' 버튼을 눌러야만 표시되므로 여기서는 숨김 유지
+        }
+
         // 컨텐츠 렌더링
         switch (tabName) {
             case 'comments':
