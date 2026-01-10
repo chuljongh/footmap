@@ -262,6 +262,12 @@ const UIManager = {
         document.getElementById('close-settings-btn')?.addEventListener('click', () => document.getElementById('overlay-settings-modal')?.classList.add('hidden'));
         document.getElementById('close-overlay-btn')?.addEventListener('click', () => document.getElementById('floating-overlay')?.classList.add('hidden'));
 
+        // [FIX] 나의 기록(저장된 대화) 모달 닫기 버튼
+        document.getElementById('close-records-btn')?.addEventListener('click', () => document.getElementById('my-records-modal')?.classList.add('hidden'));
+        document.getElementById('my-records-modal')?.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
+        });
+
         // 프로필
         document.getElementById('edit-nickname-btn')?.addEventListener('click', () => {
             const el = document.getElementById('profile-nickname');
