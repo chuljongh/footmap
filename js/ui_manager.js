@@ -612,45 +612,26 @@ const UIManager = {
         }
     },
 
+    // [OPTIMIZED] 공통 레코드 아이템 HTML 생성
+    createRecordItemHTML(icon, title, meta) {
+        return `<div class="record-item"><span class="icon">${icon}</span><div class="info"><div class="title">${title}</div><div class="meta">${meta}</div></div></div>`;
+    },
+
     renderRouteItem(r) {
         const date = new Date(r.timestamp).toLocaleDateString('ko-KR');
         const dist = r.distance ? r.distance.toFixed(1) + 'km' : '?km';
         const mode = r.mode === 'wheelchair' ? '♿ 휠체어' : '🚶 도보';
-        return `
-            <div class="record-item">
-                <span class="icon">📍</span>
-                <div class="info">
-                    <div class="title">${dist} · ${mode}</div>
-                    <div class="meta">${date}</div>
-                </div>
-            </div>
-        `;
+        return this.createRecordItemHTML('📍', `${dist} · ${mode}`, date);
     },
 
     renderMessageItem(m) {
         const date = new Date(m.timestamp).toLocaleDateString('ko-KR');
-        return `
-            <div class="record-item">
-                <span class="icon">💬</span>
-                <div class="info">
-                    <div class="title">${m.text}</div>
-                    <div class="meta">${date} · 👍 ${m.likes}</div>
-                </div>
-            </div>
-        `;
+        return this.createRecordItemHTML('💬', m.text, `${date} · 👍 ${m.likes}`);
     },
 
     renderCommentItem(c) {
         const date = new Date(c.timestamp).toLocaleDateString('ko-KR');
-        return `
-            <div class="record-item">
-                <span class="icon">✏️</span>
-                <div class="info">
-                    <div class="title">${c.text}</div>
-                    <div class="meta">${date}</div>
-                </div>
-            </div>
-        `;
+        return this.createRecordItemHTML('✏️', c.text, date);
     },
 
     showSavedMessages() {
@@ -817,7 +798,7 @@ const UIManager = {
             MapManager.fitViewToRoute();
 
             Utils.showToast('✅ 다음 목적지로 안내를 시작합니다');
-            console.log('📍 이어서 안내: 다음 경유지로 이동');
+
         } else {
             // 더 이상 경유지가 없으면 종료
             this.executeNavigationStop(document.getElementById('navigate-btn'));
@@ -846,7 +827,7 @@ const UIManager = {
                 points: historyToSave
             }).catch(e => console.error('Segment save err:', e));
 
-            console.log(`📊 구간 접근로 저장: ${historyToSave.length}개 지점`);
+
         }
     },
 
@@ -913,9 +894,9 @@ const UIManager = {
                     points: historyToSave
                 }).catch(e => console.error('Route save err:', e));
 
-                console.log(`📊 접근로 데이터 저장: ${historyToSave.length}개 지점, ${(accessDistance).toFixed(0)}m`);
+
             } else {
-                console.log('⚠️ 접근 구역 진입 기록 없음 - 데이터 저장 생략');
+
             }
         } catch (err) {
             console.error('Save setup err:', err);
@@ -1179,7 +1160,7 @@ const UIManager = {
         if ('wakeLock' in navigator) {
             try {
                 AppState.wakeLock = await navigator.wakeLock.request('screen');
-                console.log('🔒 Wake Lock 활성화: 화면 꺼짐 방지');
+
 
                 // 화면이 다시 보이면 Wake Lock 재요청
                 document.addEventListener('visibilitychange', async () => {
@@ -1199,7 +1180,7 @@ const UIManager = {
         if (AppState.wakeLock) {
             AppState.wakeLock.release();
             AppState.wakeLock = null;
-            console.log('🔓 Wake Lock 해제');
+
         }
     }
 };

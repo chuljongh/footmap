@@ -248,7 +248,6 @@ const MapManager = {
         if (distanceToNextTurn <= ZOOM_THRESHOLD && turnCoords && !AppState.isZoomedIn) {
             // [Detail Mode] 회전 지점 접근 시: 현위치와 회전 지점을 상세히 관찰
             AppState.isZoomedIn = true;
-            console.log('🔍 상세 줌 모드: 회전 지점 300m 이내');
 
             const extent = ol.extent.boundingExtent([
                 ol.proj.fromLonLat(AppState.currentPosition),
@@ -359,7 +358,6 @@ const MapManager = {
                 if (distToDestination <= 100) {
                     AppState.isInAccessZone = true;
                     AppState.accessHistory = []; // 접근로 기록 시작
-                    console.log('📍 접근 구역 진입: 목적지까지 100m 이내');
                 }
             }
 

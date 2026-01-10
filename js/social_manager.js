@@ -60,18 +60,10 @@ const SocialManager = {
                 this.messages = JSON.parse(saved);
                 console.warn('Loaded from cache due to error');
             } else {
-                this.seedDummyData();
+                this.messages = []; // 서버 연결 실패 시 빈 배열로 초기화
             }
             return false;
         }
-    },
-
-    seedDummyData() {
-        const center = Config.DEFAULT_CENTER;
-        this.messages = [
-            { id: 'msg_1', userId: '산책왕', text: '여기 벚꽃 뷰가 진짜 대박이에요! 🌸', coords: [center[0] + 0.001, center[1] + 0.001], likes: 120, dislikes: 2, shares: 15, timestamp: Date.now() },
-            { id: 'msg_2', userId: '커피중독', text: '이 근처 카페 라떼 맛집 추천좀요...', coords: [center[0] - 0.001, center[1] - 0.001], likes: 5, dislikes: 0, shares: 0, timestamp: Date.now() - 3600000 },
-        ];
     },
 
     bindEvents() {

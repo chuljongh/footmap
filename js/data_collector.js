@@ -38,8 +38,6 @@ const DataCollector = {
             } catch (e) {
                 console.warn('Immediate sync failed, stored locally:', e);
             }
-        } else {
-            console.log('Sync deferred: Wi-Fi only or Data Saver active.');
         }
     },
 
