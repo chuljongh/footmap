@@ -1965,6 +1965,9 @@ body.search-hidden .top-bar-wrapper {
     animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     transform-origin: bottom left;
     margin-bottom: 0;
+    /* [FIX] 화면 오버플로우 방지 */
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
 }
 
 @keyframes slideUp {
@@ -2666,8 +2669,9 @@ body.search-hidden .top-bar-wrapper {
 .thread-panel {
     position: fixed;
     top: 0;
-    right: -400px;
-    width: 400px;
+    right: -100%;
+    width: 100%;
+    max-width: 400px;
     height: 100vh;
     background: var(--bg-primary);
     box-shadow: -2px 0 10px rgba(0, 0, 0, 0.2);
