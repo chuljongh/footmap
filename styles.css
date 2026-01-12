@@ -710,7 +710,18 @@ body .marker-number.hidden {
     transform: rotate(var(--heading, 0deg));
     pointer-events: none;
     z-index: 1;
-    filter: drop-shadow(0 0 6px rgba(255, 165, 0, 0.5));
+    filter: drop-shadow(0 0 6px rgba(0, 212, 170, 0.8));
+}
+
+/* 화살표 뒤 반투명 원 배경 */
+.user-marker-container::before {
+    content: '';
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 50%;
+    z-index: 0;
 }
 
 /* 지도 영역 */

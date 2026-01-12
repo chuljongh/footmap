@@ -948,24 +948,40 @@ const UIManager = {
     // [NEW] 경로 이탈 감지
     checkRouteDeviation(currentCoords) {
         // 방어 코드: 필수 조건 체크
-        if (!AppState.isNavigating || !AppState.activeRoute) return;
-        if (!AppState.activeRoute.geometry?.coordinates) return;
+        if (!AppState.isNavigating || !AppState.activeRoute) {
+            console.log('[Reroute] Skip: not navigating or no active route');
+            return;
+        }
+        if (!AppState.activeRoute.geometry?.coordinates) {
+            console.log('[Reroute] Skip: no route coordinates');
+            return;
+        }
 
         // 쿨다운 체크 (10초 내 재탐색 금지)
-        if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) return;
+        if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) {
+            console.log('[Reroute] Skip: cooldown active');
+            return;
+        }
 
         const routeCoords = AppState.activeRoute.geometry.coordinates;
         const distance = Utils.calculateMinDistanceToRoute(currentCoords, routeCoords, Config.REROUTE_THRESHOLD_METERS);
 
+        console.log(`[Reroute] Distance to route: ${distance.toFixed(1)}m (threshold: ${Config.REROUTE_THRESHOLD_METERS}m)`);
+
         if (distance > Config.REROUTE_THRESHOLD_METERS) {
             // 이탈 상태: 타이머 시작 (아직 없으면)
             if (!AppState.rerouteTimer) {
+                console.log('[Reroute] Route deviation detected! Starting 5s timer...');
+                Utils.showToast(`⚠️ 경로 이탈 감지 (${Math.round(distance)}m)`);
                 AppState.rerouteTimer = setTimeout(() => {
                     this.performReroute();
                 }, Config.REROUTE_DEBOUNCE_MS);
             }
         } else {
             // 경로 복귀: 타이머 해제
+            if (AppState.rerouteTimer) {
+                console.log('[Reroute] Back on route, clearing timer');
+            }
             this.clearRerouteTimer();
         }
     },
@@ -991,6 +1007,42 @@ const UIManager = {
             console.error('Reroute failed:', err);
             Utils.showToast('경로 재탐색에 실패했습니다');
         }
+    },
+
+    // [DEBUG] 경로 이탈 테스트 함수
+    debugReroute() {
+        console.log('=== [DEBUG] Route Deviation Test ===');
+        console.log('1. isNavigating:', AppState.isNavigating);
+        console.log('2. activeRoute:', AppState.activeRoute ? 'EXISTS' : 'NULL');
+        console.log('3. currentPosition:', AppState.currentPosition);
+        console.log('4. destination:', AppState.destination);
+
+        if (AppState.activeRoute?.geometry?.coordinates) {
+            console.log('5. Route has', AppState.activeRoute.geometry.coordinates.length, 'points');
+
+            // 거리 계산 테스트
+            if (AppState.currentPosition) {
+                const routeCoords = AppState.activeRoute.geometry.coordinates;
+                const distance = Utils.calculateMinDistanceToRoute(
+                    AppState.currentPosition,
+                    routeCoords,
+                    Config.REROUTE_THRESHOLD_METERS
+                );
+                console.log(`6. Distance to route: ${distance.toFixed(1)}m (threshold: ${Config.REROUTE_THRESHOLD_METERS}m)`);
+
+                if (distance > Config.REROUTE_THRESHOLD_METERS) {
+                    console.log('✅ Would trigger reroute!');
+                } else {
+                    console.log('❌ Within route, no reroute needed');
+                }
+            }
+        } else {
+            console.log('5. No route coordinates available');
+        }
+
+        console.log('6. rerouteTimer:', AppState.rerouteTimer ? 'ACTIVE' : 'INACTIVE');
+        console.log('7. lastRerouteTime:', AppState.lastRerouteTime);
+        console.log('=== End Debug ===');
     },
 
     // [REFACTORED] 실제 안내 종료 실행
@@ -1173,6 +1225,9 @@ const UIManager = {
             const steps = route.legs[0].steps;
             const currentPos = AppState.currentPosition;
 
+            // [DEBUG] 디버그 로그 추가
+            console.log('[HUD] currentPos:', currentPos, '| steps count:', steps.length);
+
             // [FIX] 현재 위치 기반으로 다음 턴까지 거리 계산
             let stepIndex = AppState.currentStepIndex || 0;
 
@@ -1182,6 +1237,9 @@ const UIManager = {
 
             const turnLocation = nextStep.maneuver.location; // [lon, lat]
             const distanceToTurn = Utils.calculateDistance(currentPos, turnLocation);
+
+            // [DEBUG] 거리 계산 디버그
+            console.log('[HUD] turnLocation:', turnLocation, '| distanceToTurn:', distanceToTurn);
 
             // 턴 지점을 50m 이내로 지나쳤으면 다음 스텝으로 이동 (GPS 오차 고려)
             if (distanceToTurn < 50 && stepIndex < steps.length - 2) {
