@@ -966,6 +966,19 @@ const UIManager = {
         const routeCoords = AppState.activeRoute.geometry.coordinates;
         const distance = Utils.calculateMinDistanceToRoute(currentCoords, routeCoords, Config.REROUTE_THRESHOLD_METERS);
 
+        // [DEBUG] Update Overlay
+        const dbgStart = document.getElementById('debug-overlay');
+        if (dbgStart) {
+            document.getElementById('dbg-nav').textContent = AppState.isNavigating ? 'ON' : 'OFF';
+            document.getElementById('dbg-dist').textContent = distance.toFixed(1);
+            document.getElementById('dbg-thr').textContent = Config.REROUTE_THRESHOLD_METERS;
+            document.getElementById('dbg-timer').textContent = AppState.rerouteTimer ? 'ACTIVE' : 'OFF';
+            document.getElementById('dbg-gps').textContent = `${currentCoords[0].toFixed(4)}, ${currentCoords[1].toFixed(4)}`;
+
+            // 색상 표시
+            document.getElementById('dbg-dist').style.color = distance > Config.REROUTE_THRESHOLD_METERS ? 'red' : 'lime';
+        }
+
         console.log(`[Reroute] Distance to route: ${distance.toFixed(1)}m (threshold: ${Config.REROUTE_THRESHOLD_METERS}m)`);
 
         if (distance > Config.REROUTE_THRESHOLD_METERS) {
@@ -995,6 +1008,10 @@ const UIManager = {
             if (!AppState.currentPosition || !AppState.destination) return;
 
             Utils.showToast('🔄 경로를 재탐색합니다...');
+
+            // [DEBUG] Overlay Update
+            document.getElementById('dbg-timer').textContent = 'FIRED';
+            document.getElementById('dbg-timer').style.color = 'yellow';
 
             RouteManager.showRoute(
                 AppState.currentPosition,

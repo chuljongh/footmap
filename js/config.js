@@ -30,9 +30,9 @@ const Config = {
     NEARBY_MESSAGE_THRESHOLD: 50,  // 근처 메시지 거리 (m)
 
     // [NEW] 경로 이탈 재탐색
-    REROUTE_THRESHOLD_METERS: 30,   // 이탈 판단 거리 (m)
-    REROUTE_DEBOUNCE_MS: 5000,      // 이탈 유지 시간 (5초)
-    MIN_REROUTE_INTERVAL_MS: 10000, // 재탐색 최소 간격 (10초)
+    REROUTE_THRESHOLD_METERS: 15,   // 이탈 판단 거리 (m) - 테스트용 완화
+    REROUTE_DEBOUNCE_MS: 3000,      // 이탈 유지 시간 (3초) - 테스트용 단축
+    MIN_REROUTE_INTERVAL_MS: 5000, // 재탐색 최소 간격 (5초) - 테스트용 단축
     BEST_MESSAGE_THRESHOLD: 100,  // 목적지 베스트 메시지 범위 (m)
     FOOTPRINT_OPACITY: 0.3,      // 발자국 개별 투명도 (중첩 효과용)
 
