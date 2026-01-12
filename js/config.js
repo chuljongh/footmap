@@ -21,12 +21,18 @@ const Config = {
     VIEWPORT_MARGIN: 0.05,      // 뷰포트 여백 비율 (5%)
     BOTTOM_BAR_HEIGHT: 80,      // 하단 바 높이 (px) - 말풍선 경계 계산용
     SPEED_THRESHOLD: 5,         // 이동수단 판별 임계값 (km/h)
+    MAX_COLLECTION_SPEED: 10,  // 데이터 수집 상한선 (km/h) - 10km/h 초과 시 비보행으로 간주하여 필터링
     FLOATING_LABEL_TIMEOUT: 5000, // 플로팅 라벨 숨김 타이머 (ms)
     MIN_FOOTPRINT_ZOOM: 15,     // 발자국 아이콘 렌더링 최소 줌 레벨 (출입구 확인용)
     TRAJECTORY_DEBOUNCE_MS: 300, // 궤적 로드 디바운싱 (ms)
     TRAJECTORY_INITIAL_DELAY: 2000, // 초기 궤적 로드 지연 (ms)
     TRAJECTORY_MINT: '#00D4AA',  // 궤적 기본 색상 (민트)
     NEARBY_MESSAGE_THRESHOLD: 50,  // 근처 메시지 거리 (m)
+
+    // [NEW] 경로 이탈 재탐색
+    REROUTE_THRESHOLD_METERS: 30,   // 이탈 판단 거리 (m)
+    REROUTE_DEBOUNCE_MS: 5000,      // 이탈 유지 시간 (5초)
+    MIN_REROUTE_INTERVAL_MS: 10000, // 재탐색 최소 간격 (10초)
     BEST_MESSAGE_THRESHOLD: 100,  // 목적지 베스트 메시지 범위 (m)
     FOOTPRINT_OPACITY: 0.3,      // 발자국 개별 투명도 (중첩 효과용)
 

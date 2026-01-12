@@ -1457,15 +1457,17 @@ body .marker-number.hidden {
 .suggestion-list {
     position: absolute;
     top: 100%;
-    left: 0;
-    right: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90vw;
+    max-width: 600px;
     margin-top: var(--spacing-xs);
     background: var(--bg-secondary);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
     max-height: 300px;
     overflow-y: auto;
-    z-index: 20;
+    z-index: 1150;
     box-shadow: var(--shadow-md);
     display: none;
 }
@@ -1476,7 +1478,9 @@ body .marker-number.hidden {
 
 .suggestion-item {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
     padding: var(--spacing-sm) var(--spacing-md);
     border-bottom: 1px solid var(--glass-border);
     cursor: pointer;
@@ -1491,16 +1495,35 @@ body .marker-number.hidden {
     background: var(--bg-tertiary);
 }
 
+.suggestion-main {
+    flex: 1;
+    min-width: 0;
+}
+
 .suggestion-name {
     font-size: 14px;
     font-weight: 500;
     color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .suggestion-address {
     font-size: 12px;
     color: var(--text-secondary);
     margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.suggestion-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-left: 12px;
+    text-align: right;
 }
 
 /* 경유지 설정 모달 버튼 (세로형 리스트) */
@@ -1562,17 +1585,17 @@ body .marker-number.hidden {
 }
 
 /* ========================================
-   HUD Redesign (Unified Panel Style)
+   HUD Redesign (Vertical Card Layout)
    ======================================== */
 .navigation-hud {
     position: fixed;
-    /* 뷰포트 기준 고정 (부모 컨텍스트 무시) */
     top: 16px;
-    /* align with top-bar-wrapper */
-    left: 50%;
-    transform: translateX(-50%);
+    left: 16px;
     z-index: 1200;
     pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     transition: all 0.3s ease;
 }
 
@@ -1580,90 +1603,83 @@ body .marker-number.hidden {
     display: none !important;
     opacity: 0;
     visibility: hidden;
-    /* Ensure it doesn't block clicks even if display fails */
     z-index: -1;
     pointer-events: none !important;
 }
 
-/* 통합 패널 (Premium Dark Glass) */
-.hud-panel {
+/* 공통 카드 스타일 */
+.hud-card {
     display: flex;
     align-items: center;
-    height: 50px;
-    /* 고정 높이 50px */
-    background: rgba(0, 0, 0, 0.7);
-    /* backdrop-filter removed for pure black tint */
+    gap: 12px;
+    padding: 12px 16px;
     border-radius: 12px;
-    padding: 0 20px;
-    gap: 16px;
-    box-shadow:
-        0 4px 20px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+}
+
+/* 메인 카드 (첫 번째 턴) */
+.hud-card-main {
+    background: rgba(0, 0, 0, 0.8);
     color: white;
+    min-width: 160px;
 }
 
-/* 메인 섹션: 방향 + 거리 (가로 배치) */
-.hud-main {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.hud-main .hud-icon.large {
+.hud-card-main .hud-icon.large {
     width: 44px;
     height: 44px;
-    color: #FFFFFF;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     flex-shrink: 0;
 }
 
-.hud-main .hud-value.large {
-    font-size: 38px;
+.hud-card-main .hud-icon.large svg {
+    width: 100%;
+    height: 100%;
+}
+
+.hud-card-main .hud-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.hud-card-main .hud-value.large {
+    font-size: 32px;
     font-weight: 700;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
     line-height: 1;
     letter-spacing: -0.5px;
 }
 
-/* 구분선 (세로) */
-.hud-divider {
-    width: 1px;
-    height: 28px;
-    /* 50px 높이에 맞춰 조절 */
-    background: linear-gradient(to bottom,
-            transparent,
-            rgba(255, 255, 255, 0.25) 20%,
-            rgba(255, 255, 255, 0.25) 80%,
-            transparent);
+.hud-road {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.85;
 }
 
-/* 서브 섹션: 다음 턴 정보 (세로 배치) */
-.hud-sub {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    min-width: 48px;
+/* 서브 카드 (두 번째 턴) - 더 작고 간결하게 */
+.hud-card-sub {
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 4px 8px;
+    gap: 6px;
+    align-self: flex-start; /* 부모 너비에 맞추지 않음 */
 }
 
-.hud-sub .hud-icon.small {
-    width: 22px;
-    height: 22px;
-    color: rgba(255, 255, 255, 0.85);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.hud-card-sub .hud-icon.small {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    opacity: 0.8;
 }
 
-.hud-sub .hud-value.small {
+.hud-card-sub .hud-icon.small svg {
+    width: 100%;
+    height: 100%;
+}
+
+.hud-card-sub .hud-value.small {
     font-size: 14px;
     font-weight: 600;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
-    opacity: 0.85;
-    letter-spacing: -0.3px;
+    opacity: 0.8;
 }
 
 /* Search bar interaction */

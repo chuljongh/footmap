@@ -1,0 +1,387 @@
+/* ========================================
+   대시보드 스타일 (Dashboard Styles)
+   ======================================== */
+
+/* 모달 오버레이 */
+#dashboard-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+#dashboard-modal.hidden {
+    display: none;
+}
+
+/* 모달 컨텐츠 */
+.dashboard-content {
+    width: 100%;
+    max-width: 420px;
+    max-height: 85vh;
+    background: linear-gradient(135deg, rgba(30, 30, 45, 0.95), rgba(20, 20, 35, 0.98));
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 헤더 영역 */
+.dashboard-header {
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.2), rgba(0, 150, 255, 0.1));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+}
+
+.close-dashboard {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.close-dashboard:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* 프로필 섹션 */
+.dash-profile {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.level-badge {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: white;
+    background: linear-gradient(135deg, #00D4AA, #00A8E8);
+    box-shadow: 0 4px 15px rgba(0, 212, 170, 0.4);
+}
+
+.level-badge.level-1 { background: linear-gradient(135deg, #4CAF50, #8BC34A); }
+.level-badge.level-2 { background: linear-gradient(135deg, #2196F3, #03A9F4); }
+.level-badge.level-3 { background: linear-gradient(135deg, #9C27B0, #E91E63); }
+.level-badge.level-4 { background: linear-gradient(135deg, #FF9800, #FFC107); }
+.level-badge.level-5 { background: linear-gradient(135deg, #00BCD4, #00D4AA); }
+.level-badge.level-6 { background: linear-gradient(135deg, #FF6B6B, #FF9800, #FFEB3B, #4CAF50, #2196F3, #9C27B0); }
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: white;
+    margin: 0 0 8px 0;
+}
+
+/* 경험치 바 */
+.xp-bar-container {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.xp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00D4AA, #00A8E8);
+    border-radius: 4px;
+    transition: width 0.6s ease-out;
+}
+
+.xp-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.current-points {
+    color: var(--accent-mint);
+    font-weight: 600;
+}
+
+.next-level {
+    color: var(--text-secondary);
+}
+
+/* 탭 네비게이션 */
+.dashboard-tabs {
+    display: flex;
+    padding: 0 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dash-tab-btn {
+    flex: 1;
+    padding: 14px 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.dash-tab-btn:hover {
+    color: white;
+}
+
+.dash-tab-btn.active {
+    color: var(--accent-mint);
+}
+
+.dash-tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 20%;
+    width: 60%;
+    height: 2px;
+    background: var(--accent-mint);
+    border-radius: 1px;
+}
+
+/* 컨텐츠 영역 */
+.dashboard-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.dash-section {
+    margin-bottom: 24px;
+}
+
+.section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    margin: 0 0 12px 0;
+}
+
+/* 통계 그리드 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.stat-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.stat-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+}
+
+.stat-card.accent {
+    background: linear-gradient(135deg, rgba(0, 212, 170, 0.15), rgba(0, 168, 232, 0.1));
+    border-color: rgba(0, 212, 170, 0.3);
+}
+
+.stat-icon {
+    font-size: 24px;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* 경로 리스트 */
+.route-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.route-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.route-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.route-icon {
+    font-size: 20px;
+}
+
+.route-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.route-date {
+    font-size: 13px;
+    color: white;
+    font-weight: 500;
+}
+
+.route-stats {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.route-mode {
+    font-size: 18px;
+}
+
+/* 포인트 분석 */
+.points-breakdown {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.points-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.points-row:last-child {
+    border-bottom: none;
+}
+
+.points-value {
+    color: var(--accent-mint);
+    font-weight: 600;
+}
+
+/* 활동 타임라인 */
+.activity-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.activity-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.activity-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.activity-icon {
+    font-size: 18px;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-text {
+    font-size: 13px;
+    color: white;
+    margin: 0 0 4px 0;
+    line-height: 1.4;
+}
+
+.activity-time {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+/* 빈 상태 */
+.empty-state {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding: 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+}
+
+/* 로딩 */
+.dash-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--accent-mint);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

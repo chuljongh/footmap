@@ -39,5 +39,9 @@ const AppState = {
 
     // [NEW] 접근로 데이터 최적화 (마지막 100m만 저장)
     isInAccessZone: false,    // 목적지 100m 이내 진입 여부
-    accessHistory: []         // 접근로 데이터 (100m 이내 이동만)
+    accessHistory: [],        // 접근로 데이터 (100m 이내 이동만)
+
+    // [NEW] 경로 이탈 재탐색
+    rerouteTimer: null,       // 재탐색 대기 타이머
+    lastRerouteTime: 0        // 마지막 재탐색 시각 (쿨다운용)
 };

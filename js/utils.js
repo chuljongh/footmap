@@ -97,5 +97,37 @@ const Utils = {
             Math.sin(dLon / 2) * Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
+    },
+
+    // [NEW] 점과 선분 사이의 최단 거리 (미터)
+    distanceToLineSegment(point, start, end) {
+        const [px, py] = point;
+        const [ax, ay] = start;
+        const [bx, by] = end;
+
+        const dx = bx - ax;
+        const dy = by - ay;
+        const lengthSq = dx * dx + dy * dy;
+
+        if (lengthSq === 0) return this.calculateDistance(point, start);
+
+        let t = ((px - ax) * dx + (py - ay) * dy) / lengthSq;
+        t = Math.max(0, Math.min(1, t));
+
+        const closestPoint = [ax + t * dx, ay + t * dy];
+        return this.calculateDistance(point, closestPoint);
+    },
+
+    // [NEW] 현재 위치에서 경로까지의 최단 거리 (Early Exit 최적화)
+    calculateMinDistanceToRoute(point, routeCoordinates, threshold = 30) {
+        if (!routeCoordinates || routeCoordinates.length < 2) return Infinity;
+
+        let minDist = Infinity;
+        for (let i = 0; i < routeCoordinates.length - 1; i++) {
+            const dist = this.distanceToLineSegment(point, routeCoordinates[i], routeCoordinates[i + 1]);
+            if (dist < minDist) minDist = dist;
+            if (minDist <= threshold) return minDist; // Early exit
+        }
+        return minDist;
     }
 };

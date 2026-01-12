@@ -201,6 +201,118 @@ def ensure_user(user_id):
     return user
 
 # ========================================
+# [NEW] 대시보드 API - 포인트 기반 레벨 시스템
+# ========================================
+LEVEL_THRESHOLDS = [
+    {'level': 1, 'points': 0, 'title': '🌱 동네 새싹'},
+    {'level': 2, 'points': 100, 'title': '🚶 동네 산책가'},
+    {'level': 3, 'points': 300, 'title': '🏃 활동 주민'},
+    {'level': 4, 'points': 700, 'title': '🏙️ 도시 탐험가'},
+    {'level': 5, 'points': 1500, 'title': '🌏 지역 영웅'},
+    {'level': 6, 'points': 3000, 'title': '🚀 발길의 전설'}
+]
+
+def get_level_info(points):
+    """포인트로 레벨/칭호 계산"""
+    current = LEVEL_THRESHOLDS[0]
+    next_level = LEVEL_THRESHOLDS[1] if len(LEVEL_THRESHOLDS) > 1 else None
+
+    for i, threshold in enumerate(LEVEL_THRESHOLDS):
+        if points >= threshold['points']:
+            current = threshold
+            next_level = LEVEL_THRESHOLDS[i + 1] if i + 1 < len(LEVEL_THRESHOLDS) else None
+
+    return {
+        'level': current['level'],
+        'title': current['title'],
+        'currentPoints': points,
+        'nextLevelPoints': next_level['points'] if next_level else None,
+        'progress': (points - current['points']) / (next_level['points'] - current['points']) if next_level else 1.0
+    }
+
+@app.route('/api/user/<user_id>/dashboard', methods=['GET'])
+def get_user_dashboard(user_id):
+    """대시보드용 통합 통계 API"""
+    user = ensure_user(user_id)
+
+    # 1. 이동 통계
+    routes = Route.query.filter_by(user_id=user_id).all()
+    total_distance = sum(r.distance or 0 for r in routes)
+    total_duration = sum(r.duration or 0 for r in routes)
+    movement_points = int(total_distance * 10)
+
+    recent_routes = sorted(routes, key=lambda r: r.timestamp, reverse=True)[:5]
+
+    # 2. 소셜 통계
+    messages = Message.query.filter_by(user_id=user_id).all()
+    comments = Comment.query.filter_by(user_id=user_id).all()
+    saved_messages = SavedMessage.query.filter_by(user_id=user_id).all()
+
+    message_count = len(messages)
+    comment_count = len(comments)
+    likes_received = sum(m.likes or 0 for m in messages)
+
+    message_points = message_count * 50
+    like_points = likes_received * 5
+    comment_points = comment_count * 20
+
+    # 3. 총점 계산 및 레벨
+    total_points = movement_points + message_points + like_points + comment_points
+
+    # User 레코드 업데이트
+    user.points = total_points
+    user.total_distance = total_distance
+    db.session.commit()
+
+    level_info = get_level_info(total_points)
+
+    # 4. 최근 활동 타임라인 (메시지 + 댓글 통합)
+    recent_activity = []
+    for m in sorted(messages, key=lambda x: x.timestamp, reverse=True)[:5]:
+        recent_activity.append({
+            'type': 'message',
+            'text': m.text[:50] + '...' if len(m.text) > 50 else m.text,
+            'timestamp': int(m.timestamp.timestamp() * 1000),
+            'coords': [m.coord_x, m.coord_y]
+        })
+    for c in sorted(comments, key=lambda x: x.timestamp, reverse=True)[:5]:
+        recent_activity.append({
+            'type': 'comment',
+            'text': c.text[:50] + '...' if len(c.text) > 50 else c.text,
+            'timestamp': int(c.timestamp.timestamp() * 1000)
+        })
+    recent_activity = sorted(recent_activity, key=lambda x: x['timestamp'], reverse=True)[:10]
+
+    return jsonify({
+        'profile': {
+            'id': user_id,
+            **level_info
+        },
+        'movement': {
+            'totalDistance': round(total_distance, 2),
+            'totalDuration': total_duration,
+            'calories': int(total_distance * 50),
+            'trees': round(total_distance * 0.15, 1),
+            'routeCount': len(routes),
+            'recentRoutes': [r.to_dict() for r in recent_routes]
+        },
+        'social': {
+            'messageCount': message_count,
+            'commentCount': comment_count,
+            'likesReceived': likes_received,
+            'savedCount': len(saved_messages),
+            'recentActivity': recent_activity
+        },
+        'pointsBreakdown': {
+            'fromMovement': movement_points,
+            'fromMessages': message_points,
+            'fromLikes': like_points,
+            'fromComments': comment_points,
+            'total': total_points
+        }
+    })
+
+# ========================================
 # 카카오 API 프록시 (기존 기능 유지)
 # ========================================
 @app.route('/api/search')

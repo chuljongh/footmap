@@ -410,6 +410,8 @@ const MapManager = {
 
             if (AppState.activeRoute) {
                 UIManager.updateNavigationHUD(AppState.activeRoute);
+                // [NEW] 경로 이탈 감지
+                if (window.UIManager) UIManager.checkRouteDeviation(coords);
             }
         }
     },

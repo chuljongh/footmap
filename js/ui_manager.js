@@ -22,7 +22,7 @@ const UIManager = {
             'search-input', 'search-clear-btn', 'search-suggestions',
             'menu-btn', 'side-menu', 'menu-overlay', 'close-menu-btn',
             'dash-primary', 'dash-secondary', 'dash-stats',
-            'nav-next-turn-icon', 'nav-next-dist', 'nav-second-icon', 'nav-second-dist'
+            'nav-next-turn-icon', 'nav-next-dist', 'nav-second-icon', 'nav-second-dist', 'nav-road-name'
         ];
         ids.forEach(id => {
             this.elements[id] = document.getElementById(id);
@@ -337,12 +337,40 @@ const UIManager = {
                 const data = await response.json();
                 list.innerHTML = '';
                 if (data.documents && data.documents.length > 0) {
+                    // 현재 위치 가져오기
+                    const userPos = AppState.currentPosition;
+
+                    // 거리 계산 함수
+                    const calcDistance = (lon, lat) => {
+                        if (!userPos) return null;
+                        const R = 6371000; // 지구 반경 (m)
+                        const dLat = (lat - userPos[1]) * Math.PI / 180;
+                        const dLon = (lon - userPos[0]) * Math.PI / 180;
+                        const a = Math.sin(dLat/2) ** 2 +
+                                  Math.cos(userPos[1] * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+                                  Math.sin(dLon/2) ** 2;
+                        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                        return R * c;
+                    };
+
+                    // 거리 포맷 함수
+                    const formatDistance = (meters) => {
+                        if (meters === null) return '';
+                        if (meters < 1000) return `${Math.round(meters)}m`;
+                        return `${(meters / 1000).toFixed(1)}km`;
+                    };
+
                     data.documents.forEach(doc => {
                         const item = document.createElement('li');
                         item.className = 'suggestion-item';
+                        const dist = calcDistance(parseFloat(doc.x), parseFloat(doc.y));
+                        const distText = formatDistance(dist);
                         item.innerHTML = `
-                            <div class="suggestion-name">${doc.place_name}</div>
-                            <div class="suggestion-address">${doc.road_address_name || doc.address_name}</div>
+                            <div class="suggestion-main">
+                                <div class="suggestion-name">${doc.place_name}</div>
+                                <div class="suggestion-address">${doc.road_address_name || doc.address_name}</div>
+                            </div>
+                            ${distText ? `<div class="suggestion-meta">${distText}</div>` : ''}
                         `;
                         item.addEventListener('click', () => {
                             const coords = [parseFloat(doc.x), parseFloat(doc.y)];
@@ -384,9 +412,14 @@ const UIManager = {
 
         let history = Utils.loadState('search_history', []);
 
+        // 기존 문자열 형식 호환 + 객체 형식으로 변환
+        history = history.map(item =>
+            typeof item === 'string' ? { query: item, timestamp: Date.now() } : item
+        );
+
         // 중복 제거 후 최상단 추가
-        history = history.filter(item => item !== q);
-        history.unshift(q);
+        history = history.filter(item => item.query !== q);
+        history.unshift({ query: q, timestamp: Date.now() });
 
         // 최대 20개 유지
         if (history.length > 20) history = history.slice(0, 20);
@@ -395,7 +428,11 @@ const UIManager = {
     },
 
     getSearchHistory() {
-        return Utils.loadState('search_history', []);
+        const history = Utils.loadState('search_history', []);
+        // 기존 문자열 형식 호환
+        return history.map(item =>
+            typeof item === 'string' ? { query: item, timestamp: Date.now() } : item
+        );
     },
 
     renderSearchHistory() {
@@ -409,23 +446,31 @@ const UIManager = {
         list.innerHTML = '';
         list.classList.add('history-mode');
 
-        // 상위 20개까지 저장하지만 화면엔 7개 기준 스크롤 가능하게 렌더링
-        history.forEach(query => {
-            const item = document.createElement('li');
-            item.className = 'suggestion-item';
-            item.innerHTML = `
-                <div class="suggestion-name">${query}</div>
+        // 날짜 포맷 함수 (M/D)
+        const formatDate = (timestamp) => {
+            const d = new Date(timestamp);
+            return `${d.getMonth() + 1}/${d.getDate()}`;
+        };
+
+        history.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'suggestion-item';
+            li.innerHTML = `
+                <div class="suggestion-main">
+                    <div class="suggestion-name">${item.query}</div>
+                </div>
+                <div class="suggestion-meta">${formatDate(item.timestamp)}</div>
             `;
-            item.addEventListener('click', () => {
-                input.value = query;
+            li.addEventListener('click', () => {
+                input.value = item.query;
                 list.classList.remove('visible', 'history-mode');
-                this.handleSearch(); // 바로 검색 실행
+                this.handleSearch();
             });
-            list.appendChild(item);
+            list.appendChild(li);
         });
 
         list.classList.add('visible');
-        list.scrollTop = 0; // 최신 뉴스/기록이 위에서부터 보이도록 스크롤 초기화
+        list.scrollTop = 0;
     },
 
     initWaypointModal() {
@@ -760,7 +805,7 @@ const UIManager = {
             // [STOP NAVIGATION]
 
             // [NEW] 경유지가 남아있으면 선택 다이얼로그 표시
-            if (!forceStop && AppState.waypoints && AppState.waypoints.length > 0) {
+            if (AppState.waypoints && AppState.waypoints.length > 0) {
                 this.showNavigationEndDialog();
                 return;
             }
@@ -808,6 +853,9 @@ const UIManager = {
 
     // [NEW] 다음 경유지로 이어서 안내
     continueToNextWaypoint() {
+        // [NEW] 재탐색 타이머 정리
+        this.clearRerouteTimer();
+
         // 접근로 데이터 저장 (현재 구간)
         this.saveAccessDataForCurrentSegment();
 
@@ -835,29 +883,113 @@ const UIManager = {
         }
     },
 
+    // [NEW] 현재 구간 데이터 처리 및 저장 (공통 로직)
+    processAndSaveRoute() {
+        try {
+            // 전체 경로 통합 (일반 구간 + 접근 구간)
+            let fullHistory = [...(AppState.routeHistory || []), ...(AppState.accessHistory || [])];
+
+            // 차량 모드면 저장하지 않음
+            if (AppState.userMode === 'vehicle') return;
+
+            if (fullHistory.length > 1 && AppState.destination) {
+                const validPoints = [];
+                let totalDistance = 0;
+
+                for (let i = 0; i < fullHistory.length; i++) {
+                    const current = fullHistory[i];
+                    if (i === 0) {
+                        validPoints.push(current);
+                        continue;
+                    }
+
+                    const prev = fullHistory[i - 1];
+                    const dist = Utils.calculateDistance(prev.coords, current.coords);
+                    const timeDiff = (current.timestamp - prev.timestamp) / 1000;
+
+                    const speedKmh = timeDiff > 0 ? (dist / timeDiff) * 3.6 : 0;
+
+                    if (speedKmh <= Config.MAX_COLLECTION_SPEED) {
+                        validPoints.push(current);
+                        totalDistance += dist;
+                    }
+                }
+
+                if (validPoints.length >= 5 && totalDistance >= 50) {
+                    DataCollector.saveRoute({
+                        distance: totalDistance / 1000,
+                        duration: (validPoints[validPoints.length - 1].timestamp - validPoints[0].timestamp) / 1000,
+                        mode: AppState.userMode || 'walking',
+                        startCoords: validPoints[0].coords.join(','),
+                        endCoords: validPoints[validPoints.length - 1].coords.join(','),
+                        destinationCoords: AppState.destination.coords.join(','),
+                        points: validPoints
+                    }).catch(e => console.error('Route save err:', e));
+                }
+            }
+        } catch (err) {
+            console.error('Save setup err:', err);
+        }
+    },
+
     // [NEW] 현재 구간 접근로 데이터 저장
     saveAccessDataForCurrentSegment() {
-        if (AppState.isInAccessZone && AppState.accessHistory.length > 0) {
-            const historyToSave = [...AppState.accessHistory];
-            let accessDistance = 0;
-            for (let i = 1; i < historyToSave.length; i++) {
-                accessDistance += Utils.calculateDistance(
-                    historyToSave[i - 1].coords,
-                    historyToSave[i].coords
-                );
+        this.processAndSaveRoute();
+    },
+
+    // [NEW] 재탐색 타이머 정리 헬퍼
+    clearRerouteTimer() {
+        if (AppState.rerouteTimer) {
+            clearTimeout(AppState.rerouteTimer);
+            AppState.rerouteTimer = null;
+        }
+    },
+
+    // [NEW] 경로 이탈 감지
+    checkRouteDeviation(currentCoords) {
+        // 방어 코드: 필수 조건 체크
+        if (!AppState.isNavigating || !AppState.activeRoute) return;
+        if (!AppState.activeRoute.geometry?.coordinates) return;
+
+        // 쿨다운 체크 (10초 내 재탐색 금지)
+        if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) return;
+
+        const routeCoords = AppState.activeRoute.geometry.coordinates;
+        const distance = Utils.calculateMinDistanceToRoute(currentCoords, routeCoords, Config.REROUTE_THRESHOLD_METERS);
+
+        if (distance > Config.REROUTE_THRESHOLD_METERS) {
+            // 이탈 상태: 타이머 시작 (아직 없으면)
+            if (!AppState.rerouteTimer) {
+                AppState.rerouteTimer = setTimeout(() => {
+                    this.performReroute();
+                }, Config.REROUTE_DEBOUNCE_MS);
             }
+        } else {
+            // 경로 복귀: 타이머 해제
+            this.clearRerouteTimer();
+        }
+    },
 
-            DataCollector.saveRoute({
-                distance: accessDistance / 1000,
-                duration: (historyToSave[historyToSave.length - 1]?.timestamp - historyToSave[0]?.timestamp) / 1000,
-                mode: AppState.userMode || 'walking',
-                startCoords: historyToSave[0]?.coords?.join(',') || '',
-                endCoords: historyToSave[historyToSave.length - 1]?.coords?.join(',') || '',
-                destinationCoords: AppState.destination?.coords?.join(',') || '',
-                points: historyToSave
-            }).catch(e => console.error('Segment save err:', e));
+    // [NEW] 조용한 경로 재탐색 실행
+    performReroute() {
+        AppState.rerouteTimer = null;
+        AppState.lastRerouteTime = Date.now();
 
+        try {
+            if (!AppState.currentPosition || !AppState.destination) return;
 
+            Utils.showToast('🔄 경로를 재탐색합니다...');
+
+            RouteManager.showRoute(
+                AppState.currentPosition,
+                AppState.destination.coords,
+                AppState.waypoints || []
+            );
+
+            // HUD는 RouteManager.showRoute 내부에서 자동 갱신됨
+        } catch (err) {
+            console.error('Reroute failed:', err);
+            Utils.showToast('경로 재탐색에 실패했습니다');
         }
     },
 
@@ -893,48 +1025,16 @@ const UIManager = {
         }
         if (AppState.map) AppState.map.render();
 
-        // 3. Data Saving (Async, Safe) - [OPTIMIZED] 접근로(100m 이내) 데이터만 저장
-        try {
-            // [NEW] accessHistory 우선 사용 (목적지 100m 이내 데이터만)
-            const historyToSave = AppState.isInAccessZone && AppState.accessHistory.length > 0
-                ? [...AppState.accessHistory]
-                : [];
+        // 3. Data Saving (Async, Safe)
+        this.processAndSaveRoute();
 
-            if (historyToSave.length > 0 && AppState.destination) {
-                // [NEW] 접근로 거리 계산 (100m 이내 구간만)
-                let accessDistance = 0;
-                for (let i = 1; i < historyToSave.length; i++) {
-                    accessDistance += Utils.calculateDistance(
-                        historyToSave[i - 1].coords,
-                        historyToSave[i].coords
-                    );
-                }
-
-                const startCoords = historyToSave[0]?.coords?.join(',') || '';
-                const endCoords = historyToSave[historyToSave.length - 1]?.coords?.join(',') || '';
-
-                // DataCollector를 통한 저장 (IndexedDB + Server)
-                DataCollector.saveRoute({
-                    distance: accessDistance / 1000,
-                    duration: (historyToSave[historyToSave.length - 1]?.timestamp - historyToSave[0]?.timestamp) / 1000,
-                    mode: AppState.userMode || 'walking',
-                    startCoords,
-                    endCoords,
-                    destinationCoords: AppState.destination.coords.join(','),
-                    points: historyToSave
-                }).catch(e => console.error('Route save err:', e));
-
-
-            } else {
-
-            }
-        } catch (err) {
-            console.error('Save setup err:', err);
-        }
+        // [NEW] 재탐색 타이머 정리
+        this.clearRerouteTimer();
 
         // [NEW] 상태 초기화
         AppState.isInAccessZone = false;
         AppState.accessHistory = [];
+        AppState.routeHistory = []; // [NEW] 전체 경로 초기화 추가
         AppState.activeRoute = null;
         MapManager.clearWaypoints();
 
@@ -957,6 +1057,9 @@ const UIManager = {
         AppState.isUserInteracting = false;
         AppState.routeHistory = [];
         AppState.currentStepIndex = 0; // 현재 단계 인덱스 초기화
+        // [NEW] 재탐색 상태 초기화
+        AppState.lastRerouteTime = 0;
+        this.clearRerouteTimer();
 
         // [NEW] Wake Lock - 화면 꺼짐 방지
         this.requestWakeLock();
@@ -1097,6 +1200,10 @@ const UIManager = {
 
             const navNextDist = this.elements['nav-next-dist'];
             if (navNextDist) navNextDist.textContent = this.formatDistance(distanceToTurn);
+
+            // [NEW] 도로명 업데이트
+            const navRoadName = this.elements['nav-road-name'];
+            if (navRoadName) navRoadName.textContent = nextStep.name || '';
 
             // [FIX] 스마트 다이내믹 줌 트리거 - 300m 이내에서만 상세 줌
             if (window.MapManager && MapManager.handleDynamicZoom) {

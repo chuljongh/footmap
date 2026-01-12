@@ -17,7 +17,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
 
     <!-- Main CSS (v1.3 - mobile zoom fix) -->
-    <link rel="stylesheet" href="styles.css?v=1.3">
+    <link rel="stylesheet" href="styles.css?v=1.25">
+    <!-- Dashboard CSS -->
+    <link rel="stylesheet" href="css/dashboard.css?v=1.0">
 
     <!-- Browser Zoom Prevention (Native App Experience) -->
     <script>
@@ -148,6 +150,8 @@
             </header>
             <!-- 검색 버튼을 top-bar 바깥에 배치 -->
             <button id="search-btn" class="icon-btn search-action" aria-label="검색">🔍</button>
+
+
         </div>
 
         <!-- 지도 영역 -->
@@ -318,6 +322,9 @@
                 <button class="menu-item" data-action="overlay-settings">
                     <span>🗺️</span> 오버레이 설정
                 </button>
+                <button id="open-dashboard-btn" class="menu-item">
+                    <span>🏆</span> 내 활동
+                </button>
 
 
             </nav>
@@ -413,17 +420,36 @@
         </div>
     </div>
 
-    <!-- Navigation HUD (body 직계 자식으로 이동 - 뷰포트 기준 중앙 정렬) -->
+    <!-- Navigation HUD (Vertical Stack Layout) -->
     <div id="navigation-hud" class="navigation-hud hidden">
-        <div id="hud-panel" class="hud-panel">
-            <div class="hud-main">
-                <div class="hud-icon large" id="nav-next-turn-icon"></div>
+        <!-- 첫 번째 턴 (메인 카드) -->
+        <div class="hud-card hud-card-main">
+            <div class="hud-icon large" id="nav-next-turn-icon"></div>
+            <div class="hud-info">
                 <div class="hud-value large" id="nav-next-dist">0m</div>
+                <div class="hud-road" id="nav-road-name"></div>
             </div>
-            <div class="hud-divider"></div>
-            <div class="hud-sub">
-                <div class="hud-icon small" id="nav-second-icon"></div>
-                <div class="hud-value small" id="nav-second-dist">0m</div>
+        </div>
+        <!-- 두 번째 턴 (서브 카드) -->
+        <div class="hud-card hud-card-sub">
+            <div class="hud-icon small" id="nav-second-icon"></div>
+            <div class="hud-value small" id="nav-second-dist">0m</div>
+        </div>
+    </div>
+
+    <!-- [NEW] 대시보드 모달 -->
+    <div id="dashboard-modal" class="modal-overlay hidden">
+        <div class="dashboard-content glass-premium">
+            <div class="dashboard-header" id="dash-header">
+                <button id="close-dashboard-btn" class="close-dashboard">✕</button>
+                <!-- 프로필 정보 동적 삽입 -->
+            </div>
+            <div class="dashboard-tabs">
+                <button class="dash-tab-btn active" data-tab="movement">🦶 내 발자국</button>
+                <button class="dash-tab-btn" data-tab="social">💬 내 목소리</button>
+            </div>
+            <div class="dashboard-body" id="dash-content-area">
+                <!-- 탭 컨텐츠 동적 삽입 -->
             </div>
         </div>
     </div>
@@ -445,6 +471,7 @@
     <script src="js/services/MessageService.js?v=1.2" defer></script>
     <script src="js/social_manager.js?v=1.2" defer></script>
     <script src="js/ui_manager.js?v=1.2" defer></script>
+    <script src="js/dashboard_manager.js?v=1.0" defer></script>
     <script src="js/app.js?v=1.2" defer></script>
 </body>
 
