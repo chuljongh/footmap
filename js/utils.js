@@ -175,11 +175,30 @@ const Utils = {
         if (!routeCoordinates || routeCoordinates.length < 2) return Infinity;
 
         let minDist = Infinity;
+
+        // [DEBUG] 로그 추가 (3초마다 한 번만 출력하도록 쓰로틀링 가능하면 좋겠지만 여기선 간단히 100번에 한번출력 or 조건부 출력)
+        const debugMode = (this._dbgCounter % 30 === 0); // 약 10~30초마다 상세 로그
+
+        if (debugMode) {
+            console.log(`[DistCalc] Point: ${point[0]},${point[1]}`);
+            console.log(`[DistCalc] Route[0]: ${routeCoordinates[0][0]},${routeCoordinates[0][1]}`);
+        }
+
         for (let i = 0; i < routeCoordinates.length - 1; i++) {
             const dist = this.distanceToLineSegment(point, routeCoordinates[i], routeCoordinates[i + 1]);
             if (dist < minDist) minDist = dist;
-            if (minDist <= threshold) return minDist; // Early exit
+            if (minDist <= threshold) {
+                // [DEBUG] Early Exit 로그
+                // if (debugMode) console.log(`[DistCalc] Early Exit: ${minDist.toFixed(1)}m < ${threshold}m @ Seg ${i}`);
+                return minDist;
+            }
         }
+
+        if (debugMode) console.log(`[DistCalc] Final MinDist: ${minDist.toFixed(1)}m`);
+
         return minDist;
     }
 };
+
+// Explicit Global Export
+window.Utils = Utils;

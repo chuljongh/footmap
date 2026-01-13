@@ -103,3 +103,6 @@ const MessageService = {
         return await response.json();
     }
 };
+
+// Explicit Global Export
+window.MessageService = MessageService;

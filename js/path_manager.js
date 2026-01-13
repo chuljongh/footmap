@@ -130,3 +130,6 @@ const PathManager = {
     // 향후 기능: DataCollector와 연동하여 실제 DB 데이터 로드
     // async loadRealTrajectories() { ... }
 };
+
+// Explicit Global Export
+window.PathManager = PathManager;

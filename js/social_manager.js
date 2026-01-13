@@ -739,8 +739,8 @@ const SocialManager = {
 
         // 주소 가져오기 (비동기)
         try {
-            const manager = window.MapManager || MapManager;
-            if (manager && typeof manager.getAddressFromCoords === 'function') {
+            const manager = (typeof MapManager !== 'undefined') ? MapManager : null;
+            if (manager && manager.map && typeof manager.getAddressFromCoords === 'function') {
                 const address = await manager.getAddressFromCoords(targetCoords);
                 if (titleEl) titleEl.textContent = `글 남기기 : 📍 ${address}`;
             } else {
@@ -799,8 +799,8 @@ const SocialManager = {
             } else {
                 placeNameEl.textContent = '📍 위치 확인 중...';
                 try {
-                    const manager = window.MapManager || MapManager;
-                    if (manager && typeof manager.getAddressFromCoords === 'function') {
+                    const manager = (typeof MapManager !== 'undefined') ? MapManager : null;
+                    if (manager && manager.map && typeof manager.getAddressFromCoords === 'function') {
                         const addr = await manager.getAddressFromCoords(msg.coords);
                         placeNameEl.textContent = '📍 ' + addr;
                         // 캐시에 저장 (선택 사항)

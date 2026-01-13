@@ -350,7 +350,7 @@ const MapManager = {
         const mapCoords = ol.proj.fromLonLat(coords);
 
         // 이동수단 판별 업데이트
-        if (window.SensorManager) {
+        if (typeof SensorManager !== 'undefined') {
             SensorManager.updateSpeed(speed);
         }
 
@@ -414,7 +414,7 @@ const MapManager = {
             if (AppState.activeRoute) {
                 UIManager.updateNavigationHUD(AppState.activeRoute);
                 // [NEW] 경로 이탈 감지
-                if (window.UIManager) UIManager.checkRouteDeviation(coords);
+                if (typeof UIManager !== 'undefined') UIManager.checkRouteDeviation(coords);
             }
         }
     },
@@ -640,4 +640,7 @@ const MapManager = {
         }
     }
 };
+
+// Explicit Global Export
+window.MapManager = MapManager;
 

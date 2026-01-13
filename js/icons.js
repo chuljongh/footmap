@@ -22,3 +22,6 @@ const Icons = {
     edit_square: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`,
     footprint: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c-3 0-5 2-5 5 0 2 1 3 2 4l-1 5c0 1 1 2 2 2s2-1 2-2l-1-5c1-1 2-2 2-4 0-3-2-5-5-5z"></path><path d="M17 11c-2 0-3 1-3 3 0 1 1 2 1 3l-1 4c0 1 1 2 2 2s2-1 2-2l-1-4c1-1 1-2 1-3 0-2-1-3-3-3z"></path></svg>`
 };
+
+// Explicit Global Export
+window.Icons = Icons;

@@ -45,3 +45,6 @@ const AppState = {
     rerouteTimer: null,       // 재탐색 대기 타이머
     lastRerouteTime: 0        // 마지막 재탐색 시각 (쿨다운용)
 };
+
+// Explicit Global Export
+window.AppState = AppState;

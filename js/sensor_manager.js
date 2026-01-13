@@ -62,12 +62,16 @@ const SensorManager = {
         AppState.userMode = mode;
 
         // UI 업데이트
-        if (window.UIManager && UIManager.updateModeIndicator) {
+        if (typeof UIManager !== 'undefined' && UIManager.updateModeIndicator) {
             UIManager.updateModeIndicator();
         }
 
         // 차량 모드일 경우 기록 중지 등 추가 로직 가능
         if (mode === 'vehicle') {
+            // 차량 모드 로직 (필요시)
         }
     }
 };
+
+// Explicit Global Export
+window.SensorManager = SensorManager;

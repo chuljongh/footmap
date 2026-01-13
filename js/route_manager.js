@@ -139,7 +139,7 @@ const RouteManager = {
                     AppState.map.getView().fit(extent, { padding: [100, 50, 150, 50], maxZoom: 17 });
                 }
 
-                if (window.UIManager) {
+                if (typeof UIManager !== 'undefined') {
                     UIManager.updateNavigationHUD(AppState.activeRoute);
                 }
             } else {
@@ -167,3 +167,6 @@ const RouteManager = {
         }
     }
 };
+
+// Explicit Global Export
+window.RouteManager = RouteManager;

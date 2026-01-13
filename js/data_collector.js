@@ -161,3 +161,6 @@ const DataCollector = {
         };
     }
 };
+
+// Explicit Global Export
+window.DataCollector = DataCollector;

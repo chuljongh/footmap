@@ -1162,7 +1162,7 @@ const UIManager = {
             document.getElementById('pre-nav-actions')?.classList.add('hidden');
 
             // [Fix] 네비게이션 시작 시 대화 오버레이 강제 종료
-            if (window.SocialManager && SocialManager.closeTalkMode) {
+            if (typeof SocialManager !== 'undefined' && SocialManager.closeTalkMode) {
                 SocialManager.closeTalkMode();
             }
 
@@ -1313,12 +1313,12 @@ const UIManager = {
             if (navRoadName) navRoadName.textContent = nextStep.name || '';
 
             // [FIX] 스마트 다이내믹 줌 트리거 - 300m 이내에서만 상세 줌
-            if (window.MapManager && MapManager.handleDynamicZoom) {
+            if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
                 MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
             }
 
             // [NEW] 목적지 접근 자동 확대 - 500m 이내에서 점진적 줌인
-            if (AppState.destination && window.MapManager && MapManager.handleDestinationZoom) {
+            if (AppState.destination && typeof MapManager !== 'undefined' && MapManager.handleDestinationZoom) {
                 const distToDest = Utils.calculateDistance(currentPos, AppState.destination.coords);
                 MapManager.handleDestinationZoom(distToDest);
             }
@@ -1434,3 +1434,6 @@ const UIManager = {
         }
     }
 };
+
+// Explicit Global Export
+window.UIManager = UIManager;
