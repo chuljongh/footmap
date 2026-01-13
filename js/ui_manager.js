@@ -1153,6 +1153,39 @@ const UIManager = {
         }, 5000);
     },
 
+    // [RESTORED] 경로 데이터 저장 함수
+    processAndSaveRoute() {
+        try {
+            // Null 체크: destination이 없으면 기본값 사용
+            const destName = AppState.destination?.name || '알 수 없는 목적지';
+            const destCoords = AppState.destination?.coords || null;
+
+            // 저장할 경로 데이터 구성
+            const routeData = {
+                id: Date.now(),
+                destination: destName,
+                coords: destCoords,
+                distance: AppState.activeRoute?.distance || 0,
+                duration: AppState.activeRoute?.duration || 0,
+                mode: AppState.userMode,
+                timestamp: new Date().toISOString(),
+                history: AppState.routeHistory || []
+            };
+
+            // 기존 저장된 경로 목록 가져오기
+            const savedRoutes = JSON.parse(localStorage.getItem('balgil_routes') || '[]');
+            savedRoutes.unshift(routeData);
+
+            // 최대 50개까지만 유지
+            if (savedRoutes.length > 50) savedRoutes.pop();
+
+            localStorage.setItem('balgil_routes', JSON.stringify(savedRoutes));
+            console.log('[RouteData] Saved route:', destName);
+        } catch (error) {
+            console.error('[RouteData] Save failed:', error);
+        }
+    },
+
     handleNavigateStart() {
         try {
             console.log('[DEBUG] handleNavigateStart: Init');
