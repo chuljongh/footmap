@@ -1164,40 +1164,57 @@ const UIManager = {
     },
 
     handleNavigateStart() {
-        // [START NAVIGATION]
-        if (AppState.destinationClearTimer) {
-            clearTimeout(AppState.destinationClearTimer);
-            AppState.destinationClearTimer = null;
+        try {
+            console.log('[DEBUG] handleNavigateStart: Init');
+            Utils.showToast('[DEBUG] Nav Start: Init');
+
+            // [START NAVIGATION]
+            if (AppState.destinationClearTimer) {
+                clearTimeout(AppState.destinationClearTimer);
+                AppState.destinationClearTimer = null;
+            }
+
+            AppState.isNavigating = true;
+            AppState.isUserInteracting = false;
+            AppState.routeHistory = [];
+            AppState.currentStepIndex = 0; // 현재 단계 인덱스 초기화
+            // [NEW] 재탐색 상태 초기화
+            AppState.lastRerouteTime = 0;
+            this.clearRerouteTimer();
+
+            Utils.showToast('[DEBUG] Nav Start: State Set');
+
+            // [NEW] Wake Lock - 화면 꺼짐 방지
+            this.requestWakeLock();
+
+            Utils.showToast('[DEBUG] Nav Start: WakeLock Requested');
+
+            document.body.classList.add('search-hidden');
+            document.getElementById('navigation-hud')?.classList.remove('hidden');
+
+            document.getElementById('dashboard-container')?.classList.remove('hidden');
+            document.getElementById('pre-nav-actions')?.classList.add('hidden');
+
+            // [Fix] 네비게이션 시작 시 대화 오버레이 강제 종료
+            if (window.SocialManager && SocialManager.closeTalkMode) {
+                SocialManager.closeTalkMode();
+            }
+
+            this.updateDashboard(AppState.userMode);
+
+            // [FIX] clearWaypoints 제거 - 시작 전 설정한 경유지를 유지해야 함
+            RouteManager.showRoute(AppState.currentPosition, AppState.destination.coords, AppState.waypoints);
+            MapManager.fitViewToRoute();
+
+            if (AppState.activeRoute) this.updateNavigationHUD(AppState.activeRoute);
+
+            console.log('[DEBUG] handleNavigateStart: Complete, isNavigating=', AppState.isNavigating);
+        } catch (error) {
+            console.error('[DEBUG] handleNavigateStart Error:', error);
+            Utils.showToast(`[DEBUG] Nav Error: ${error.message}`);
+            // 에러 발생해도 네비게이션 상태는 유지 시도 (필요시)
+            AppState.isNavigating = true;
         }
-
-        AppState.isNavigating = true;
-        AppState.isUserInteracting = false;
-        AppState.routeHistory = [];
-        AppState.currentStepIndex = 0; // 현재 단계 인덱스 초기화
-        // [NEW] 재탐색 상태 초기화
-        AppState.lastRerouteTime = 0;
-        this.clearRerouteTimer();
-
-        // [NEW] Wake Lock - 화면 꺼짐 방지
-        this.requestWakeLock();
-
-        document.body.classList.add('search-hidden');
-        document.getElementById('navigation-hud')?.classList.remove('hidden');
-        document.getElementById('dashboard-container')?.classList.remove('hidden');
-        document.getElementById('pre-nav-actions')?.classList.add('hidden');
-
-        // [Fix] 네비게이션 시작 시 대화 오버레이 강제 종료
-        if (window.SocialManager && SocialManager.closeTalkMode) {
-            SocialManager.closeTalkMode();
-        }
-
-        this.updateDashboard(AppState.userMode);
-
-        // [FIX] clearWaypoints 제거 - 시작 전 설정한 경유지를 유지해야 함
-        RouteManager.showRoute(AppState.currentPosition, AppState.destination.coords, AppState.waypoints);
-        MapManager.fitViewToRoute();
-
-        if (AppState.activeRoute) this.updateNavigationHUD(AppState.activeRoute);
     },
 
     updateDashboard(mode) {
