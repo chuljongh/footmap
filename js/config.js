@@ -5,6 +5,10 @@ const Config = {
     // V-world API 키 (데모용)
     VWORLD_API_KEY: 'YOUR_VWORLD_API_KEY',
 
+    // 지도 타일 URL (테마별)
+    MAP_TILE_LIGHT: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko',
+    MAP_TILE_DARK: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+
     // 기본 위치 (서울 시청)
     DEFAULT_CENTER: [126.9780, 37.5665],
     DEFAULT_ZOOM: 16,
@@ -29,10 +33,10 @@ const Config = {
     TRAJECTORY_MINT: '#00D4AA',  // 궤적 기본 색상 (민트)
     NEARBY_MESSAGE_THRESHOLD: 50,  // 근처 메시지 거리 (m)
 
-    // [NEW] 경로 이탈 재탐색
-    REROUTE_THRESHOLD_METERS: 15,   // 이탈 판단 거리 (m) - 테스트용 완화
-    REROUTE_DEBOUNCE_MS: 3000,      // 이탈 유지 시간 (3초) - 테스트용 단축
-    MIN_REROUTE_INTERVAL_MS: 5000, // 재탐색 최소 간격 (5초) - 테스트용 단축
+    // [NEW] 경로 이탈 재탐색 설정 (보행자 최적화)
+    REROUTE_THRESHOLD_METERS: 30,   // 이탈 판단 거리 (30m) - GPS 오차(약 10~20m) 고려한 적정값
+    REROUTE_DEBOUNCE_MS: 5000,      // 이탈 판정 대기 (5초) - 일시적인 GPS 튐 방지
+    MIN_REROUTE_INTERVAL_MS: 10000, // 재탐색 최소 간격 (10초) - 배터리 소모 및 API 과부하 방지
     BEST_MESSAGE_THRESHOLD: 100,  // 목적지 베스트 메시지 범위 (m)
     FOOTPRINT_OPACITY: 0.3,      // 발자국 개별 투명도 (중첩 효과용)
 
@@ -53,7 +57,7 @@ const Config = {
         ROUTE_ACTIVE_INNER: '#FFA500',
         ROUTE_FUTURE: '#999999',    // 미래 경로
         ROUTE_FUTURE_INNER: '#BBBBBB',
-        ARROW_FILL: '#00D4AA',      // 방향 화살표
+        ARROW_FILL: '#00D4AA',      // 방향 화살표 (Mint)
         WHITE: '#FFFFFF',           // 마커 테두리/텍스트 색상
         MARKER_HIGHLIGHT: '#FFA500', // 현위치/목적지 마커 (경로 내부선과 동일한 밝은 주황)
 

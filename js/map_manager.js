@@ -161,17 +161,16 @@ const MapManager = {
     },
 
     initMainMap() {
-        // Google Maps 레이어
+        // 저장된 테마에 맞는 지도 타일 선택
+        const savedTheme = Utils.loadState('appTheme') || 'dark';
+        const tileUrl = savedTheme === 'dark' ? Config.MAP_TILE_DARK : Config.MAP_TILE_LIGHT;
         const isRetina = window.devicePixelRatio > 1;
-        const googleUrl = isRetina
-            ? 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko&scale=2'
-            : 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko';
 
         const mapLayer = new ol.layer.Tile({
             source: new ol.source.XYZ({
-                url: googleUrl,
-                tilePixelRatio: isRetina ? 2 : 1,
-                attributions: 'Map data &copy;2025 Google'
+                url: isRetina && savedTheme !== 'dark' ? tileUrl + '&scale=2' : (savedTheme === 'dark' ? tileUrl : tileUrl),
+                tilePixelRatio: isRetina && savedTheme !== 'dark' ? 2 : 1,
+                attributions: savedTheme === 'dark' ? '© CartoDB' : 'Map data ©2025 Google'
             })
         });
 
@@ -636,6 +635,23 @@ const MapManager = {
                 } else {
                     numEl.classList.add('hidden');
                 }
+            }
+        }
+    },
+
+    // ========================================
+    // 지도 테마 전환 (Light/Dark Tiles)
+    // ========================================
+    setMapTheme(theme) {
+        if (!AppState.map) return;
+
+        const url = (theme === 'dark') ? Config.MAP_TILE_DARK : Config.MAP_TILE_LIGHT;
+        const layers = AppState.map.getLayers();
+
+        if (layers && layers.getLength() > 0) {
+            const baseLayer = layers.item(0);
+            if (baseLayer && baseLayer.getSource) {
+                baseLayer.getSource().setUrl(url);
             }
         }
     }
