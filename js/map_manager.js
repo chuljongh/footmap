@@ -161,16 +161,15 @@ const MapManager = {
     },
 
     initMainMap() {
-        // 저장된 테마에 맞는 지도 타일 선택
-        const savedTheme = Utils.loadState('appTheme') || 'dark';
-        const tileUrl = savedTheme === 'dark' ? Config.MAP_TILE_DARK : Config.MAP_TILE_LIGHT;
+        // 항상 밝은 지도 타일(Google Maps) 사용 (사용자 요청: Dark UI + Light Map)
+        const tileUrl = Config.MAP_TILE_LIGHT;
         const isRetina = window.devicePixelRatio > 1;
 
         const mapLayer = new ol.layer.Tile({
             source: new ol.source.XYZ({
-                url: isRetina && savedTheme !== 'dark' ? tileUrl + '&scale=2' : (savedTheme === 'dark' ? tileUrl : tileUrl),
-                tilePixelRatio: isRetina && savedTheme !== 'dark' ? 2 : 1,
-                attributions: savedTheme === 'dark' ? '© CartoDB' : 'Map data ©2025 Google'
+                url: isRetina ? tileUrl + '&scale=2' : tileUrl,
+                tilePixelRatio: isRetina ? 2 : 1,
+                attributions: 'Map data ©2025 Google'
             })
         });
 
@@ -635,23 +634,6 @@ const MapManager = {
                 } else {
                     numEl.classList.add('hidden');
                 }
-            }
-        }
-    },
-
-    // ========================================
-    // 지도 테마 전환 (Light/Dark Tiles)
-    // ========================================
-    setMapTheme(theme) {
-        if (!AppState.map) return;
-
-        const url = (theme === 'dark') ? Config.MAP_TILE_DARK : Config.MAP_TILE_LIGHT;
-        const layers = AppState.map.getLayers();
-
-        if (layers && layers.getLength() > 0) {
-            const baseLayer = layers.item(0);
-            if (baseLayer && baseLayer.getSource) {
-                baseLayer.getSource().setUrl(url);
             }
         }
     }

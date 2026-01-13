@@ -7,7 +7,6 @@ const Config = {
 
     // 지도 타일 URL (테마별)
     MAP_TILE_LIGHT: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko',
-    MAP_TILE_DARK: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
 
     // 기본 위치 (서울 시청)
     DEFAULT_CENTER: [126.9780, 37.5665],
