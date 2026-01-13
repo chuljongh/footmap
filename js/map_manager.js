@@ -585,6 +585,12 @@ const MapManager = {
         this.refreshMarkers();
     },
 
+    // [NEW] 마커만 삭제 (waypoints 배열은 유지)
+    clearWaypointMarkersOnly() {
+        AppState.waypointMarkers.forEach(layer => AppState.map.removeLayer(layer));
+        AppState.waypointMarkers = [];
+    },
+
     clearWaypoints() {
         AppState.waypoints = [];
         AppState.waypointMarkers.forEach(layer => AppState.map.removeLayer(layer));

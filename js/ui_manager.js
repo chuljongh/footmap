@@ -885,6 +885,9 @@ const UIManager = {
         const reachedDestination = AppState.destination;
 
         if (AppState.waypoints && AppState.waypoints.length > 0) {
+            // [FIX] 기존 마커 삭제 (경유지 배열은 유지)
+            MapManager.clearWaypointMarkersOnly();
+
             // 다음 경유지를 새 목적지로 설정
             const nextWaypoint = AppState.waypoints.shift();
             AppState.destination = { coords: nextWaypoint, name: '다음 목적지' };
@@ -895,6 +898,10 @@ const UIManager = {
             AppState.accessHistory = [];
 
             RouteManager.showRoute(AppState.currentPosition, nextWaypoint, AppState.waypoints);
+
+            // [FIX] 마커 번호 재갱신 (남은 경유지가 있다면)
+            MapManager.refreshMarkers();
+
             MapManager.fitViewToRoute();
 
             Utils.showToast('✅ 다음 목적지로 안내를 시작합니다');
