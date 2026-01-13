@@ -820,7 +820,8 @@ const UIManager = {
 
     handleNavigate(forceStop = false) {
         const btn = document.getElementById('navigate-btn');
-        if (btn && btn.classList.contains('disabled')) return;
+        // [FIX] forceStop일 때는 버튼이 disabled여도 진행 (안내 종료 강제 실행)
+        if (!forceStop && btn && btn.classList.contains('disabled')) return;
 
         if (forceStop || AppState.isNavigating) {
             // [STOP NAVIGATION]
