@@ -354,6 +354,9 @@ const MapManager = {
             SensorManager.updateSpeed(speed);
         }
 
+        // [DEBUG] GPS 업데이트 시마다 오버레이 갱신
+        Utils.updateDebugOverlay('GPS', { coords: coords });
+
         if (AppState.positionMarker) {
             AppState.positionMarker.setPosition(mapCoords);
 

@@ -436,15 +436,18 @@
         </div>
     </div>
 
-    <!-- [DEBUG] 실시간 이탈 모니터링 오버레이 -->
-    <div id="debug-overlay" style="position: fixed; top: 120px; right: 10px; background: rgba(0,0,0,0.8); color: lime; padding: 10px; border-radius: 8px; font-size: 11px; z-index: 9999; font-family: monospace; pointer-events: none; text-align: left; line-height: 1.4;">
-        <div>Sts: <span id="dbg-status" style="color:yellow">INIT</span></div>
+    <!-- [DEBUG] 종합 디버그 오버레이 -->
+    <div id="debug-overlay" style="position: fixed; top: 100px; right: 8px; background: rgba(0,0,0,0.9); color: lime; padding: 12px; border-radius: 10px; font-size: 11px; z-index: 9999; font-family: monospace; pointer-events: none; text-align: left; line-height: 1.5; min-width: 140px; border: 1px solid lime;">
+        <div style="color: #0ff; font-weight: bold; margin-bottom: 4px;">🐛 DEBUG v2</div>
+        <div>Src: <span id="dbg-src" style="color:yellow">INIT</span></div>
         <div>Nav: <span id="dbg-nav">OFF</span></div>
+        <div>Rte: <span id="dbg-route">NULL</span></div>
         <div>Dev: <span id="dbg-dist">0</span>m</div>
         <div>Max: <span id="dbg-max">0</span>m</div>
         <div>Thr: <span id="dbg-thr">0</span>m</div>
-        <div>Last: <span id="dbg-log" style="color:cyan">None</span></div>
-        <div style="font-size:9px; color:#aaa">GPS: <span id="dbg-gps">0,0</span></div>
+        <div>Cnt: <span id="dbg-cnt" style="color:#0ff">0</span></div>
+        <div style="font-size:10px; color:#aaa; margin-top:4px;">GPS: <span id="dbg-gps">0,0</span></div>
+        <div style="font-size:10px; color:red; max-width:120px; word-wrap:break-word;">Err: <span id="dbg-err">None</span></div>
     </div>
 
     <!-- [NEW] 대시보드 모달 -->

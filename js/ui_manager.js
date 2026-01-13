@@ -947,44 +947,13 @@ const UIManager = {
 
     // [NEW] 경로 이탈 감지
     checkRouteDeviation(currentCoords) {
-        // Init Max Deviation if needed
-        if (typeof AppState.maxDeviation === 'undefined') AppState.maxDeviation = 0;
-
-        // [DEBUG] Overlay Update (Always run first)
-        const dbgStart = document.getElementById('debug-overlay');
-        const updateDebug = (status, dist = 0, logMsg = '') => {
-            if (dbgStart) {
-                // Update Max Deviation
-                if (dist > AppState.maxDeviation) AppState.maxDeviation = dist;
-
-                document.getElementById('dbg-status').textContent = status;
-                document.getElementById('dbg-status').style.color = status === 'CHECKING' ? 'lime' : (status.startsWith('SKIP') ? 'orange' : 'red');
-                document.getElementById('dbg-nav').textContent = AppState.isNavigating ? 'ON' : 'OFF';
-                document.getElementById('dbg-dist').textContent = dist.toFixed(1);
-                document.getElementById('dbg-max').textContent = AppState.maxDeviation.toFixed(1);
-                document.getElementById('dbg-thr').textContent = Config.REROUTE_THRESHOLD_METERS;
-
-                if (logMsg) {
-                    document.getElementById('dbg-log').textContent = logMsg;
-                    // Error log color
-                    document.getElementById('dbg-log').style.color = status.startsWith('SKIP') ? 'orange' : 'cyan';
-                }
-
-                document.getElementById('dbg-gps').textContent = currentCoords ? `${currentCoords[0].toFixed(4)},${currentCoords[1].toFixed(4)}` : 'NULL';
-
-                // 거리 색상
-                const distEl = document.getElementById('dbg-dist');
-                if (distEl) distEl.style.color = dist > Config.REROUTE_THRESHOLD_METERS ? 'red' : 'lime';
-            }
-        };
-
         // 방어 코드: 필수 조건 체크
         if (!AppState.isNavigating) {
-            updateDebug('SKIP_NAV_OFF', 0, 'Nav logic OFF');
+            Utils.updateDebugOverlay('NAV_OFF', { coords: currentCoords, error: 'isNavigating=false' });
             return;
         }
         if (!AppState.activeRoute) {
-            updateDebug('SKIP_NO_ROUTE', 0, 'No active route');
+            Utils.updateDebugOverlay('NO_ROUTE', { coords: currentCoords, error: 'activeRoute=null' });
             return;
         }
 
@@ -1006,29 +975,28 @@ const UIManager = {
         }
 
         if (!routeCoords || routeCoords.length === 0) {
-            updateDebug('SKIP_NO_GEO', 0, 'No geometry found');
+            Utils.updateDebugOverlay('NO_GEO', { coords: currentCoords, error: 'geometry.coordinates=null' });
             console.log('[Reroute] Skip: no route coordinates found');
             return;
         }
 
         // 쿨다운 체크
         if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) {
-            updateDebug('SKIP_COOLDOWN', 0, 'Cooldown active');
+            Utils.updateDebugOverlay('COOLDOWN', { coords: currentCoords });
             return;
         }
 
         const distance = Utils.calculateMinDistanceToRoute(currentCoords, routeCoords, Config.REROUTE_THRESHOLD_METERS);
 
-        // 정상 체크 상태 업데이트
-        let logMsg = distance > Config.REROUTE_THRESHOLD_METERS ? 'Deviation!' : 'On Track';
-        updateDebug('CHECKING', distance, logMsg);
+        // 정상 체크 상태 - 거리 기반 오버레이 업데이트
+        Utils.updateDebugOverlay('CHK', { coords: currentCoords, distance: distance });
 
         console.log(`[Reroute] Distance: ${distance.toFixed(1)}m (Thr: ${Config.REROUTE_THRESHOLD_METERS}m)`);
 
         if (distance > Config.REROUTE_THRESHOLD_METERS) {
             // 이탈 상태: 타이머 시작 (아직 없으면)
             if (!AppState.rerouteTimer) {
-                updateDebug('TIMER_START', distance, 'Timer Started (3s)');
+                Utils.updateDebugOverlay('TIMER', { coords: currentCoords, distance: distance });
                 console.log('[Reroute] Starting deviation timer...');
                 Utils.showToast(`⚠️ 경로 이탈 (${Math.round(distance)}m)`);
                 AppState.rerouteTimer = setTimeout(() => {
@@ -1166,7 +1134,6 @@ const UIManager = {
     handleNavigateStart() {
         try {
             console.log('[DEBUG] handleNavigateStart: Init');
-            Utils.showToast('[DEBUG] Nav Start: Init');
 
             // [START NAVIGATION]
             if (AppState.destinationClearTimer) {
@@ -1182,12 +1149,11 @@ const UIManager = {
             AppState.lastRerouteTime = 0;
             this.clearRerouteTimer();
 
-            Utils.showToast('[DEBUG] Nav Start: State Set');
+            // [DEBUG] 오버레이 업데이트 (네비게이션 시작)
+            Utils.updateDebugOverlay('NAV_START', {});
 
             // [NEW] Wake Lock - 화면 꺼짐 방지
             this.requestWakeLock();
-
-            Utils.showToast('[DEBUG] Nav Start: WakeLock Requested');
 
             document.body.classList.add('search-hidden');
             document.getElementById('navigation-hud')?.classList.remove('hidden');
@@ -1211,7 +1177,8 @@ const UIManager = {
             console.log('[DEBUG] handleNavigateStart: Complete, isNavigating=', AppState.isNavigating);
         } catch (error) {
             console.error('[DEBUG] handleNavigateStart Error:', error);
-            Utils.showToast(`[DEBUG] Nav Error: ${error.message}`);
+            Utils.updateDebugOverlay('NAV_ERR', { error: error.message });
+            Utils.showToast(`[ERROR] 안내 시작 실패: ${error.message}`);
             // 에러 발생해도 네비게이션 상태는 유지 시도 (필요시)
             AppState.isNavigating = true;
         }
