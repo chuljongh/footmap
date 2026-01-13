@@ -947,53 +947,83 @@ const UIManager = {
 
     // [NEW] 경로 이탈 감지
     checkRouteDeviation(currentCoords) {
+        // [DEBUG] Overlay Update (Always run first)
+        const dbgStart = document.getElementById('debug-overlay');
+        const updateDebug = (status, dist = 0) => {
+            if (dbgStart) {
+                document.getElementById('dbg-status').textContent = status;
+                document.getElementById('dbg-status').style.color = status === 'CHECKING' ? 'lime' : (status.startsWith('SKIP') ? 'orange' : 'red');
+                document.getElementById('dbg-nav').textContent = AppState.isNavigating ? 'ON' : 'OFF';
+                document.getElementById('dbg-dist').textContent = dist.toFixed(1);
+                document.getElementById('dbg-thr').textContent = Config.REROUTE_THRESHOLD_METERS;
+                document.getElementById('dbg-timer').textContent = AppState.rerouteTimer ? 'ACTIVE' : 'OFF';
+                document.getElementById('dbg-gps').textContent = currentCoords ? `${currentCoords[0].toFixed(4)},${currentCoords[1].toFixed(4)}` : 'NULL';
+
+                // 거리 색상
+                const distEl = document.getElementById('dbg-dist');
+                if (distEl) distEl.style.color = dist > Config.REROUTE_THRESHOLD_METERS ? 'red' : 'lime';
+            }
+        };
+
         // 방어 코드: 필수 조건 체크
-        if (!AppState.isNavigating || !AppState.activeRoute) {
-            console.log('[Reroute] Skip: not navigating or no active route');
+        if (!AppState.isNavigating) {
+            updateDebug('SKIP_NAV_OFF');
             return;
         }
-        if (!AppState.activeRoute.geometry?.coordinates) {
-            console.log('[Reroute] Skip: no route coordinates');
+        if (!AppState.activeRoute) {
+            updateDebug('SKIP_NO_ROUTE');
             return;
         }
 
-        // 쿨다운 체크 (10초 내 재탐색 금지)
+        // [FIX] Geometry Fallback Logic
+        let routeCoords = AppState.activeRoute.geometry?.coordinates;
+        if (!routeCoords) {
+            // fallback: reconstruction from legs
+            console.warn('[Reroute] No root geometry, trying legs...');
+            if (AppState.activeRoute.legs && AppState.activeRoute.legs.length > 0) {
+                routeCoords = [];
+                AppState.activeRoute.legs.forEach(leg => {
+                    leg.steps.forEach(step => {
+                        if (step.geometry && step.geometry.coordinates) {
+                            routeCoords.push(...step.geometry.coordinates);
+                        }
+                    });
+                });
+            }
+        }
+
+        if (!routeCoords || routeCoords.length === 0) {
+            updateDebug('SKIP_NO_GEO');
+            console.log('[Reroute] Skip: no route coordinates found');
+            return;
+        }
+
+        // 쿨다운 체크
         if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) {
-            console.log('[Reroute] Skip: cooldown active');
+            updateDebug('SKIP_COOLDOWN');
             return;
         }
 
-        const routeCoords = AppState.activeRoute.geometry.coordinates;
         const distance = Utils.calculateMinDistanceToRoute(currentCoords, routeCoords, Config.REROUTE_THRESHOLD_METERS);
 
-        // [DEBUG] Update Overlay
-        const dbgStart = document.getElementById('debug-overlay');
-        if (dbgStart) {
-            document.getElementById('dbg-nav').textContent = AppState.isNavigating ? 'ON' : 'OFF';
-            document.getElementById('dbg-dist').textContent = distance.toFixed(1);
-            document.getElementById('dbg-thr').textContent = Config.REROUTE_THRESHOLD_METERS;
-            document.getElementById('dbg-timer').textContent = AppState.rerouteTimer ? 'ACTIVE' : 'OFF';
-            document.getElementById('dbg-gps').textContent = `${currentCoords[0].toFixed(4)}, ${currentCoords[1].toFixed(4)}`;
+        // 정상 체크 상태 업데이트
+        updateDebug('CHECKING', distance);
 
-            // 색상 표시
-            document.getElementById('dbg-dist').style.color = distance > Config.REROUTE_THRESHOLD_METERS ? 'red' : 'lime';
-        }
-
-        console.log(`[Reroute] Distance to route: ${distance.toFixed(1)}m (threshold: ${Config.REROUTE_THRESHOLD_METERS}m)`);
+        console.log(`[Reroute] Distance: ${distance.toFixed(1)}m (Thr: ${Config.REROUTE_THRESHOLD_METERS}m)`);
 
         if (distance > Config.REROUTE_THRESHOLD_METERS) {
             // 이탈 상태: 타이머 시작 (아직 없으면)
             if (!AppState.rerouteTimer) {
-                console.log('[Reroute] Route deviation detected! Starting 5s timer...');
-                Utils.showToast(`⚠️ 경로 이탈 감지 (${Math.round(distance)}m)`);
+                console.log('[Reroute] Starting deviation timer...');
+                Utils.showToast(`⚠️ 경로 이탈 (${Math.round(distance)}m)`);
                 AppState.rerouteTimer = setTimeout(() => {
                     this.performReroute();
                 }, Config.REROUTE_DEBOUNCE_MS);
             }
         } else {
-            // 경로 복귀: 타이머 해제
+            // 경로 복귀
             if (AppState.rerouteTimer) {
-                console.log('[Reroute] Back on route, clearing timer');
+                console.log('[Reroute] Back on route');
             }
             this.clearRerouteTimer();
         }
@@ -1010,8 +1040,11 @@ const UIManager = {
             Utils.showToast('🔄 경로를 재탐색합니다...');
 
             // [DEBUG] Overlay Update
-            document.getElementById('dbg-timer').textContent = 'FIRED';
-            document.getElementById('dbg-timer').style.color = 'yellow';
+            const dbgTimer = document.getElementById('dbg-timer');
+            if (dbgTimer) {
+                dbgTimer.textContent = 'FIRED';
+                dbgTimer.style.color = 'yellow';
+            }
 
             RouteManager.showRoute(
                 AppState.currentPosition,
