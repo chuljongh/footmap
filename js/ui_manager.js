@@ -214,6 +214,13 @@ const UIManager = {
 
         // 0.5초 경과 후 검색 기록 노출 (입력창이 비어있을 때)
         searchInput?.addEventListener('focus', () => {
+            // [NEW] 네비게이션 종료 후 검색창 터치 시 즉시 목적지 삭제
+            if (AppState.destinationClearTimer) {
+                clearTimeout(AppState.destinationClearTimer);
+                AppState.destinationClearTimer = null;
+                MapManager.clearDestination();
+            }
+
             if (!searchInput.value.trim()) {
                 this.historyTimer = setTimeout(() => {
                     this.renderSearchHistory();
@@ -243,6 +250,13 @@ const UIManager = {
         });
 
         clearBtn?.addEventListener('click', () => {
+            // [NEW] 네비게이션 종료 후 X버튼 터치 시 즉시 목적지 삭제
+            if (AppState.destinationClearTimer) {
+                clearTimeout(AppState.destinationClearTimer);
+                AppState.destinationClearTimer = null;
+                MapManager.clearDestination();
+            }
+
             if (searchInput) {
                 searchInput.value = '';
                 searchInput.focus();
@@ -1459,11 +1473,6 @@ const UIManager = {
         const textEl = this.elements['theme-text'];
         if (iconEl) iconEl.textContent = theme === 'dark' ? '🌙' : '☀️';
         if (textEl) textEl.textContent = theme === 'dark' ? '다크 모드' : '라이트 모드';
-
-        // 지도 타일 변경
-        if (typeof MapManager !== 'undefined' && MapManager.setMapTheme) {
-            MapManager.setMapTheme(theme);
-        }
 
         // 저장
         Utils.saveState('appTheme', theme);
