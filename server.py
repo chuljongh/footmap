@@ -15,7 +15,7 @@ if os.environ.get('FLASK_ENV') == 'production':
 else:
     DATABASE_URL = 'sqlite:///balgil.db'
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+app = Flask(__name__, static_folder='.', static_url_path='', template_folder='templates')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 CORS(app)
