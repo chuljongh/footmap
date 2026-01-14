@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import urllib.request
@@ -695,6 +695,28 @@ def get_trajectories():
         result.append(d)
 
     return jsonify(result)
+
+# ========================================
+# [NEW] 관리자 DB 조회 페이지
+# ========================================
+ADMIN_SECRET_KEY = os.environ.get('ADMIN_KEY', 'balgil_admin_2024')
+
+@app.route('/admin/db')
+def admin_db():
+    """간단한 DB 조회 관리자 페이지"""
+    key = request.args.get('key')
+    if key != ADMIN_SECRET_KEY:
+        return "Access Denied. Use ?key=YOUR_KEY", 403
+
+    # 최근 데이터 조회
+    recent_routes = Route.query.order_by(Route.timestamp.desc()).limit(50).all()
+    users = User.query.order_by(User.created_at.desc()).limit(20).all()
+    messages = Message.query.order_by(Message.created_at.desc()).limit(30).all()
+
+    return render_template('admin_db.html',
+                           routes=recent_routes,
+                           users=users,
+                           messages=messages)
 
 # ========================================
 # 서버 시작

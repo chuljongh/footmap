@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>발길맵 DB 관리자</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, sans-serif; background: #1a1a2e; color: #eee; padding: 20px; }
+        h1 { color: #00d4aa; margin-bottom: 10px; }
+        h2 { color: #888; font-size: 14px; margin: 20px 0 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 13px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+        th { background: #16213e; color: #00d4aa; }
+        tr:nth-child(even) { background: #0f0f23; }
+        tr:hover { background: #1f4068; }
+        .mode-walking { color: #4ade80; }
+        .mode-wheelchair { color: #60a5fa; }
+        .mode-vehicle { color: #f87171; }
+        .timestamp { color: #888; font-size: 11px; }
+        .points-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .summary { background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .summary span { margin-right: 20px; }
+        .refresh-btn { background: #00d4aa; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+        .refresh-btn:hover { background: #00b894; }
+    </style>
+</head>
+<body>
+    <h1>🦶 발길맵 DB 관리자</h1>
+
+    <div class="summary">
+        <span>📊 총 경로: <strong>{{ routes|length }}</strong>개</span>
+        <span>👤 총 사용자: <strong>{{ users|length }}</strong>명</span>
+        <span>📍 총 메시지: <strong>{{ messages|length }}</strong>개</span>
+        <button class="refresh-btn" onclick="location.reload()">🔄 새로고침</button>
+    </div>
+
+    <h2>📍 최근 경로 데이터 (Routes) - 최신 50개</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Mode</th>
+            <th>Distance</th>
+            <th>Duration</th>
+            <th>Points</th>
+            <th>Timestamp</th>
+        </tr>
+        {% for route in routes %}
+        <tr>
+            <td>{{ route.id }}</td>
+            <td>{{ route.user_id or '익명' }}</td>
+            <td class="mode-{{ route.mode }}">{{ route.mode }}</td>
+            <td>{{ "%.2f"|format(route.distance or 0) }} km</td>
+            <td>{{ "%.0f"|format(route.duration or 0) }}s</td>
+            <td class="points-cell" title="{{ route.points }}">{{ (route.points|length) if route.points else 0 }} chars</td>
+            <td class="timestamp">{{ route.timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>👤 사용자 목록 (Users) - 최신 20명</h2>
+    <table>
+        <tr>
+            <th>ID (닉네임)</th>
+            <th>Points</th>
+            <th>Total Dist</th>
+            <th>Walking</th>
+            <th>Wheelchair</th>
+            <th>Created</th>
+        </tr>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.id }}</td>
+            <td>{{ user.points }}</td>
+            <td>{{ "%.2f"|format(user.total_distance or 0) }} km</td>
+            <td>{{ "%.2f"|format(user.dist_walking or 0) }} km</td>
+            <td>{{ "%.2f"|format(user.dist_wheelchair or 0) }} km</td>
+            <td class="timestamp">{{ user.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>💬 최근 메시지 (Messages) - 최신 30개</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>User</th>
+            <th>Content</th>
+            <th>Coords</th>
+            <th>Votes</th>
+            <th>Created</th>
+        </tr>
+        {% for msg in messages %}
+        <tr>
+            <td>{{ msg.id }}</td>
+            <td>{{ msg.user_id or '익명' }}</td>
+            <td>{{ msg.content[:50] }}{% if msg.content|length > 50 %}...{% endif %}</td>
+            <td>{{ "%.4f"|format(msg.lat or 0) }}, {{ "%.4f"|format(msg.lng or 0) }}</td>
+            <td>👍{{ msg.upvotes or 0 }} 👎{{ msg.downvotes or 0 }}</td>
+            <td class="timestamp">{{ msg.created_at }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
