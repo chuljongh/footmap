@@ -720,7 +720,7 @@ def admin_db():
     # 페이지별 데이터 조회
     routes = Route.query.order_by(Route.timestamp.desc()).offset((page - 1) * per_page).limit(per_page).all()
     users = User.query.order_by(User.created_at.desc()).limit(20).all()
-    messages = Message.query.order_by(Message.created_at.desc()).limit(30).all()
+    messages = Message.query.order_by(Message.timestamp.desc()).limit(30).all()
 
     # 총 페이지 수 계산
     total_pages = (total_routes + per_page - 1) // per_page if total_routes > 0 else 1
