@@ -115,7 +115,7 @@
         <tr>
             <td>{{ msg.id }}</td>
             <td>{{ msg.user_id or '익명' }}</td>
-            <td>{{ msg.content[:50] }}{% if msg.content|length > 50 %}...{% endif %}</td>
+            <td>{{ (msg.content or '')[:50] }}{% if msg.content and msg.content|length > 50 %}...{% endif %}</td>
             <td>{{ "%.4f"|format(msg.lat or 0) }}, {{ "%.4f"|format(msg.lng or 0) }}</td>
             <td>👍{{ msg.upvotes or 0 }} 👎{{ msg.downvotes or 0 }}</td>
             <td class="timestamp">{{ msg.created_at }}</td>
