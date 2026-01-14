@@ -14,7 +14,7 @@
         th { background: #16213e; color: #00d4aa; }
         tr:nth-child(even) { background: #0f0f23; }
         tr:hover { background: #1f4068; }
-        .mode-walking { color: #4ade80; }
+        .mode-walking, .mode-pedestrian { color: #4ade80; }
         .mode-wheelchair { color: #60a5fa; }
         .mode-vehicle { color: #f87171; }
         .timestamp { color: #888; font-size: 11px; }
@@ -70,10 +70,10 @@
         <tr>
             <td>{{ route.id }}</td>
             <td>{{ route.user_id or '익명' }}</td>
-            <td class="mode-{{ route.mode }}">{{ route.mode }}</td>
+            <td class="mode-{{ route.mode or 'walking' }}">{{ route.mode or '-' }}</td>
             <td>{{ "%.2f"|format(route.distance or 0) }} km</td>
             <td>{{ "%.0f"|format(route.duration or 0) }}s</td>
-            <td class="points-cell" title="{{ route.points }}">{{ (route.points|length) if route.points else 0 }} chars</td>
+            <td class="points-cell">{{ (route.points_json|length) if route.points_json else 0 }} chars</td>
             <td class="timestamp">{{ route.timestamp }}</td>
         </tr>
         {% endfor %}
@@ -92,7 +92,7 @@
         {% for user in users %}
         <tr>
             <td>{{ user.id }}</td>
-            <td>{{ user.points }}</td>
+            <td>{{ user.points or 0 }}</td>
             <td>{{ "%.2f"|format(user.total_distance or 0) }} km</td>
             <td>{{ "%.2f"|format(user.dist_walking or 0) }} km</td>
             <td>{{ "%.2f"|format(user.dist_wheelchair or 0) }} km</td>
@@ -106,22 +106,21 @@
         <tr>
             <th>ID</th>
             <th>User</th>
-            <th>Content</th>
+            <th>Text</th>
             <th>Coords</th>
             <th>Votes</th>
-            <th>Created</th>
+            <th>Timestamp</th>
         </tr>
         {% for msg in messages %}
         <tr>
             <td>{{ msg.id }}</td>
             <td>{{ msg.user_id or '익명' }}</td>
-            <td>{{ (msg.content or '')[:50] }}{% if msg.content and msg.content|length > 50 %}...{% endif %}</td>
-            <td>{{ "%.4f"|format(msg.lat or 0) }}, {{ "%.4f"|format(msg.lng or 0) }}</td>
-            <td>👍{{ msg.upvotes or 0 }} 👎{{ msg.downvotes or 0 }}</td>
-            <td class="timestamp">{{ msg.created_at }}</td>
+            <td>{{ (msg.text or '')[:50] }}{% if msg.text and msg.text|length > 50 %}...{% endif %}</td>
+            <td>{{ "%.4f"|format(msg.coord_y or 0) }}, {{ "%.4f"|format(msg.coord_x or 0) }}</td>
+            <td>👍{{ msg.likes or 0 }} 👎{{ msg.dislikes or 0 }}</td>
+            <td class="timestamp">{{ msg.timestamp }}</td>
         </tr>
         {% endfor %}
     </table>
 </body>
 </html>
-
