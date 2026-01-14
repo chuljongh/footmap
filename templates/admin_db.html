@@ -19,23 +19,43 @@
         .mode-vehicle { color: #f87171; }
         .timestamp { color: #888; font-size: 11px; }
         .points-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .summary { background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .summary span { margin-right: 20px; }
-        .refresh-btn { background: #00d4aa; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
-        .refresh-btn:hover { background: #00b894; }
+        .summary { background: #16213e; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        .summary span { margin-right: 10px; }
+        .btn { background: #00d4aa; color: #000; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn:hover { background: #00b894; }
+        .btn.disabled { background: #444; color: #888; cursor: not-allowed; }
+        .pagination { display: flex; gap: 10px; align-items: center; margin: 20px 0; }
+        .page-info { color: #888; }
     </style>
 </head>
 <body>
     <h1>🦶 발길맵 DB 관리자</h1>
 
     <div class="summary">
-        <span>📊 총 경로: <strong>{{ routes|length }}</strong>개</span>
-        <span>👤 총 사용자: <strong>{{ users|length }}</strong>명</span>
-        <span>📍 총 메시지: <strong>{{ messages|length }}</strong>개</span>
-        <button class="refresh-btn" onclick="location.reload()">🔄 새로고침</button>
+        <span>📊 총 경로: <strong>{{ total_routes }}</strong>개</span>
+        <span>👤 총 사용자: <strong>{{ total_users }}</strong>명</span>
+        <span>📍 총 메시지: <strong>{{ total_messages }}</strong>개</span>
+        <a class="btn" href="?key={{ key }}&page={{ page }}">🔄 새로고침</a>
     </div>
 
-    <h2>📍 최근 경로 데이터 (Routes) - 최신 50개</h2>
+    <h2>📍 경로 데이터 (Routes) - 페이지 {{ page }} / {{ total_pages }}</h2>
+
+    <div class="pagination">
+        {% if page > 1 %}
+        <a class="btn" href="?key={{ key }}&page={{ page - 1 }}">◀ 이전</a>
+        {% else %}
+        <span class="btn disabled">◀ 이전</span>
+        {% endif %}
+
+        <span class="page-info">{{ page }} / {{ total_pages }} (총 {{ total_routes }}건)</span>
+
+        {% if page < total_pages %}
+        <a class="btn" href="?key={{ key }}&page={{ page + 1 }}">다음 ▶</a>
+        {% else %}
+        <span class="btn disabled">다음 ▶</span>
+        {% endif %}
+    </div>
+
     <table>
         <tr>
             <th>ID</th>
@@ -104,3 +124,4 @@
     </table>
 </body>
 </html>
+

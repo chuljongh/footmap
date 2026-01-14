@@ -703,20 +703,38 @@ ADMIN_SECRET_KEY = os.environ.get('ADMIN_KEY', 'balgil_admin_2024')
 
 @app.route('/admin/db')
 def admin_db():
-    """간단한 DB 조회 관리자 페이지"""
+    """간단한 DB 조회 관리자 페이지 (페이지네이션 지원)"""
     key = request.args.get('key')
     if key != ADMIN_SECRET_KEY:
         return "Access Denied. Use ?key=YOUR_KEY", 403
 
-    # 최근 데이터 조회
-    recent_routes = Route.query.order_by(Route.timestamp.desc()).limit(50).all()
+    # 페이지네이션
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+
+    # 총 개수 조회
+    total_routes = Route.query.count()
+    total_users = User.query.count()
+    total_messages = Message.query.count()
+
+    # 페이지별 데이터 조회
+    routes = Route.query.order_by(Route.timestamp.desc()).offset((page - 1) * per_page).limit(per_page).all()
     users = User.query.order_by(User.created_at.desc()).limit(20).all()
     messages = Message.query.order_by(Message.created_at.desc()).limit(30).all()
 
+    # 총 페이지 수 계산
+    total_pages = (total_routes + per_page - 1) // per_page if total_routes > 0 else 1
+
     return render_template('admin_db.html',
-                           routes=recent_routes,
+                           routes=routes,
                            users=users,
-                           messages=messages)
+                           messages=messages,
+                           page=page,
+                           total_pages=total_pages,
+                           total_routes=total_routes,
+                           total_users=total_users,
+                           total_messages=total_messages,
+                           key=key)
 
 # ========================================
 # 서버 시작
