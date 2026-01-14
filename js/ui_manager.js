@@ -907,6 +907,10 @@ const UIManager = {
             MapManager.refreshMarkers();
             MapManager.fitViewToRoute();
 
+            // [FIX] 검색창에 현재 목적지 이름 표시
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) searchInput.value = AppState.destination.name || '다음 목적지';
+
             Utils.showToast('✅ 다음 목적지로 안내를 시작합니다');
 
         } else {
