@@ -888,16 +888,20 @@ const UIManager = {
             // [FIX] 기존 마커 삭제 (경유지 배열은 유지)
             MapManager.clearWaypointMarkersOnly();
 
-            // 다음 경유지를 새 목적지로 설정
-            const nextWaypoint = AppState.waypoints.shift();
-            AppState.destination = { coords: nextWaypoint, name: '다음 목적지' };
+            // [FIX] 방문 완료된 경유지만 제거 (destination은 건드리지 않음!)
+            AppState.waypoints.shift();
 
             // 현재 위치에서 새 목적지로 경로 재탐색
             AppState.currentStepIndex = 0;
             AppState.isInAccessZone = false;
             AppState.accessHistory = [];
 
-            RouteManager.showRoute(AppState.currentPosition, nextWaypoint, AppState.waypoints);
+            // [FIX] 원래 최종 목적지(destination)를 향해 경로 재탐색
+            RouteManager.showRoute(
+                AppState.currentPosition,
+                AppState.destination.coords,  // 최종 목적지 유지!
+                AppState.waypoints            // 남은 경유지들
+            );
 
             // [FIX] 마커 번호 재갱신 (남은 경유지가 있다면)
             MapManager.refreshMarkers();
