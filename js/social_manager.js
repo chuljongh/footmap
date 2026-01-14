@@ -737,19 +737,24 @@ const SocialManager = {
             }
         }, 100);
 
-        // 주소 가져오기 (비동기)
+        // 주소 가져오기 (우선: destination.name, 없으면 API 호출)
         try {
-            const manager = (typeof MapManager !== 'undefined') ? MapManager : null;
-            if (manager && manager.map && typeof manager.getAddressFromCoords === 'function') {
-                const address = await manager.getAddressFromCoords(targetCoords);
-                if (titleEl) titleEl.textContent = `글 남기기 : 📍 ${address}`;
+            // [FIX] 검색으로 설정한 목적지면 이미 주소/매장명이 있음
+            if (AppState.destination && AppState.destination.name) {
+                if (titleEl) titleEl.textContent = `글 남기기 : 📍 ${AppState.destination.name}`;
             } else {
-                throw new Error('MapManager not ready');
+                const manager = (typeof MapManager !== 'undefined') ? MapManager : null;
+                if (manager && manager.map && typeof manager.getAddressFromCoords === 'function') {
+                    const address = await manager.getAddressFromCoords(targetCoords);
+                    if (titleEl) titleEl.textContent = `글 남기기 : 📍 ${address}`;
+                } else {
+                    throw new Error('MapManager not ready');
+                }
             }
         } catch (e) {
             console.error('Address fetch failed:', e);
             if (titleEl) {
-                titleEl.textContent = `글 남기기 : 📍 (${targetCoords[1].toFixed(5)}, ${targetCoords[0].toFixed(5)})`;
+                titleEl.textContent = `글 남기기 : 📍 현재 위치`;
             }
         }
     },
