@@ -1327,7 +1327,7 @@ const UIManager = {
             console.log('[HUD] turnLocation:', turnLocation, '| distanceToTurn:', distanceToTurn);
 
             // 턴 지점을 50m 이내로 지나쳤으면 다음 스텝으로 이동 (GPS 오차 고려)
-            if (distanceToTurn < 50 && stepIndex < steps.length - 2) {
+            if (distanceToTurn < 50 && stepIndex < steps.length - 1) {
                 AppState.currentStepIndex = stepIndex + 1;
                 stepIndex = AppState.currentStepIndex;
                 nextStep = steps[stepIndex + 1] || steps[stepIndex];

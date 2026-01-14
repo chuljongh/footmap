@@ -275,8 +275,8 @@ const MapManager = {
     handleDestinationZoom(distanceToDest) {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
 
-        // Dynamic Zoom(회전 확대) 중이면 간섭하지 않음
-        if (AppState.isZoomedIn) return;
+        // Dynamic Zoom(회전 확대) 중이면 간섭하지 않음 (단, 목적지 300m 이내면 무시)
+        if (AppState.isZoomedIn && distanceToDest > 300) return;
 
         let targetZoom = null;
         if (distanceToDest <= 50) {
