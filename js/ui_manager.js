@@ -874,7 +874,7 @@ const UIManager = {
     },
 
     // [NEW] 다음 경유지로 이어서 안내
-    continueToNextWaypoint() {
+    async continueToNextWaypoint() {
         // [NEW] 재탐색 타이머 정리
         this.clearRerouteTimer();
 
@@ -896,16 +896,15 @@ const UIManager = {
             AppState.isInAccessZone = false;
             AppState.accessHistory = [];
 
-            // [FIX] 원래 최종 목적지(destination)를 향해 경로 재탐색
-            RouteManager.showRoute(
+            // [FIX] 경로 계산 완료까지 대기 (async/await)
+            await RouteManager.showRoute(
                 AppState.currentPosition,
                 AppState.destination.coords,  // 최종 목적지 유지!
                 AppState.waypoints            // 남은 경유지들
             );
 
-            // [FIX] 마커 번호 재갱신 (남은 경유지가 있다면)
+            // 경로 계산 완료 후 마커/뷰 갱신
             MapManager.refreshMarkers();
-
             MapManager.fitViewToRoute();
 
             Utils.showToast('✅ 다음 목적지로 안내를 시작합니다');
