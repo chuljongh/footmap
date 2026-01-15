@@ -343,11 +343,6 @@ const MapManager = {
         AppState.currentPosition = coords;
         const mapCoords = ol.proj.fromLonLat(coords);
 
-        // 이동수단 판별 업데이트
-        if (typeof SensorManager !== 'undefined') {
-            SensorManager.updateSpeed(speed);
-        }
-
         // [DEBUG] GPS 업데이트 시마다 오버레이 갱신
         Utils.updateDebugOverlay('GPS', { coords: coords });
 

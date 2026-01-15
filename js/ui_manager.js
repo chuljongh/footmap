@@ -630,7 +630,6 @@ const UIManager = {
                 const userData = await res.json();
                 document.getElementById('stat-walking').textContent = `${(userData.distWalking || 0).toFixed(1)}km`;
                 document.getElementById('stat-wheelchair').textContent = `${(userData.distWheelchair || 0).toFixed(1)}km`;
-                document.getElementById('stat-vehicle').textContent = `${(userData.distVehicle || 0).toFixed(1)}km`;
             }
         } catch (e) {
             console.error('Failed to load user stats:', e);
@@ -913,9 +912,6 @@ const UIManager = {
         try {
             // 전체 경로 통합 (일반 구간 + 접근 구간)
             let fullHistory = [...(AppState.routeHistory || []), ...(AppState.accessHistory || [])];
-
-            // 차량 모드면 저장하지 않음
-            if (AppState.userMode === 'vehicle') return;
 
             if (fullHistory.length > 1 && AppState.destination) {
                 const validPoints = [];

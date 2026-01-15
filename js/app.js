@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 DataCollector.init()
             ]);
 
-            SensorManager.init();
             DataCollector.syncToServer(); // 초기 동기화 시도
 
         } catch (err) {

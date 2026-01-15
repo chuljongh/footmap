@@ -657,8 +657,6 @@ def save_user_route(user_id):
         user.dist_walking += distance
     elif mode == 'wheelchair':
         user.dist_wheelchair += distance
-    elif mode == 'vehicle':
-        user.dist_vehicle += distance
 
     user.total_distance += distance
 

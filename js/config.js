@@ -23,7 +23,6 @@ const Config = {
     MIN_BUBBLE_TOP: 80,         // 최소 상단 여백 (px)
     VIEWPORT_MARGIN: 0.05,      // 뷰포트 여백 비율 (5%)
     BOTTOM_BAR_HEIGHT: 80,      // 하단 바 높이 (px) - 말풍선 경계 계산용
-    SPEED_THRESHOLD: 5,         // 이동수단 판별 임계값 (km/h)
     MAX_COLLECTION_SPEED: 10,  // 데이터 수집 상한선 (km/h) - 10km/h 초과 시 비보행으로 간주하여 필터링
     FLOATING_LABEL_TIMEOUT: 5000, // 플로팅 라벨 숨김 타이머 (ms)
     MIN_FOOTPRINT_ZOOM: 15,     // 발자국 아이콘 렌더링 최소 줌 레벨 (출입구 확인용)
