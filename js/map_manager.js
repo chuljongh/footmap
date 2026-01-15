@@ -124,6 +124,7 @@ const MapManager = {
     },
 
     // 5초 후 기본 뷰로 복귀 타이머
+    // 5초 후 기본 뷰로 복귀 타이머 (300m 규칙 적용)
     startViewResetTimer() {
         if (AppState.viewResetTimer) {
             clearTimeout(AppState.viewResetTimer);
@@ -132,7 +133,17 @@ const MapManager = {
         AppState.viewResetTimer = setTimeout(() => {
             if (AppState.isNavigating) {
                 AppState.isUserInteracting = false;
-                this.fitViewToRoute();
+
+                // [300m 규칙] 목적지가 300m 이내면 fitViewToRoute 대신 Destination Zoom
+                const distToDest = (AppState.destination)
+                    ? Utils.calculateDistance(AppState.currentPosition, AppState.destination.coords)
+                    : Infinity;
+
+                if (distToDest > 300) {
+                    this.fitViewToRoute();
+                } else {
+                    this.handleDestinationZoom(distToDest);
+                }
             }
         }, 5000);
     },
@@ -238,10 +249,15 @@ const MapManager = {
 
     // 스마트 다이내믹 줌 (Smart Dynamic Zoom)
     // 회전 지점 300m 이내 접근 시 해당 영역 자동 확대 (Detail Zoom)
-    handleDynamicZoom(distanceToNextTurn, turnCoords) {
+    // 스마트 다이내믹 줌 (Smart Dynamic Zoom) - 300m 규칙 적용
+    // 목적지 300m 이내면 비활성화, Destination Zoom에게 전권 위임
+    handleDynamicZoom(distanceToNextTurn, turnCoords, distanceToDest) {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
 
-        const ZOOM_THRESHOLD = 300; // 300m 전방에서 상세 모드 전환
+        // [300m 규칙] 목적지 300m 이내면 Dynamic Zoom 비활성화
+        if (distanceToDest !== undefined && distanceToDest <= 300) return;
+
+        const ZOOM_THRESHOLD = 300; // 턴 300m 전방에서 상세 모드 전환
 
         if (distanceToNextTurn <= ZOOM_THRESHOLD && turnCoords && !AppState.isZoomedIn) {
             // [Detail Mode] 회전 지점 접근 시: 현위치와 회전 지점을 상세히 관찰
@@ -253,12 +269,11 @@ const MapManager = {
             ]);
 
             AppState.map.getView().fit(extent, {
-                padding: [150, 80, 200, 80], // 상세 뷰 여백
+                padding: [150, 80, 200, 80],
                 duration: 800,
-                maxZoom: 19 // 회전 구간이므로 더 상세하게 표시
+                maxZoom: 19
             });
         }
-        // 300m 이상일 때는 아무 동작 안함 (fitViewToRoute는 회전 완료 시에만 호출)
     },
 
     animateZoomToLocation(coords, zoomLevel) {
@@ -270,28 +285,33 @@ const MapManager = {
         });
     },
 
-    // [NEW] 목적지 접근 시 자동 확대 (Building Entry Support)
-    // 목적지와의 거리에 따라 점진적으로 확대하여 건물 진입을 도움
+    // 목적지 접근 자동 확대 (300m 규칙: 전권 위임)
+    // 목적지 300m 이내에서 지도의 줌 레벨을 전적으로 제어
     handleDestinationZoom(distanceToDest) {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
 
-        // Dynamic Zoom(회전 확대) 중이면 간섭하지 않음 (단, 목적지 300m 이내면 무시)
-        if (AppState.isZoomedIn && distanceToDest > 300) return;
+        // [300m 규칙] 300m 초과면 이 함수는 작동하지 않음
+        if (distanceToDest > 300) return;
 
+        // 거리 기반 줌 레벨 결정 (300m → 17, 200m → 18, 100m → 18.5, 50m → 19)
         let targetZoom = null;
         if (distanceToDest <= 50) {
-            targetZoom = 19; // 건물 입구/진입로 확인
+            targetZoom = 19;      // 건물 입구/진입로 확인
+        } else if (distanceToDest <= 100) {
+            targetZoom = 18.5;    // 자연스러운 전환
         } else if (distanceToDest <= 200) {
-            targetZoom = 18; // 건물 형태와 골목길
-        } else if (distanceToDest <= 500) {
-            targetZoom = 17; // 목적지 주변 인지 시작
+            targetZoom = 18;      // 건물 형태와 골목길
+        } else if (distanceToDest <= 300) {
+            targetZoom = 17;      // 목적지 주변 인지 시작
         }
 
         if (targetZoom === null) return;
 
-        // 현재 줌 레벨과 차이가 0.5 이상일 때만 부드럽게 이동 (떨림 방지)
+        // 줌 변경 임계값: 50m 이내에서는 미세 조정도 허용 (0.1), 그 외 0.5
         const currentZoom = AppState.map.getView().getZoom();
-        if (Math.abs(currentZoom - targetZoom) > 0.5) {
+        const threshold = distanceToDest <= 50 ? 0.1 : 0.5;
+
+        if (Math.abs(currentZoom - targetZoom) > threshold) {
             this.animateZoomToLocation(AppState.currentPosition, targetZoom);
         }
     },

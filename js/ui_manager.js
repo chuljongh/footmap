@@ -1323,8 +1323,13 @@ const UIManager = {
             const turnLocation = nextStep.maneuver.location; // [lon, lat]
             const distanceToTurn = Utils.calculateDistance(currentPos, turnLocation);
 
+            // [300m 규칙] 목적지까지 거리 미리 계산 (모든 줌 로직에서 공유)
+            const distToDest = (AppState.destination)
+                ? Utils.calculateDistance(currentPos, AppState.destination.coords)
+                : Infinity;
+
             // [DEBUG] 거리 계산 디버그
-            console.log('[HUD] turnLocation:', turnLocation, '| distanceToTurn:', distanceToTurn);
+            console.log('[HUD] turnLocation:', turnLocation, '| distanceToTurn:', distanceToTurn, '| distToDest:', distToDest);
 
             // 턴 지점을 50m 이내로 지나쳤으면 다음 스텝으로 이동 (GPS 오차 고려)
             if (distanceToTurn < 50 && stepIndex < steps.length - 1) {
@@ -1334,7 +1339,12 @@ const UIManager = {
 
                 // [FIX] 회전 완료 후 전체 뷰로 복귀
                 AppState.isZoomedIn = false;
-                MapManager.fitViewToRoute();
+
+                // [300m 규칙] 목적지 300m 이상일 때만 전체 뷰로 복귀
+                // 300m 이내면 Destination Zoom이 자동으로 처리
+                if (distToDest > 300) {
+                    MapManager.fitViewToRoute();
+                }
             }
 
             // [UPDATE] SVG 아이콘 렌더링 (innerHTML 사용)
@@ -1348,14 +1358,13 @@ const UIManager = {
             const navRoadName = this.elements['nav-road-name'];
             if (navRoadName) navRoadName.textContent = nextStep.name || '';
 
-            // [FIX] 스마트 다이내믹 줌 트리거 - 300m 이내에서만 상세 줌
+            // [300m 규칙] Dynamic Zoom: 목적지 거리 전달하여 내부에서 차단 판단
             if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
-                MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
+                MapManager.handleDynamicZoom(distanceToTurn, turnLocation, distToDest);
             }
 
-            // [NEW] 목적지 접근 자동 확대 - 500m 이내에서 점진적 줌인
-            if (AppState.destination && typeof MapManager !== 'undefined' && MapManager.handleDestinationZoom) {
-                const distToDest = Utils.calculateDistance(currentPos, AppState.destination.coords);
+            // [300m 규칙] Destination Zoom: 이미 계산된 distToDest 사용
+            if (typeof MapManager !== 'undefined' && MapManager.handleDestinationZoom) {
                 MapManager.handleDestinationZoom(distToDest);
             }
 
