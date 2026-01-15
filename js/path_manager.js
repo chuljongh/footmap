@@ -107,8 +107,8 @@ const PathManager = {
             const footprintSvg = Icons.footprint.replace('currentColor', color);
             const encodedSvg = 'data:image/svg+xml;base64,' + btoa(footprintSvg);
 
-            // [NEW] 줌 레벨에 따른 동적 스케일 (수식: 15→2.0, 19→1.2)
-            const scale = Math.max(1.2, 2.4 - (currentZoom - 14) * 0.2);
+            // [NEW] 줌 레벨에 따른 동적 스케일 (수식: 15→1.2, 19→2.0, 줌인 시 크게)
+            const scale = Math.min(2.2, 1.0 + (currentZoom - 14) * 0.2);
 
             return new ol.style.Style({
                 image: new ol.style.Icon({
