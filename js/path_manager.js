@@ -107,18 +107,8 @@ const PathManager = {
             const footprintSvg = Icons.footprint.replace('currentColor', color);
             const encodedSvg = 'data:image/svg+xml;base64,' + btoa(footprintSvg);
 
-            // [NEW] 줌 레벨에 따른 동적 스케일 (출입구 찾기 용이성)
-            // 멀리서(줌 낮음) 볼수록 더 크게 표시하여 눈에 띄게 함
-            let scale = 1.2; // 기본 크기 (줌 19 기준)
-            if (currentZoom <= 15) {
-                scale = 2.0; // 매우 큼 (동네 전체 뷰)
-            } else if (currentZoom <= 16) {
-                scale = 1.8;
-            } else if (currentZoom <= 17) {
-                scale = 1.5;
-            } else if (currentZoom <= 18) {
-                scale = 1.3;
-            }
+            // [NEW] 줌 레벨에 따른 동적 스케일 (수식: 15→2.0, 19→1.2)
+            const scale = Math.max(1.2, 2.4 - (currentZoom - 14) * 0.2);
 
             return new ol.style.Style({
                 image: new ol.style.Icon({
@@ -134,7 +124,7 @@ const PathManager = {
     // 구버전 메서드 호환성 위해 유지 (필요 시 삭제)
     loadDummyTrajectories() {
         this.loadRealTrajectories();
-    }
+    },
 
     // 향후 기능: DataCollector와 연동하여 실제 DB 데이터 로드
     // async loadRealTrajectories() { ... }
