@@ -11,6 +11,15 @@ const MapManager = {
         this.setupZoomScaling();
     },
 
+    // 화면 방향에 따른 동적 패딩 반환
+    getDynamicPadding() {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        return isLandscape
+            ? [30, 50, 30, 50]   // Landscape: 상하 패딩 최소화
+            : [150, 80, 200, 80]; // Portrait: 기존 값 (HUD/하단바 공간 확보)
+    },
+
+
     // 지도 더블클릭/투터치로 목적지 설정
     setupMapClickHandler() {
         // 데스크탑: 더블클릭
@@ -257,7 +266,7 @@ const MapManager = {
             ]);
 
             AppState.map.getView().fit(extent, {
-                padding: [150, 80, 200, 80],
+                padding: this.getDynamicPadding(),
                 duration: 800,
                 maxZoom: 19
             });
@@ -285,9 +294,9 @@ const MapManager = {
         ]);
 
         AppState.map.getView().fit(extent, {
-            padding: [150, 80, 200, 80], // 상, 우, 하, 좌 (UI 가림 방지)
-            maxZoom: 19,                 // 너무 가까워도 19 이상 안 감
-            duration: 500                // 부드러운 전환
+            padding: this.getDynamicPadding(),
+            maxZoom: 19,
+            duration: 500
         });
     },
 
