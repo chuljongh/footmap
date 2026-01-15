@@ -4,7 +4,15 @@ from flask_cors import CORS
 import urllib.request
 import urllib.parse
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+# KST 타임존 설정
+KST = ZoneInfo("Asia/Seoul")
+
+def get_kst_now():
+    """현재 한국 시간을 반환 (Naive)"""
+    return datetime.now(KST).replace(tzinfo=None)
 
 # ========================================
 # 환경 설정 (자동 전환 전략)
@@ -38,7 +46,7 @@ class User(db.Model):
     dist_wheelchair = db.Column(db.Float, default=0.0)
     dist_vehicle = db.Column(db.Float, default=0.0)
     bio = db.Column(db.String(200))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=get_kst_now)
 
     def to_dict(self):
         return {
@@ -50,7 +58,7 @@ class User(db.Model):
             'distWheelchair': self.dist_wheelchair,
             'distVehicle': self.dist_vehicle,
             'bio': self.bio,
-            'createdAt': int(self.created_at.timestamp() * 1000)
+            'createdAt': int(self.created_at.replace(tzinfo=KST).timestamp() * 1000)
         }
 
 class Message(db.Model):
@@ -66,7 +74,7 @@ class Message(db.Model):
     dislikes = db.Column(db.Integer, default=0)
     shares = db.Column(db.Integer, default=0)
     edited = db.Column(db.Boolean, default=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(db.DateTime, default=get_kst_now, index=True)
     comments = db.relationship('Comment', backref='message', lazy=True, cascade='all, delete-orphan')
 
     def to_dict(self, include_comments=False):
@@ -82,7 +90,7 @@ class Message(db.Model):
             'dislikes': self.dislikes,
             'shares': self.shares,
             'edited': self.edited,
-            'timestamp': int(self.timestamp.timestamp() * 1000),
+            'timestamp': int(self.timestamp.replace(tzinfo=KST).timestamp() * 1000),
             'commentCount': len(self.comments)
         }
         if include_comments:
@@ -94,7 +102,7 @@ class Comment(db.Model):
     message_id = db.Column(db.String(50), db.ForeignKey('message.id'), nullable=False, index=True)
     user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
     text = db.Column(db.String(200), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=get_kst_now)
 
     def to_dict(self):
         return {
@@ -102,7 +110,7 @@ class Comment(db.Model):
             'messageId': self.message_id,
             'userId': self.user_id,
             'text': self.text,
-            'timestamp': int(self.timestamp.timestamp() * 1000)
+            'timestamp': int(self.timestamp.replace(tzinfo=KST).timestamp() * 1000)
         }
 
 class Vote(db.Model):
@@ -123,7 +131,7 @@ class Route(db.Model):
     start_coords = db.Column(db.String(50))  # "lon,lat"
     end_coords = db.Column(db.String(50))  # "lon,lat"
     points_json = db.Column(db.Text)  # 전체 이동 궤적 (JSON string of coordinates)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    timestamp = db.Column(db.DateTime, default=get_kst_now, index=True)
 
     def to_dict(self):
         return {
@@ -135,7 +143,7 @@ class Route(db.Model):
             'startCoords': self.start_coords,
             'endCoords': self.end_coords,
             'points': self.points_json, # 프론트에서 JSON.parse() 필요
-            'timestamp': int(self.timestamp.timestamp() * 1000)
+            'timestamp': int(self.timestamp.replace(tzinfo=KST).timestamp() * 1000)
         }
 
 class SavedMessage(db.Model):
@@ -143,7 +151,7 @@ class SavedMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False, index=True)
     message_id = db.Column(db.String(50), db.ForeignKey('message.id'), nullable=False, index=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=get_kst_now)
 
     __table_args__ = (db.UniqueConstraint('user_id', 'message_id'),)
 
@@ -152,7 +160,7 @@ class SavedMessage(db.Model):
             'id': self.id,
             'userId': self.user_id,
             'messageId': self.message_id,
-            'timestamp': int(self.timestamp.timestamp() * 1000)
+            'timestamp': int(self.timestamp.replace(tzinfo=KST).timestamp() * 1000)
         }
 
 # ========================================
