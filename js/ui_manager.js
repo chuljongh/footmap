@@ -1025,7 +1025,7 @@ const UIManager = {
             if (!AppState.rerouteTimer) {
                 Utils.updateDebugOverlay('TIMER', { coords: currentCoords, distance: distance });
                 console.log('[Reroute] Starting deviation timer...');
-                Utils.showToast(`⚠️ 경로 이탈 (${Math.round(distance)}m)`);
+                // [UX 개선] 중간 경고 제거: 5초 후 재탐색 시점에만 알림
                 AppState.rerouteTimer = setTimeout(() => {
                     this.performReroute();
                 }, Config.REROUTE_DEBOUNCE_MS);
