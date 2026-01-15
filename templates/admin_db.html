@@ -64,7 +64,7 @@
             <th>Distance</th>
             <th>Duration</th>
             <th>Points</th>
-            <th>Timestamp</th>
+            <th>Timestamp (KST)</th>
         </tr>
         {% for route in routes %}
         <tr>
@@ -74,7 +74,7 @@
             <td>{{ "%.2f"|format(route.distance or 0) }} km</td>
             <td>{{ "%.0f"|format(route.duration or 0) }}s</td>
             <td class="points-cell">{{ (route.points_json|length) if route.points_json else 0 }} chars</td>
-            <td class="timestamp">{{ route.timestamp }}</td>
+            <td class="timestamp">{{ route.timestamp_kst }}</td>
         </tr>
         {% endfor %}
     </table>
@@ -87,7 +87,7 @@
             <th>Total Dist</th>
             <th>Walking</th>
             <th>Wheelchair</th>
-            <th>Created</th>
+            <th>Created (KST)</th>
         </tr>
         {% for user in users %}
         <tr>
@@ -96,7 +96,7 @@
             <td>{{ "%.2f"|format(user.total_distance or 0) }} km</td>
             <td>{{ "%.2f"|format(user.dist_walking or 0) }} km</td>
             <td>{{ "%.2f"|format(user.dist_wheelchair or 0) }} km</td>
-            <td class="timestamp">{{ user.created_at }}</td>
+            <td class="timestamp">{{ user.created_at_kst }}</td>
         </tr>
         {% endfor %}
     </table>
@@ -109,7 +109,7 @@
             <th>Text</th>
             <th>Coords</th>
             <th>Votes</th>
-            <th>Timestamp</th>
+            <th>Timestamp (KST)</th>
         </tr>
         {% for msg in messages %}
         <tr>
@@ -118,7 +118,7 @@
             <td>{{ (msg.text or '')[:50] }}{% if msg.text and msg.text|length > 50 %}...{% endif %}</td>
             <td>{{ "%.4f"|format(msg.coord_y or 0) }}, {{ "%.4f"|format(msg.coord_x or 0) }}</td>
             <td>👍{{ msg.likes or 0 }} 👎{{ msg.dislikes or 0 }}</td>
-            <td class="timestamp">{{ msg.timestamp }}</td>
+            <td class="timestamp">{{ msg.timestamp_kst }}</td>
         </tr>
         {% endfor %}
     </table>

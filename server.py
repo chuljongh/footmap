@@ -4,6 +4,9 @@ from flask_cors import CORS
 import urllib.request
 import urllib.parse
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -17,11 +20,13 @@ def get_kst_now():
 # ========================================
 # 환경 설정 (자동 전환 전략)
 # ========================================
-# 개발: 그냥 실행 → SQLite / 배포: FLASK_ENV=production → PostgreSQL
-if os.environ.get('FLASK_ENV') == 'production':
-    DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///balgil.db')
-else:
+# 환경 변수에 DATABASE_URL이 있으면 우선 사용 (PostgreSQL)
+# 없으면 로컬 SQLite 사용
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if not DATABASE_URL:
     DATABASE_URL = 'sqlite:///balgil.db'
+
+print(f"Using Database: {DATABASE_URL}")
 
 app = Flask(__name__, static_folder='.', static_url_path='', template_folder='templates')
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
@@ -727,6 +732,14 @@ def admin_db():
     routes = Route.query.order_by(Route.timestamp.desc()).offset((page - 1) * per_page).limit(per_page).all()
     users = User.query.order_by(User.created_at.desc()).limit(20).all()
     messages = Message.query.order_by(Message.timestamp.desc()).limit(30).all()
+
+    # UTC → KST 변환 (+9시간)
+    for r in routes:
+        r.timestamp_kst = r.timestamp + timedelta(hours=9) if r.timestamp else None
+    for u in users:
+        u.created_at_kst = u.created_at + timedelta(hours=9) if u.created_at else None
+    for m in messages:
+        m.timestamp_kst = m.timestamp + timedelta(hours=9) if m.timestamp else None
 
     # 총 페이지 수 계산
     total_pages = (total_routes + per_page - 1) // per_page if total_routes > 0 else 1
