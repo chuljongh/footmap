@@ -42,25 +42,17 @@ const DataCollector = {
     },
 
     // 현재 네트워크 환경이 전송에 적합한지 확인
-    checkSyncEligibility() {
+    checkSyncEligibility(force = false) {
+        if (force) return true;
         if (!navigator.onLine) return false;
 
-        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        if (connection) {
-            // Wi-Fi 환경이거나 '데이터 절약 모드'가 아닐 때만 전송
-            const isWifi = connection.type === 'wifi';
-            const isLowDataMode = connection.saveData === true;
-
-            // 안드로이드 크롬 등 지원 기기에서 Wi-Fi 체크
-            if (connection.type && connection.type !== 'unknown') {
-                return isWifi;
-            }
-
-            // 일반 브라우저에서는 '데이터 절약 모드'가 아닐 때 전송 허용
-            return !isLowDataMode;
+        // 온라인 상태면 전송 (Data Saver 모드 제외)
+        const connection = navigator.connection;
+        if (connection?.saveData) {
+            console.log('[Sync] Skipped: Data Saver mode');
+            return false;
         }
 
-        // 구형 브라우저나 API 미지원 시 기본적으로 전송 허용
         return true;
     },
 

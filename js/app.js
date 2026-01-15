@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (err) {
             console.error('❌ Init Error:', err);
-            console.error('❌ Init Error:', err);
             // 치명적이지 않은 오류는 계속 진행
         }
 
@@ -48,14 +47,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (syncTimer) clearTimeout(syncTimer);
 
                 syncTimer = setTimeout(() => {
-                    // WiFi 연결 확인 후 동기화
+                    // 네트워크 상태 변경 시 동기화 시도
                     if (DataCollector.checkSyncEligibility()) {
-                        console.log('[Sync] WiFi connected, syncing data...');
+                        console.log('[Sync] Network changed, syncing data...');
                         DataCollector.syncToServer();
                     }
                 }, 3000);
             });
         }
+
+        // [NEW] 앱이 다시 활성화될 때(포그라운드 진입) 동기화 재시도
+        // 이동 중 와이파이 잡고 화면 켰을 때 즉시 반응하기 위함
+        document.addEventListener('visibilitychange', () => {
+             if (document.visibilityState === 'visible') {
+                 console.log('[App] Foreground detected, checking sync...');
+                 // 화면 켰을 땐 강제 체크보다는 조건 체크 후 시도
+                 if (DataCollector.checkSyncEligibility()) {
+                     DataCollector.syncToServer();
+                 }
+             }
+        });
 
         const onboardingComplete = UIManager.loadSavedSettings();
 
