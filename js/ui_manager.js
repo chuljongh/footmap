@@ -359,19 +359,6 @@ const UIManager = {
                     // 현재 위치 가져오기
                     const userPos = AppState.currentPosition;
 
-                    // 거리 계산 함수
-                    const calcDistance = (lon, lat) => {
-                        if (!userPos) return null;
-                        const R = 6371000; // 지구 반경 (m)
-                        const dLat = (lat - userPos[1]) * Math.PI / 180;
-                        const dLon = (lon - userPos[0]) * Math.PI / 180;
-                        const a = Math.sin(dLat/2) ** 2 +
-                                  Math.cos(userPos[1] * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
-                                  Math.sin(dLon/2) ** 2;
-                        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                        return R * c;
-                    };
-
                     // 거리 포맷 함수
                     const formatDistance = (meters) => {
                         if (meters === null) return '';
@@ -382,8 +369,12 @@ const UIManager = {
                     data.documents.forEach(doc => {
                         const item = document.createElement('li');
                         item.className = 'suggestion-item';
-                        const dist = calcDistance(parseFloat(doc.x), parseFloat(doc.y));
+                        // [Refactored] Utils.calculateDistance 사용 (중복 제거)
+                        const dist = userPos
+                            ? Utils.calculateDistance(userPos, [parseFloat(doc.x), parseFloat(doc.y)])
+                            : null;
                         const distText = formatDistance(dist);
+
                         item.innerHTML = `
                             <div class="suggestion-main">
                                 <div class="suggestion-name">${doc.place_name}</div>
