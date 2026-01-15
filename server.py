@@ -737,13 +737,16 @@ def admin_db():
                            key=key)
 
 # ========================================
-# 서버 시작
+# 데이터베이스 테이블 자동 생성 (Gunicorn 호환)
+# ========================================
+with app.app_context():
+    db.create_all()
+    print(f"Database initialized: {DATABASE_URL}")
+
+# ========================================
+# 서버 시작 (로컬 개발용)
 # ========================================
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()  # DB 테이블 자동 생성
-        print(f"Database initialized: {DATABASE_URL}")
-
     print(f"🚀 Serving at http://localhost:{PORT}")
     print(f"📍 Kakao REST API Proxy Active")
     print(f"💬 Message API Active")
