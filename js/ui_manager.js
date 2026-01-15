@@ -966,33 +966,45 @@ const UIManager = {
         }
     },
 
-    // [NEW] 경로 이탈 감지
-    checkRouteDeviation(currentCoords) {
+    // 경로 진도 동기화 + 이탈 감지 (Step Snapping 포함)
+    checkRouteDeviation(currentCoords, heading = null) {
         if (!AppState.isNavigating || !AppState.activeRoute) return;
 
-        // Geometry Fallback Logic
-        let routeCoords = AppState.activeRoute.geometry?.coordinates;
-        if (!routeCoords) {
-            if (AppState.activeRoute.legs && AppState.activeRoute.legs.length > 0) {
-                routeCoords = [];
-                AppState.activeRoute.legs.forEach(leg => {
-                    leg.steps.forEach(step => {
-                        if (step.geometry && step.geometry.coordinates) {
-                            routeCoords.push(...step.geometry.coordinates);
-                        }
-                    });
-                });
-            }
+        const legs = AppState.activeRoute.legs;
+        if (!legs || legs.length === 0 || !legs[0].steps) return;
+
+        const steps = legs[0].steps;
+        const currentStepIndex = AppState.currentStepIndex || 0;
+
+        // 1. Step Snapping: 사용자가 실제로 어느 Step 위에 있는지 확인
+        const realStepIndex = Utils.findClosestStepIndex(
+            currentCoords,
+            heading,
+            steps,
+            currentStepIndex,
+            Config.REROUTE_THRESHOLD_METERS
+        );
+
+        // 2. 스텝 점프 (앞으로 건너뛰기)
+        if (realStepIndex > currentStepIndex) {
+            AppState.currentStepIndex = realStepIndex;
+            AppState.isZoomedIn = false;
+            this.clearRerouteTimer();
+            return;  // 점프했으면 이탈 체크 불필요
         }
 
-        if (!routeCoords || routeCoords.length === 0) return;
+        // 3. 스텝 되감기 (뒤로 돌아감)
+        if (realStepIndex !== -1 && realStepIndex < currentStepIndex) {
+            AppState.currentStepIndex = realStepIndex;
+            AppState.isZoomedIn = false;
+            this.clearRerouteTimer();
+            return;
+        }
 
-        // 쿨다운 체크
-        if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) return;
+        // 4. 경로 이탈 감지 (어느 Step에도 없으면)
+        if (realStepIndex === -1) {
+            if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) return;
 
-        const distance = Utils.calculateMinDistanceToRoute(currentCoords, routeCoords, Config.REROUTE_THRESHOLD_METERS);
-
-        if (distance > Config.REROUTE_THRESHOLD_METERS) {
             if (!AppState.rerouteTimer) {
                 AppState.rerouteTimer = setTimeout(() => {
                     this.performReroute();

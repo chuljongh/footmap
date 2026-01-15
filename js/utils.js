@@ -120,7 +120,7 @@ const Utils = {
         return this.calculateDistance(point, closestPoint);
     },
 
-    // [NEW] 현재 위치에서 경로까지의 최단 거리 (Early Exit 최적화)
+    // 현재 위치에서 경로까지의 최단 거리 (Early Exit 최적화)
     calculateMinDistanceToRoute(point, routeCoordinates, threshold = 30) {
         if (!routeCoordinates || routeCoordinates.length < 2) return Infinity;
 
@@ -133,6 +133,69 @@ const Utils = {
         }
 
         return minDist;
+    },
+
+    // Step의 진행 방향(Bearing) 계산 (도 단위, 0=북, 90=동)
+    getStepDirection(step) {
+        const coords = step.geometry?.coordinates;
+        if (!coords || coords.length < 2) return null;
+
+        const [lon1, lat1] = coords[0];
+        const [lon2, lat2] = coords[coords.length - 1];
+
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const lat1Rad = lat1 * Math.PI / 180;
+        const lat2Rad = lat2 * Math.PI / 180;
+
+        const x = Math.sin(dLon) * Math.cos(lat2Rad);
+        const y = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
+        let bearing = Math.atan2(x, y) * 180 / Math.PI;
+        return (bearing + 360) % 360;
+    },
+
+    // 사용자 위치가 어느 Step 위에 있는지 찾기 (Step Snapping)
+    // userHeading: 사용자 이동 방향 (도 단위, null이면 방향 체크 안 함)
+    // currentStepIndex: 현재 안내 중인 단계 (Window Search 최적화)
+    // threshold: 경로 위 판정 거리 (미터)
+    findClosestStepIndex(userPos, userHeading, allSteps, currentStepIndex = 0, threshold = 30) {
+        if (!allSteps || allSteps.length === 0) return -1;
+
+        let bestIndex = -1;
+        let bestDist = Infinity;
+
+        // Window Search: 현재 위치 ±10 범위 우선
+        const windowStart = Math.max(0, currentStepIndex - 3);
+        const windowEnd = Math.min(allSteps.length, currentStepIndex + 10);
+
+        for (let i = windowStart; i < windowEnd; i++) {
+            const step = allSteps[i];
+            const coords = step.geometry?.coordinates;
+            if (!coords || coords.length < 2) continue;
+
+            // 거리 계산
+            const dist = this.calculateMinDistanceToRoute(userPos, coords, threshold);
+            if (dist > threshold) continue;
+
+            // 방향 체크 (userHeading이 있을 때만)
+            if (userHeading !== null && userHeading !== undefined) {
+                const stepDir = this.getStepDirection(step);
+                if (stepDir !== null) {
+                    let angleDiff = Math.abs(userHeading - stepDir);
+                    if (angleDiff > 180) angleDiff = 360 - angleDiff;
+                    // 방향이 90도 이상 다르면 스킵 (반대 방향 차선)
+                    if (angleDiff > 90) continue;
+                }
+            }
+
+            // 가장 가까운 Step 선택
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
     }
 };
 

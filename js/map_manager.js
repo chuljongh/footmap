@@ -400,8 +400,8 @@ const MapManager = {
 
             if (AppState.activeRoute) {
                 UIManager.updateNavigationHUD(AppState.activeRoute);
-                // [NEW] 경로 이탈 감지
-                if (typeof UIManager !== 'undefined') UIManager.checkRouteDeviation(coords);
+                // 경로 진도 동기화 + 이탈 감지 (Step Snapping)
+                if (typeof UIManager !== 'undefined') UIManager.checkRouteDeviation(coords, heading);
             }
         }
     },
