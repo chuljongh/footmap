@@ -936,7 +936,7 @@ const UIManager = {
                     }
                 }
 
-                if (validPoints.length >= 5 && totalDistance >= 50) {
+                if (validPoints.length >= 5 && totalDistance >= 20) {
                     DataCollector.saveRoute({
                         distance: totalDistance / 1000,
                         duration: (validPoints[validPoints.length - 1].timestamp - validPoints[0].timestamp) / 1000,
