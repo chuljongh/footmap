@@ -1331,11 +1331,8 @@ const UIManager = {
                 // [FIX] 회전 완료 후 전체 뷰로 복귀
                 AppState.isZoomedIn = false;
 
-                // [300m 규칙] 목적지 300m 이상일 때만 전체 뷰로 복귀
-                // 300m 이내면 Destination Zoom이 자동으로 처리
-                if (distToDest > 300) {
-                    MapManager.fitViewToRoute();
-                }
+                // [단순화] 턴 완료 후 항상 Destination Fit
+                MapManager.fitViewToDestination();
             }
 
             // [UPDATE] SVG 아이콘 렌더링 (innerHTML 사용)
@@ -1349,15 +1346,13 @@ const UIManager = {
             const navRoadName = this.elements['nav-road-name'];
             if (navRoadName) navRoadName.textContent = nextStep.name || '';
 
-            // [Caller-Side Branching] 300m 기준 완전 분기 (Clean Code)
-            // 호출자가 결정하고, 필요한 함수만 호출
-            if (distToDest <= 300) {
-                // [Case A] 목적지 접근 모드 (≤ 300m)
-                if (typeof MapManager !== 'undefined' && MapManager.handleDestinationZoom) {
-                    MapManager.handleDestinationZoom(distToDest);
-                }
-            } else {
-                // [Case B] 일반 주행 모드 (> 300m)
+            // [단순화] 기본: 항상 현위치+목적지 화면 포함
+            if (typeof MapManager !== 'undefined' && MapManager.fitViewToDestination) {
+                MapManager.fitViewToDestination();
+            }
+
+            // [조건부] 목적지 멀고(>300m) + 턴 가까우면(≤300m): 턴 확대 오버라이드
+            if (distToDest > 300 && distanceToTurn <= 300 && turnLocation) {
                 if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
                     MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
                 }

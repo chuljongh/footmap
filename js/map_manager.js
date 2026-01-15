@@ -133,19 +133,11 @@ const MapManager = {
         AppState.viewResetTimer = setTimeout(() => {
             if (AppState.isNavigating) {
                 AppState.isUserInteracting = false;
-
-                // [300m 규칙] 목적지가 300m 이내면 fitViewToRoute 대신 Destination Zoom
-                const distToDest = (AppState.destination)
-                    ? Utils.calculateDistance(AppState.currentPosition, AppState.destination.coords)
-                    : Infinity;
-
-                if (distToDest > 300) {
-                    this.fitViewToRoute();
-                } else {
-                    this.handleDestinationZoom(distToDest);
-                }
+                // [단순화] 항상 현위치+목적지 Fit (300m 분기 제거)
+                this.fitViewToDestination();
             }
         }, 5000);
+
     },
 
     // 뷰 조정
@@ -281,36 +273,24 @@ const MapManager = {
         });
     },
 
-    // 목적지 접근 자동 확대 (300m 규칙: 전권 위임)
-    // 목적지 300m 이내에서 지도의 줌 레벨을 전적으로 제어
-    handleDestinationZoom(distanceToDest) {
+    // [NEW] 현위치와 목적지를 항상 화면에 포함 (Extent Fit)
+    // 모든 거리에서 기본 동작으로 사용됨
+    fitViewToDestination() {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
+        if (!AppState.currentPosition || !AppState.destination) return;
 
-        // [300m 규칙] 300m 초과면 이 함수는 작동하지 않음
-        if (distanceToDest > 300) return;
+        const extent = ol.extent.boundingExtent([
+            ol.proj.fromLonLat(AppState.currentPosition),
+            ol.proj.fromLonLat(AppState.destination.coords)
+        ]);
 
-        // 거리 기반 줌 레벨 결정 (300m → 17, 200m → 18, 100m → 18.5, 50m → 19)
-        let targetZoom = null;
-        if (distanceToDest <= 50) {
-            targetZoom = 19;      // 건물 입구/진입로 확인
-        } else if (distanceToDest <= 100) {
-            targetZoom = 18.5;    // 자연스러운 전환
-        } else if (distanceToDest <= 200) {
-            targetZoom = 18;      // 건물 형태와 골목길
-        } else if (distanceToDest <= 300) {
-            targetZoom = 17;      // 목적지 주변 인지 시작
-        }
-
-        if (targetZoom === null) return;
-
-        // 줌 변경 임계값: 50m 이내에서는 미세 조정도 허용 (0.1), 그 외 0.5
-        const currentZoom = AppState.map.getView().getZoom();
-        const threshold = distanceToDest <= 50 ? 0.1 : 0.5;
-
-        if (Math.abs(currentZoom - targetZoom) > threshold) {
-            this.animateZoomToLocation(AppState.currentPosition, targetZoom);
-        }
+        AppState.map.getView().fit(extent, {
+            padding: [150, 80, 200, 80], // 상, 우, 하, 좌 (UI 가림 방지)
+            maxZoom: 19,                 // 너무 가까워도 19 이상 안 감
+            duration: 500                // 부드러운 전환
+        });
     },
+
 
     getCurrentPosition() {
         if (!navigator.geolocation) {
