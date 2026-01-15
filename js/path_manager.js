@@ -17,7 +17,31 @@ const PathManager = {
         const source = AppState.trajectoryLayer.getSource();
         source.clear();
 
-        trajectories.forEach(route => {
+        // [NEW] 줌 레벨에 따른 샘플링 및 간격 조절 상수
+        const currentZoom = AppState.map?.getView()?.getZoom() || 15;
+
+        // 1. 줌 14 이하: 궤적 및 발자국 표시 안 함
+        if (currentZoom <= 14) {
+            source.clear();
+            return;
+        }
+
+        // 2. 경로 샘플링 비율 (수식: 15→20%, 16→40% ... 19→100%)
+        const routeSampleRate = Math.min(1.0, (currentZoom - 14) * 0.2);
+
+        // 3. 발자국 간격 (수식: 줌 15→51m, 19→15m)
+        const stepDist = Math.max(15, 60 - (currentZoom - 14) * 9);
+
+        // [NEW] 샘플링 간격 (1이면 모두 표시, 5면 1/5만 표시)
+        const sampleStep = Math.round(1 / routeSampleRate);
+
+        trajectories.forEach((route, index) => {
+            // [NEW] 샘플링: 비율에 따라 일부 경로만 처리
+            // (랜덤 대신 인덱스 기반으로 화면 이동 시 깜빡임 방지)
+            if (sampleStep > 1 && index % sampleStep !== 0) {
+                return;
+            }
+
             // 1. 기본 라인 피처 (도로 이동)
             const coords = JSON.parse(route.points).map(p => ol.proj.fromLonLat(p.coords));
             if (coords.length < 2) return;
@@ -30,22 +54,7 @@ const PathManager = {
             source.addFeature(lineFeature);
 
             // 2. 발자국 피처 (접근로/골목 시각화)
-            // [FIX] 발자국 피처는 항상 생성, 표시 여부는 스타일 함수에서 결정
             const dist = new ol.geom.LineString(coords).getLength();
-
-            // [NEW] 줌 레벨에 따른 동적 간격 (줌 낮을수록 간격 넓혀 개수 감소)
-            const currentZoom = AppState.map?.getView()?.getZoom() || 15;
-            let stepDist = 15; // 기본값 (줌 19 이상: 정밀 표시)
-
-            if (currentZoom <= 15) {
-                stepDist = 50; // 줌 15: 50m 간격 (큰 간격, 적은 개수)
-            } else if (currentZoom <= 16) {
-                stepDist = 35;
-            } else if (currentZoom <= 17) {
-                stepDist = 25;
-            } else if (currentZoom <= 18) {
-                stepDist = 18;
-            }
 
             for (let i = 0; i <= dist; i += stepDist) {
                 const fraction = i / dist;
