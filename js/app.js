@@ -40,6 +40,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             DataCollector.syncToServer();
         });
 
+        // [NEW] 네트워크 타입 변경 감지 (모바일 데이터 → WiFi 전환 대응)
+        if (navigator.connection) {
+            let syncTimer = null;
+            navigator.connection.addEventListener('change', () => {
+                // [Debounce] 잦은 변경 이벤트 방지 (3초 대기 후 실행)
+                if (syncTimer) clearTimeout(syncTimer);
+
+                syncTimer = setTimeout(() => {
+                    // WiFi 연결 확인 후 동기화
+                    if (DataCollector.checkSyncEligibility()) {
+                        console.log('[Sync] WiFi connected, syncing data...');
+                        DataCollector.syncToServer();
+                    }
+                }, 3000);
+            });
+        }
+
         const onboardingComplete = UIManager.loadSavedSettings();
 
         const screenSwitchTime = Date.now();
