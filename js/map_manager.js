@@ -249,13 +249,9 @@ const MapManager = {
 
     // 스마트 다이내믹 줌 (Smart Dynamic Zoom)
     // 회전 지점 300m 이내 접근 시 해당 영역 자동 확대 (Detail Zoom)
-    // 스마트 다이내믹 줌 (Smart Dynamic Zoom) - 300m 규칙 적용
-    // 목적지 300m 이내면 비활성화, Destination Zoom에게 전권 위임
-    handleDynamicZoom(distanceToNextTurn, turnCoords, distanceToDest) {
+    // [Caller-Side Branching] 호출자(ui_manager)가 300m 분기 담당
+    handleDynamicZoom(distanceToNextTurn, turnCoords) {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
-
-        // [300m 규칙] 목적지 300m 이내면 Dynamic Zoom 비활성화
-        if (distanceToDest !== undefined && distanceToDest <= 300) return;
 
         const ZOOM_THRESHOLD = 300; // 턴 300m 전방에서 상세 모드 전환
 

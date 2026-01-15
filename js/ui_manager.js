@@ -1358,14 +1358,18 @@ const UIManager = {
             const navRoadName = this.elements['nav-road-name'];
             if (navRoadName) navRoadName.textContent = nextStep.name || '';
 
-            // [300m 규칙] Dynamic Zoom: 목적지 거리 전달하여 내부에서 차단 판단
-            if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
-                MapManager.handleDynamicZoom(distanceToTurn, turnLocation, distToDest);
-            }
-
-            // [300m 규칙] Destination Zoom: 이미 계산된 distToDest 사용
-            if (typeof MapManager !== 'undefined' && MapManager.handleDestinationZoom) {
-                MapManager.handleDestinationZoom(distToDest);
+            // [Caller-Side Branching] 300m 기준 완전 분기 (Clean Code)
+            // 호출자가 결정하고, 필요한 함수만 호출
+            if (distToDest <= 300) {
+                // [Case A] 목적지 접근 모드 (≤ 300m)
+                if (typeof MapManager !== 'undefined' && MapManager.handleDestinationZoom) {
+                    MapManager.handleDestinationZoom(distToDest);
+                }
+            } else {
+                // [Case B] 일반 주행 모드 (> 300m)
+                if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
+                    MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
+                }
             }
 
             const afterStep = steps[stepIndex + 2];
