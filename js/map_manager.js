@@ -343,8 +343,6 @@ const MapManager = {
         AppState.currentPosition = coords;
         const mapCoords = ol.proj.fromLonLat(coords);
 
-        // [DEBUG] GPS 업데이트 시마다 오버레이 갱신
-        Utils.updateDebugOverlay('GPS', { coords: coords });
 
         if (AppState.positionMarker) {
             AppState.positionMarker.setPosition(mapCoords);
@@ -538,10 +536,6 @@ const MapManager = {
         }
     },
 
-    // Trajectory 관련 메서드 이관 -> PathManager
-    loadDummyTrajectories() {
-        PathManager.loadDummyTrajectories();
-    },
 
 
 

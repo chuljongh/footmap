@@ -48,10 +48,7 @@ const DataCollector = {
 
         // 온라인 상태면 전송 (Data Saver 모드 제외)
         const connection = navigator.connection;
-        if (connection?.saveData) {
-            console.log('[Sync] Skipped: Data Saver mode');
-            return false;
-        }
+        if (connection?.saveData) return false;
 
         return true;
     },

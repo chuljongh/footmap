@@ -324,7 +324,7 @@ const UIManager = {
             // 지도 데이터 리로드
             this.updateModeIndicator();
             AppState.trajectoryLayer?.getSource().clear();
-            MapManager.loadDummyTrajectories();
+            PathManager.loadDummyTrajectories();
 
             // 토스트 메시지
             const modeName = newMode === 'walking' ? '도보' : '휠체어';
@@ -968,21 +968,11 @@ const UIManager = {
 
     // [NEW] 경로 이탈 감지
     checkRouteDeviation(currentCoords) {
-        // 방어 코드: 필수 조건 체크
-        if (!AppState.isNavigating) {
-            Utils.updateDebugOverlay('NAV_OFF', { coords: currentCoords, error: 'isNavigating=false' });
-            return;
-        }
-        if (!AppState.activeRoute) {
-            Utils.updateDebugOverlay('NO_ROUTE', { coords: currentCoords, error: 'activeRoute=null' });
-            return;
-        }
+        if (!AppState.isNavigating || !AppState.activeRoute) return;
 
-        // [FIX] Geometry Fallback Logic
+        // Geometry Fallback Logic
         let routeCoords = AppState.activeRoute.geometry?.coordinates;
         if (!routeCoords) {
-            // fallback: reconstruction from legs
-            console.warn('[Reroute] No root geometry, trying legs...');
             if (AppState.activeRoute.legs && AppState.activeRoute.legs.length > 0) {
                 routeCoords = [];
                 AppState.activeRoute.legs.forEach(leg => {
@@ -995,108 +985,38 @@ const UIManager = {
             }
         }
 
-        if (!routeCoords || routeCoords.length === 0) {
-            Utils.updateDebugOverlay('NO_GEO', { coords: currentCoords, error: 'geometry.coordinates=null' });
-            console.log('[Reroute] Skip: no route coordinates found');
-            return;
-        }
+        if (!routeCoords || routeCoords.length === 0) return;
 
         // 쿨다운 체크
-        if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) {
-            Utils.updateDebugOverlay('COOLDOWN', { coords: currentCoords });
-            return;
-        }
+        if (Date.now() - AppState.lastRerouteTime < Config.MIN_REROUTE_INTERVAL_MS) return;
 
         const distance = Utils.calculateMinDistanceToRoute(currentCoords, routeCoords, Config.REROUTE_THRESHOLD_METERS);
 
-        // 정상 체크 상태 - 거리 기반 오버레이 업데이트
-        Utils.updateDebugOverlay('CHK', { coords: currentCoords, distance: distance });
-
-        console.log(`[Reroute] Distance: ${distance.toFixed(1)}m (Thr: ${Config.REROUTE_THRESHOLD_METERS}m)`);
-
         if (distance > Config.REROUTE_THRESHOLD_METERS) {
-            // 이탈 상태: 타이머 시작 (아직 없으면)
             if (!AppState.rerouteTimer) {
-                Utils.updateDebugOverlay('TIMER', { coords: currentCoords, distance: distance });
-                console.log('[Reroute] Starting deviation timer...');
-                // [UX 개선] 중간 경고 제거: 5초 후 재탐색 시점에만 알림
                 AppState.rerouteTimer = setTimeout(() => {
                     this.performReroute();
                 }, Config.REROUTE_DEBOUNCE_MS);
             }
         } else {
-            // 경로 복귀
-            if (AppState.rerouteTimer) {
-                console.log('[Reroute] Back on route');
-            }
             this.clearRerouteTimer();
         }
     },
 
-    // [NEW] 조용한 경로 재탐색 실행
+    // 경로 재탐색 실행
     performReroute() {
         AppState.rerouteTimer = null;
         AppState.lastRerouteTime = Date.now();
 
-        try {
-            if (!AppState.currentPosition || !AppState.destination) return;
+        if (!AppState.currentPosition || !AppState.destination) return;
 
-            Utils.showToast('🔄 경로를 재탐색합니다...');
+        Utils.showToast('🔄 경로를 재탐색합니다...');
 
-            // [DEBUG] Overlay Update
-            const dbgTimer = document.getElementById('dbg-timer');
-            if (dbgTimer) {
-                dbgTimer.textContent = 'FIRED';
-                dbgTimer.style.color = 'yellow';
-            }
-
-            RouteManager.showRoute(
-                AppState.currentPosition,
-                AppState.destination.coords,
-                AppState.waypoints || []
-            );
-
-            // HUD는 RouteManager.showRoute 내부에서 자동 갱신됨
-        } catch (err) {
-            console.error('Reroute failed:', err);
-            Utils.showToast('경로 재탐색에 실패했습니다');
-        }
-    },
-
-    // [DEBUG] 경로 이탈 테스트 함수
-    debugReroute() {
-        console.log('=== [DEBUG] Route Deviation Test ===');
-        console.log('1. isNavigating:', AppState.isNavigating);
-        console.log('2. activeRoute:', AppState.activeRoute ? 'EXISTS' : 'NULL');
-        console.log('3. currentPosition:', AppState.currentPosition);
-        console.log('4. destination:', AppState.destination);
-
-        if (AppState.activeRoute?.geometry?.coordinates) {
-            console.log('5. Route has', AppState.activeRoute.geometry.coordinates.length, 'points');
-
-            // 거리 계산 테스트
-            if (AppState.currentPosition) {
-                const routeCoords = AppState.activeRoute.geometry.coordinates;
-                const distance = Utils.calculateMinDistanceToRoute(
-                    AppState.currentPosition,
-                    routeCoords,
-                    Config.REROUTE_THRESHOLD_METERS
-                );
-                console.log(`6. Distance to route: ${distance.toFixed(1)}m (threshold: ${Config.REROUTE_THRESHOLD_METERS}m)`);
-
-                if (distance > Config.REROUTE_THRESHOLD_METERS) {
-                    console.log('✅ Would trigger reroute!');
-                } else {
-                    console.log('❌ Within route, no reroute needed');
-                }
-            }
-        } else {
-            console.log('5. No route coordinates available');
-        }
-
-        console.log('6. rerouteTimer:', AppState.rerouteTimer ? 'ACTIVE' : 'INACTIVE');
-        console.log('7. lastRerouteTime:', AppState.lastRerouteTime);
-        console.log('=== End Debug ===');
+        RouteManager.showRoute(
+            AppState.currentPosition,
+            AppState.destination.coords,
+            AppState.waypoints || []
+        );
     },
 
     // [REFACTORED] 실제 안내 종료 실행
@@ -1153,56 +1073,38 @@ const UIManager = {
     },
 
     handleNavigateStart() {
-        try {
-            console.log('[DEBUG] handleNavigateStart: Init');
-
-            // [START NAVIGATION]
-            if (AppState.destinationClearTimer) {
-                clearTimeout(AppState.destinationClearTimer);
-                AppState.destinationClearTimer = null;
-            }
-
-            AppState.isNavigating = true;
-            AppState.isUserInteracting = false;
-            AppState.routeHistory = [];
-            AppState.currentStepIndex = 0; // 현재 단계 인덱스 초기화
-            // [NEW] 재탐색 상태 초기화
-            AppState.lastRerouteTime = 0;
-            this.clearRerouteTimer();
-
-            // [DEBUG] 오버레이 업데이트 (네비게이션 시작)
-            Utils.updateDebugOverlay('NAV_START', {});
-
-            // [NEW] Wake Lock - 화면 꺼짐 방지
-            this.requestWakeLock();
-
-            document.body.classList.add('search-hidden');
-            document.getElementById('navigation-hud')?.classList.remove('hidden');
-
-            document.getElementById('dashboard-container')?.classList.remove('hidden');
-            document.getElementById('pre-nav-actions')?.classList.add('hidden');
-
-            // [Fix] 네비게이션 시작 시 대화 오버레이 강제 종료
-            if (typeof SocialManager !== 'undefined' && SocialManager.closeTalkMode) {
-                SocialManager.closeTalkMode();
-            }
-
-            this.updateDashboard(AppState.userMode);
-
-            // [FIX] clearWaypoints 제거 - 시작 전 설정한 경유지를 유지해야 함
-            RouteManager.showRoute(AppState.currentPosition, AppState.destination.coords, AppState.waypoints);
-            MapManager.fitViewToRoute();
-
-            if (AppState.activeRoute) this.updateNavigationHUD(AppState.activeRoute);
-
-            console.log('[DEBUG] handleNavigateStart: Complete, isNavigating=', AppState.isNavigating);
-        } catch (error) {
-            console.error('[DEBUG] handleNavigateStart Error:', error);
-            Utils.updateDebugOverlay('NAV_ERR', { error: error.message });
-            Utils.showToast(`[ERROR] 안내 시작 실패: ${error.message}`);
-            // 에러 발생해도 네비게이션 상태는 유지 시도 (필요시)
-            AppState.isNavigating = true;
+        // 타이머 취소
+        if (AppState.destinationClearTimer) {
+            clearTimeout(AppState.destinationClearTimer);
+            AppState.destinationClearTimer = null;
         }
+
+        AppState.isNavigating = true;
+        AppState.isUserInteracting = false;
+        AppState.routeHistory = [];
+        AppState.currentStepIndex = 0;
+        AppState.lastRerouteTime = 0;
+        this.clearRerouteTimer();
+
+        // Wake Lock - 화면 꺼짐 방지
+        this.requestWakeLock();
+
+        document.body.classList.add('search-hidden');
+        document.getElementById('navigation-hud')?.classList.remove('hidden');
+        document.getElementById('dashboard-container')?.classList.remove('hidden');
+        document.getElementById('pre-nav-actions')?.classList.add('hidden');
+
+        // 대화 오버레이 강제 종료
+        if (typeof SocialManager !== 'undefined' && SocialManager.closeTalkMode) {
+            SocialManager.closeTalkMode();
+        }
+
+        this.updateDashboard(AppState.userMode);
+
+        RouteManager.showRoute(AppState.currentPosition, AppState.destination.coords, AppState.waypoints);
+        MapManager.fitViewToRoute();
+
+        if (AppState.activeRoute) this.updateNavigationHUD(AppState.activeRoute);
     },
 
     updateDashboard(mode) {
@@ -1295,8 +1197,6 @@ const UIManager = {
             const steps = route.legs[0].steps;
             const currentPos = AppState.currentPosition;
 
-            // [DEBUG] 디버그 로그 추가
-            console.log('[HUD] currentPos:', currentPos, '| steps count:', steps.length);
 
             // [FIX] 현재 위치 기반으로 다음 턴까지 거리 계산
             let stepIndex = AppState.currentStepIndex || 0;
@@ -1313,8 +1213,6 @@ const UIManager = {
                 ? Utils.calculateDistance(currentPos, AppState.destination.coords)
                 : Infinity;
 
-            // [DEBUG] 거리 계산 디버그
-            console.log('[HUD] turnLocation:', turnLocation, '| distanceToTurn:', distanceToTurn, '| distToDest:', distToDest);
 
             // 턴 지점을 50m 이내로 지나쳤으면 다음 스텝으로 이동 (GPS 오차 고려)
             if (distanceToTurn < 50 && stepIndex < steps.length - 1) {

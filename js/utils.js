@@ -86,56 +86,6 @@ const Utils = {
         }, duration);
     },
 
-    // [DEBUG] 디버그 오버레이 업데이트 헬퍼
-    _dbgCounter: 0,
-    _dbgMaxDist: 0,
-    updateDebugOverlay(source, options = {}) {
-        try {
-            this._dbgCounter++;
-
-            const el = (id) => document.getElementById(id);
-            if (!el('debug-overlay')) return;
-
-            // Source (어디서 호출했는지)
-            el('dbg-src').textContent = source;
-            el('dbg-src').style.color = source === 'CHK' ? 'lime' : 'yellow';
-
-            // Navigation state
-            el('dbg-nav').textContent = AppState.isNavigating ? 'ON' : 'OFF';
-            el('dbg-nav').style.color = AppState.isNavigating ? 'lime' : 'red';
-
-            // Route state
-            const hasRoute = !!AppState.activeRoute;
-            const hasGeo = hasRoute && (AppState.activeRoute.geometry?.coordinates || AppState.activeRoute.legs?.length > 0);
-            el('dbg-route').textContent = hasRoute ? (hasGeo ? 'OK' : 'NO_GEO') : 'NULL';
-            el('dbg-route').style.color = hasGeo ? 'lime' : 'red';
-
-            // Distance
-            const dist = options.distance ?? 0;
-            if (dist > this._dbgMaxDist) this._dbgMaxDist = dist;
-            el('dbg-dist').textContent = dist.toFixed(1);
-            el('dbg-dist').style.color = dist > Config.REROUTE_THRESHOLD_METERS ? 'red' : 'lime';
-            el('dbg-max').textContent = this._dbgMaxDist.toFixed(1);
-
-            // Threshold
-            el('dbg-thr').textContent = Config.REROUTE_THRESHOLD_METERS;
-
-            // Counter
-            el('dbg-cnt').textContent = this._dbgCounter;
-
-            // GPS
-            if (options.coords) {
-                el('dbg-gps').textContent = `${options.coords[0].toFixed(4)},${options.coords[1].toFixed(4)}`;
-            }
-
-            // Error
-            if (options.error) {
-                el('dbg-err').textContent = options.error.substring(0, 30);
-            }
-        } catch (e) {
-            console.error('[Debug Overlay Error]', e);
-        }
-    },
 
 
     // 두 좌표 간 거리 계산 (Haversine formula, 단위: 미터)
@@ -176,25 +126,11 @@ const Utils = {
 
         let minDist = Infinity;
 
-        // [DEBUG] 로그 추가 (3초마다 한 번만 출력하도록 쓰로틀링 가능하면 좋겠지만 여기선 간단히 100번에 한번출력 or 조건부 출력)
-        const debugMode = (this._dbgCounter % 30 === 0); // 약 10~30초마다 상세 로그
-
-        if (debugMode) {
-            console.log(`[DistCalc] Point: ${point[0]},${point[1]}`);
-            console.log(`[DistCalc] Route[0]: ${routeCoordinates[0][0]},${routeCoordinates[0][1]}`);
-        }
-
         for (let i = 0; i < routeCoordinates.length - 1; i++) {
             const dist = this.distanceToLineSegment(point, routeCoordinates[i], routeCoordinates[i + 1]);
             if (dist < minDist) minDist = dist;
-            if (minDist <= threshold) {
-                // [DEBUG] Early Exit 로그
-                // if (debugMode) console.log(`[DistCalc] Early Exit: ${minDist.toFixed(1)}m < ${threshold}m @ Seg ${i}`);
-                return minDist;
-            }
+            if (minDist <= threshold) return minDist;
         }
-
-        if (debugMode) console.log(`[DistCalc] Final MinDist: ${minDist.toFixed(1)}m`);
 
         return minDist;
     }
