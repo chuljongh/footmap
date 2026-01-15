@@ -13,9 +13,8 @@ const UIManager = {
         this.bindEvents();
         this.updateProfileUI(); // 초기 프로필 UI 반영
 
-        // 저장된 테마 적용 (기본: dark)
-        const savedTheme = Utils.loadState('appTheme') || 'dark';
-        this.applyTheme(savedTheme);
+        // [Clean-up] 구버전 테마 설정 제거 (라이트 모드 삭제로 불필요)
+        Utils.removeState('appTheme');
     },
 
     cacheElements() {
@@ -26,8 +25,7 @@ const UIManager = {
             'search-input', 'search-clear-btn', 'search-suggestions',
             'menu-btn', 'side-menu', 'menu-overlay', 'close-menu-btn',
             'dash-primary', 'dash-secondary', 'dash-stats',
-            'nav-next-turn-icon', 'nav-next-dist', 'nav-second-icon', 'nav-second-dist', 'nav-road-name',
-            'theme-icon', 'theme-text'
+            'nav-next-turn-icon', 'nav-next-dist', 'nav-second-icon', 'nav-second-dist', 'nav-road-name'
         ];
         ids.forEach(id => {
             this.elements[id] = document.getElementById(id);
@@ -1467,29 +1465,6 @@ const UIManager = {
             AppState.wakeLock = null;
 
         }
-    },
-
-    // ========================================
-    // 테마 전환 (Light/Dark Mode)
-    // ========================================
-    toggleTheme() {
-        const current = document.documentElement.getAttribute('data-theme') || 'dark';
-        const next = current === 'dark' ? 'light' : 'dark';
-        this.applyTheme(next);
-    },
-
-    applyTheme(theme) {
-        // UI 테마 적용
-        document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
-
-        // 버튼 아이콘/텍스트 업데이트
-        const iconEl = this.elements['theme-icon'];
-        const textEl = this.elements['theme-text'];
-        if (iconEl) iconEl.textContent = theme === 'dark' ? '🌙' : '☀️';
-        if (textEl) textEl.textContent = theme === 'dark' ? '다크 모드' : '라이트 모드';
-
-        // 저장
-        Utils.saveState('appTheme', theme);
     }
 };
 
