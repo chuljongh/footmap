@@ -1064,7 +1064,19 @@ const UIManager = {
         if (AppState.map) AppState.map.render();
 
         // 3. Data Saving (Async, Safe)
-        this.processAndSaveRoute();
+        // [UPDATE] 주기적 동기화 종료 및 최종 저장
+        if (AppState.syncInterval) {
+            clearInterval(AppState.syncInterval);
+            AppState.syncInterval = null;
+        }
+
+        // 마지막으로 한 번 더 동기화 (강제 실행)
+        this.performPeriodicSync().then(() => {
+            AppState.activeRouteId = null; // ID 초기화
+        });
+
+        // (기존 processAndSaveRoute 호출 제거 - 중복 저장 방지)
+        // this.processAndSaveRoute();
 
         // [NEW] 재탐색 타이머 정리
         this.clearRerouteTimer();
@@ -1096,6 +1108,7 @@ const UIManager = {
         AppState.routeHistory = [];
         AppState.currentStepIndex = 0;
         AppState.lastRerouteTime = 0;
+        AppState.activeRouteId = null; // [NEW] 실시간 서버 경로 ID
         this.clearRerouteTimer();
 
         // Wake Lock - 화면 꺼짐 방지
@@ -1117,6 +1130,64 @@ const UIManager = {
         MapManager.fitViewToRoute();
 
         if (AppState.activeRoute) this.updateNavigationHUD(AppState.activeRoute);
+
+        // [NEW] 실시간 동기화 시작 (즉시 시작하지 않고 3초 후 첫 저장, 그 후 주기적)
+        // 안내 시작 직후에는 데이터가 없으므로 잠시 대기
+        setTimeout(() => this.performPeriodicSync(), 3000);
+
+        if (AppState.syncInterval) clearInterval(AppState.syncInterval);
+        AppState.syncInterval = setInterval(() => {
+            this.performPeriodicSync();
+        }, Config.SYNC_INTERVAL_MS);
+    },
+
+    // [NEW] 주기적 데이터 동기화
+    async performPeriodicSync() {
+        if (!AppState.isNavigating) return;
+
+        // 현재 데이터 수집
+        const fullHistory = [...(AppState.routeHistory || []), ...(AppState.accessHistory || [])];
+        if (fullHistory.length === 0) return;
+
+        // 거리 계산
+        let totalDistance = 0;
+        for (let i = 1; i < fullHistory.length; i++) {
+            totalDistance += Utils.calculateDistance(fullHistory[i-1].coords, fullHistory[i].coords);
+        }
+
+        // 최소 데이터 기준 (1m 이상 이동 시)
+        // 첫 생성 때는 1m라도 생성 허용
+        if (totalDistance < 1 && !AppState.activeRouteId) return;
+
+        const routePayload = {
+            distance: totalDistance / 1000,
+            duration: (Date.now() - (AppState.navStartTime || Date.now())) / 1000, // 단순 시간 차이 (pause 미고려) -> timestamp 기반이 더 정확함
+            // 개선: 실제 history의 첫/끝 시간 차이 사용
+            duration: (fullHistory[fullHistory.length - 1].timestamp - fullHistory[0].timestamp) / 1000,
+            mode: AppState.userMode || 'walking',
+            startCoords: fullHistory[0].coords.join(','),
+            endCoords: fullHistory[fullHistory.length - 1].coords.join(','),
+            points: fullHistory
+        };
+
+        try {
+            if (!AppState.activeRouteId) {
+                // 첫 저장 (CREATE)
+                const savedRoute = await DataCollector.saveToServer(routePayload);
+                if (savedRoute && savedRoute.id) {
+                    AppState.activeRouteId = savedRoute.id;
+                    Utils.showToast('🚩 경로 기록이 시작되었습니다.');
+                }
+            } else {
+                // 업데이트 (UPDATE)
+                await DataCollector.updateRouteOnServer(AppState.activeRouteId, routePayload);
+                // 조용히 업데이트 (로그만)
+                console.log(`[Sync] Route ${AppState.activeRouteId} updated. ${totalDistance.toFixed(1)}m`);
+            }
+        } catch (e) {
+            console.error('[Sync] Periodic sync failed:', e);
+            // 토스트는 띄우지 않음 (사용자 방해 방지)
+        }
     },
 
     updateDashboard(mode) {

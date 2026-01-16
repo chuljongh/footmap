@@ -386,12 +386,8 @@ const MapManager = {
                 }
             }
 
-            // [Optimization] 데이터 중복 방지: 3미터 이상 이동 시에만 기록
-            const targetHistory = AppState.isInAccessZone ? AppState.accessHistory : AppState.routeHistory;
-            const lastPoint = targetHistory[targetHistory.length - 1];
-            const distanceMoved = lastPoint ? Utils.calculateDistance(lastPoint.coords, coords) : 999;
-
-            if (distanceMoved >= 3) {
+            // [Optimization] 데이터 중복 방지: 1미터 이상 이동 시에만 기록
+            if (distanceMoved >= 1) {
                 const pointData = {
                     coords: coords,
                     timestamp: Date.now(),

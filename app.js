@@ -43,6 +43,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 초기화와 스플래시 타이머를 동시에 실행
     await Promise.allSettled([initApp(), splashTimeout]);
 
+    // 3. 네트워크 상태 변화 감지 (자동 동기화)
+    window.addEventListener('online', () => {
+        console.log('[App] Network is online. Triggering sync...');
+        if (typeof DataCollector !== 'undefined') {
+            DataCollector.syncToServer();
+        }
+    });
+
     // 2. 저장된 설정 로드 및 화면 전환
     try {
         const onboardingComplete = (typeof UIManager !== 'undefined')
@@ -56,6 +64,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (typeof UIManager !== 'undefined') {
                 UIManager.updateModeIndicator();
+            }
+            // 앱 시작 직후 동기화 시도
+            if (typeof DataCollector !== 'undefined') {
+                setTimeout(() => DataCollector.syncToServer(), 3000);
             }
         } else {
             Utils.showScreen('permission-screen');

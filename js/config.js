@@ -30,6 +30,7 @@ const Config = {
     TRAJECTORY_INITIAL_DELAY: 2000, // 초기 궤적 로드 지연 (ms)
     TRAJECTORY_MINT: '#00D4AA',  // 궤적 기본 색상 (민트)
     NEARBY_MESSAGE_THRESHOLD: 50,  // 근처 메시지 거리 (m)
+    SYNC_INTERVAL_MS: 30000,       // [NEW] 경로 실시간 동기화 주기 (30초)
 
     // [NEW] 경로 이탈 재탐색 설정 (보행자 최적화)
     REROUTE_THRESHOLD_METERS: 30,   // 이탈 판단 거리 (30m) - GPS 오차(약 10~20m) 고려한 적정값

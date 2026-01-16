@@ -686,6 +686,36 @@ def save_user_route(user_id):
     db.session.commit()
     return jsonify(route.to_dict()), 201
 
+@app.route('/api/routes/<int:route_id>', methods=['PUT', 'POST'])
+def update_route(route_id):
+    """이동 기록 실시간 업데이트 (중간 저장)"""
+    data = request.json
+    route = Route.query.get(route_id)
+    if not route:
+        return jsonify({'error': 'Route not found'}), 404
+
+    # 거리 차이 계산 (누적 통계 업데이트용)
+    new_distance = data.get('distance', route.distance)
+    delta_distance = new_distance - (route.distance or 0)
+
+    # User 통계 업데이트
+    user = User.query.get(route.user_id)
+    if user:
+        if route.mode == 'walking':
+            user.dist_walking = (user.dist_walking or 0) + delta_distance
+        elif route.mode == 'wheelchair':
+            user.dist_wheelchair = (user.dist_wheelchair or 0) + delta_distance
+        user.total_distance = (user.total_distance or 0) + delta_distance
+
+    # Route 업데이트
+    route.distance = new_distance
+    if 'duration' in data: route.duration = data['duration']
+    if 'points' in data: route.points_json = data['points']
+    if 'endCoords' in data: route.end_coords = data['endCoords']
+
+    db.session.commit()
+    return jsonify(route.to_dict())
+
 @app.route('/api/trajectories', methods=['GET'])
 def get_trajectories():
     """지도 범위 내 집단지성 궤적 조회 (익명 궤적 노출)"""
