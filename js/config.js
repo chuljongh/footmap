@@ -6,11 +6,8 @@ const Config = {
     VWORLD_API_KEY: 'YOUR_VWORLD_API_KEY',
 
     // [NEW] API 기본 URL (APK/Local 환경 대응)
-    // 배포 환경에 맞게 자동 감지하거나 고정값 사용
-    // APK 빌드(file://)에서는 반드시 절대 경로가 필요함
-    API_BASE_URL: (window.location.hostname === 'localhost' || window.location.protocol === 'file:')
-        ? 'https://balgilmaeb.onrender.com'
-        : '', // 웹에서는 상대경로 사용 (CORS 회피 등)
+    // 배포 환경과 상관없이 무조건 프로덕션 서버를 바라보도록 설정 (안전성 확보)
+    API_BASE_URL: 'https://balgilmaeb.onrender.com', // HARDCODED for Stability
 
     // 지도 타일 URL (테마별)
 
