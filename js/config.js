@@ -2,6 +2,9 @@
 // 설정 및 상수 (Config)
 // ========================================
 const Config = {
+    // [CRITICAL] API 서버 주소 (APK에서 절대 경로 필요)
+    API_BASE_URL: 'https://balgilmaeb.onrender.com',
+
     // V-world API 키 (데모용)
     VWORLD_API_KEY: 'YOUR_VWORLD_API_KEY',
 
