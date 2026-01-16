@@ -470,7 +470,7 @@ const SocialManager = {
             card.classList.add('expanded');
             // 댓글 로드
             try {
-                const res = await fetch(`${Config.API_BASE_URL}/api/messages/${msgId}/detail`);
+                const res = await fetch(`/api/messages/${msgId}/detail`);
                 if (res.ok) {
                     const data = await res.json();
                     this.renderComments(msgId, data.comments || []);
@@ -512,7 +512,7 @@ const SocialManager = {
         if (!text) return;
 
         try {
-            const res = await fetch(`${Config.API_BASE_URL}/api/messages/${msgId}/comments`, {
+            const res = await fetch(`/api/messages/${msgId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -533,7 +533,7 @@ const SocialManager = {
     async handleLike(id, type, btnElement) {
         const userId = AppState.userProfile?.nickname || 'anonymous';
         try {
-            const response = await fetch(`${Config.API_BASE_URL}/api/messages/${id}/vote`, {
+            const response = await fetch(`/api/messages/${id}/vote`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type, userId })
@@ -599,7 +599,7 @@ const SocialManager = {
         const newText = prompt('수정할 내용:', msg.text);
         if (newText && newText !== msg.text) {
             try {
-                const response = await fetch(`${Config.API_BASE_URL}/api/messages/${id}`, {
+                const response = await fetch(`/api/messages/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: AppState.userProfile?.nickname, text: newText })
@@ -618,7 +618,7 @@ const SocialManager = {
     async handleDelete(id) {
         if (confirm('삭제하시겠습니까?')) {
             try {
-                const response = await fetch(`${Config.API_BASE_URL}/api/messages/${id}`, {
+                const response = await fetch(`/api/messages/${id}`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: AppState.userProfile?.nickname })
@@ -637,7 +637,7 @@ const SocialManager = {
     async handleSave(id) {
         const userId = AppState.userProfile?.nickname || 'anonymous';
         try {
-            const response = await fetch(`${Config.API_BASE_URL}/api/messages/${id}/save`, {
+            const response = await fetch(`/api/messages/${id}/save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId })
@@ -656,7 +656,7 @@ const SocialManager = {
     async handleUnsave(id) {
         const userId = AppState.userProfile?.nickname || 'anonymous';
         try {
-            const response = await fetch(`${Config.API_BASE_URL}/api/messages/${id}/save`, {
+            const response = await fetch(`/api/messages/${id}/save`, {
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId })
@@ -679,7 +679,7 @@ const SocialManager = {
 
         const userId = AppState.userProfile?.nickname || '익명';
         try {
-            const response = await fetch(`${Config.API_BASE_URL}/api/messages/${this.currentMessageId}/comments`, {
+            const response = await fetch(`/api/messages/${this.currentMessageId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, text })

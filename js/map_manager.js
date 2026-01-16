@@ -92,7 +92,7 @@ const MapManager = {
         try {
             const lon = coords[0];
             const lat = coords[1];
-            const response = await fetch(`${Config.API_BASE_URL}/api/reverse-geo?x=${lon}&y=${lat}`);
+            const response = await fetch(`/api/reverse-geo?x=${lon}&y=${lat}`);
             const data = await response.json();
 
             if (data.documents && data.documents.length > 0) {
@@ -325,18 +325,6 @@ const MapManager = {
                 const coords = [position.coords.longitude, position.coords.latitude];
                 const heading = position.coords.heading;
                 const speed = position.coords.speed; // m/s
-
-                // [Debug]
-                if (typeof DebugOverlay !== 'undefined') {
-                    DebugOverlay.update({
-                        gps: {
-                            lat: position.coords.latitude,
-                            lon: position.coords.longitude,
-                            acc: position.coords.accuracy
-                        }
-                    });
-                }
-
                 this.updateCurrentPosition(coords, heading, speed);
             },
             null,
@@ -398,8 +386,12 @@ const MapManager = {
                 }
             }
 
-            // [Optimization] 데이터 중복 방지: 1미터 이상 이동 시에만 기록
-            if (distanceMoved >= 1) {
+            // [Optimization] 데이터 중복 방지: 3미터 이상 이동 시에만 기록
+            const targetHistory = AppState.isInAccessZone ? AppState.accessHistory : AppState.routeHistory;
+            const lastPoint = targetHistory[targetHistory.length - 1];
+            const distanceMoved = lastPoint ? Utils.calculateDistance(lastPoint.coords, coords) : 999;
+
+            if (distanceMoved >= 3) {
                 const pointData = {
                     coords: coords,
                     timestamp: Date.now(),

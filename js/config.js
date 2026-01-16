@@ -5,12 +5,6 @@ const Config = {
     // V-world API 키 (데모용)
     VWORLD_API_KEY: 'YOUR_VWORLD_API_KEY',
 
-    // [NEW] API 기본 URL (APK/Local 환경 대응)
-    // 배포 환경과 상관없이 무조건 프로덕션 서버를 바라보도록 설정 (안전성 확보)
-    API_BASE_URL: 'https://balgilmaeb.onrender.com', // HARDCODED for Stability
-
-    // 지도 타일 URL (테마별)
-
     // 지도 타일 URL (테마별)
     MAP_TILE_LIGHT: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ko',
 
@@ -36,7 +30,6 @@ const Config = {
     TRAJECTORY_INITIAL_DELAY: 2000, // 초기 궤적 로드 지연 (ms)
     TRAJECTORY_MINT: '#00D4AA',  // 궤적 기본 색상 (민트)
     NEARBY_MESSAGE_THRESHOLD: 50,  // 근처 메시지 거리 (m)
-    SYNC_INTERVAL_MS: 30000,       // [NEW] 경로 실시간 동기화 주기 (30초)
 
     // [NEW] 경로 이탈 재탐색 설정 (보행자 최적화)
     REROUTE_THRESHOLD_METERS: 30,   // 이탈 판단 거리 (30m) - GPS 오차(약 10~20m) 고려한 적정값

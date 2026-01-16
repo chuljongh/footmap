@@ -625,7 +625,7 @@ const UIManager = {
         // 사용자 통계 업데이트
         const userId = AppState.userProfile?.nickname || '익명';
         try {
-            const res = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}`);
+            const res = await fetch(`/api/users/${encodeURIComponent(userId)}`);
             if (res.ok) {
                 const userData = await res.json();
                 document.getElementById('stat-walking').textContent = `${(userData.distWalking || 0).toFixed(1)}km`;
@@ -665,19 +665,19 @@ const UIManager = {
 
             switch (tabName) {
                 case 'routes':
-                    const routesRes = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/routes`);
+                    const routesRes = await fetch(`/api/users/${encodeURIComponent(userId)}/routes`);
                     if (!routesRes.ok) throw new Error('Failed to load routes');
                     items = await routesRes.json();
                     renderFn = this.renderRouteItem;
                     break;
                 case 'messages':
-                    const msgsRes = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/messages`);
+                    const msgsRes = await fetch(`/api/users/${encodeURIComponent(userId)}/messages`);
                     if (!msgsRes.ok) throw new Error('Failed to load messages');
                     items = await msgsRes.json();
                     renderFn = this.renderMessageItem;
                     break;
                 case 'comments':
-                    const cmtsRes = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/comments`);
+                    const cmtsRes = await fetch(`/api/users/${encodeURIComponent(userId)}/comments`);
                     if (!cmtsRes.ok) throw new Error('Failed to load comments');
                     items = await cmtsRes.json();
                     renderFn = this.renderCommentItem;
@@ -1064,19 +1064,7 @@ const UIManager = {
         if (AppState.map) AppState.map.render();
 
         // 3. Data Saving (Async, Safe)
-        // [UPDATE] 주기적 동기화 종료 및 최종 저장
-        if (AppState.syncInterval) {
-            clearInterval(AppState.syncInterval);
-            AppState.syncInterval = null;
-        }
-
-        // 마지막으로 한 번 더 동기화 (강제 실행)
-        this.performPeriodicSync().then(() => {
-            AppState.activeRouteId = null; // ID 초기화
-        });
-
-        // (기존 processAndSaveRoute 호출 제거 - 중복 저장 방지)
-        // this.processAndSaveRoute();
+        this.processAndSaveRoute();
 
         // [NEW] 재탐색 타이머 정리
         this.clearRerouteTimer();
@@ -1108,7 +1096,6 @@ const UIManager = {
         AppState.routeHistory = [];
         AppState.currentStepIndex = 0;
         AppState.lastRerouteTime = 0;
-        AppState.activeRouteId = null; // [NEW] 실시간 서버 경로 ID
         this.clearRerouteTimer();
 
         // Wake Lock - 화면 꺼짐 방지
@@ -1130,67 +1117,6 @@ const UIManager = {
         MapManager.fitViewToRoute();
 
         if (AppState.activeRoute) this.updateNavigationHUD(AppState.activeRoute);
-
-        // [NEW] 실시간 동기화 시작 (즉시 시작하지 않고 3초 후 첫 저장, 그 후 주기적)
-        // 안내 시작 직후에는 데이터가 없으므로 잠시 대기
-        setTimeout(() => this.performPeriodicSync(), 3000);
-
-        if (AppState.syncInterval) clearInterval(AppState.syncInterval);
-        AppState.syncInterval = setInterval(() => {
-            this.performPeriodicSync();
-        }, Config.SYNC_INTERVAL_MS);
-    },
-
-    // [NEW] 주기적 데이터 동기화
-    async performPeriodicSync() {
-        if (!AppState.isNavigating) return;
-
-        // 현재 데이터 수집
-        const fullHistory = [...(AppState.routeHistory || []), ...(AppState.accessHistory || [])];
-        if (fullHistory.length === 0) return;
-
-        // 거리 계산
-        let totalDistance = 0;
-        for (let i = 1; i < fullHistory.length; i++) {
-            totalDistance += Utils.calculateDistance(fullHistory[i-1].coords, fullHistory[i].coords);
-        }
-
-        // [Debug]
-        if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ dist: totalDistance });
-
-        // 최소 데이터 기준 (1m 이상 이동 시)
-        // 첫 생성 때는 1m라도 생성 허용
-        if (totalDistance < 1 && !AppState.activeRouteId) return;
-
-        const routePayload = {
-            distance: totalDistance / 1000,
-            duration: (Date.now() - (AppState.navStartTime || Date.now())) / 1000, // 단순 시간 차이 (pause 미고려) -> timestamp 기반이 더 정확함
-            // 개선: 실제 history의 첫/끝 시간 차이 사용
-            duration: (fullHistory[fullHistory.length - 1].timestamp - fullHistory[0].timestamp) / 1000,
-            mode: AppState.userMode || 'walking',
-            startCoords: fullHistory[0].coords.join(','),
-            endCoords: fullHistory[fullHistory.length - 1].coords.join(','),
-            points: fullHistory
-        };
-
-        try {
-            if (!AppState.activeRouteId) {
-                // 첫 저장 (CREATE)
-                const savedRoute = await DataCollector.saveToServer(routePayload);
-                if (savedRoute && savedRoute.id) {
-                    AppState.activeRouteId = savedRoute.id;
-                    Utils.showToast('🚩 경로 기록이 시작되었습니다.');
-                }
-            } else {
-                // 업데이트 (UPDATE)
-                await DataCollector.updateRouteOnServer(AppState.activeRouteId, routePayload);
-                // 조용히 업데이트 (로그만)
-                console.log(`[Sync] Route ${AppState.activeRouteId} updated. ${totalDistance.toFixed(1)}m`);
-            }
-        } catch (e) {
-            console.error('[Sync] Periodic sync failed:', e);
-            // 토스트는 띄우지 않음 (사용자 방해 방지)
-        }
     },
 
     updateDashboard(mode) {
@@ -1270,30 +1196,19 @@ const UIManager = {
     updateNavigationHUD(route) {
         if (!route) return;
 
-        // [UPDATE] 하단 대시보드 1번째 줄로 이동 (XX분 | XXkm) - 실시간 남은 거리 계산
-        const currentPos = AppState.currentPosition;
-
-        // 남은 거리 (현위치 -> 목적지 직선거리 or 경로상 남은 거리)
-        // 간단히 직선거리로 계산하되, 경로가 있으면 경로상 남은 거리가 더 정확함 (TODO)
-        // 지금은 직선거리 + 20%(굴곡 보정) 사용
-        let remainingDist = 0;
-        if (AppState.destination && currentPos) {
-            remainingDist = Utils.calculateDistance(currentPos, AppState.destination.coords) * 1.2;
-        } else {
-            remainingDist = route.distance; // Fallback
-        }
-
-        const totalDistStr = this.formatDistance(remainingDist);
-        // 남은 시간 (평균 속도 4km/h 가정 -> 66m/min)
-        const remainingTime = Math.ceil(remainingDist / 66);
+        // [UPDATE] 하단 대시보드 1번째 줄로 이동 (XX분 | XXkm)
+        const totalDist = this.formatDistance(route.distance);
+        const totalTime = Math.ceil(route.duration / 60);
 
         const statsEl = this.elements['dash-stats'];
         if (statsEl) {
-            statsEl.textContent = `목적지까지 ${remainingTime}분 | ${totalDistStr}`;
+            statsEl.textContent = `목적지까지 ${totalTime}분 | ${totalDist}`;
         }
 
         if (route.legs && route.legs[0].steps && route.legs[0].steps.length > 0) {
             const steps = route.legs[0].steps;
+            const currentPos = AppState.currentPosition;
+
 
             // [FIX] 현재 위치 기반으로 다음 턴까지 거리 계산
             let stepIndex = AppState.currentStepIndex || 0;
@@ -1305,15 +1220,10 @@ const UIManager = {
             const turnLocation = nextStep.maneuver.location; // [lon, lat]
             const distanceToTurn = Utils.calculateDistance(currentPos, turnLocation);
 
-            // [Debug] Overlay에 턴 거리 표시
-             if (typeof DebugOverlay !== 'undefined') {
-                DebugOverlay.update({
-                    status: `Turn: ${distanceToTurn.toFixed(0)}m (${stepIndex}/${steps.length})`
-                });
-            }
-
             // [300m 규칙] 목적지까지 거리 미리 계산 (모든 줌 로직에서 공유)
-            const distToDest = remainingDist;
+            const distToDest = (AppState.destination)
+                ? Utils.calculateDistance(currentPos, AppState.destination.coords)
+                : Infinity;
 
 
             // 턴 지점을 50m 이내로 지나쳤으면 다음 스텝으로 이동 (GPS 오차 고려)
