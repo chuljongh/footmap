@@ -103,11 +103,14 @@ const DataCollector = {
                 })
             });
             if (!response.ok) throw new Error(`Server returned ${response.status}`);
-            return await response.json();
+            const result = await response.json();
+            if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ sync: 'Success (POST)' });
+            return result;
         } catch (e) {
             console.error('[DataCollector] Server sync failed:', e);
             // [NEW] 사용자에게 에러 알림 (테스트용)
             // if (typeof Utils !== 'undefined') Utils.showToast(`전송 실패: ${e.message}`);
+            if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ sync: `Fail (POST): ${e.message}` });
             throw e;
         }
     },
@@ -129,10 +132,13 @@ const DataCollector = {
                 })
             });
             if (!response.ok) throw new Error(`Server returned ${response.status}`);
-            return await response.json();
+            const result = await response.json();
+            if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ sync: 'Success (PUT)' });
+            return result;
         } catch (e) {
             console.error(`[DataCollector] Update failed for route ${routeId}:`, e);
             // PUT 실패는 굳이 에러를 던져서 앱을 멈출 필요는 없음 (다음 주기나 마지막 저장 때 재시도됨)
+            if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ sync: `Fail (PUT): ${e.message}` });
         }
     },
 

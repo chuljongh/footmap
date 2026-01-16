@@ -1155,6 +1155,9 @@ const UIManager = {
             totalDistance += Utils.calculateDistance(fullHistory[i-1].coords, fullHistory[i].coords);
         }
 
+        // [Debug]
+        if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ dist: totalDistance });
+
         // 최소 데이터 기준 (1m 이상 이동 시)
         // 첫 생성 때는 1m라도 생성 허용
         if (totalDistance < 1 && !AppState.activeRouteId) return;

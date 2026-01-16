@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 1. 매니저 초기화 (비동기 병렬 처리 시도)
     const initApp = async () => {
         try {
+            // [Debug] Init Overlay
+            if (typeof DebugOverlay !== 'undefined') DebugOverlay.init();
+
             // 소셜 기능 초기화 (내부적으로 loadMessages 비동기 처리됨)
             if (typeof SocialManager !== 'undefined') {
                 SocialManager.init();
