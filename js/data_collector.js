@@ -94,7 +94,7 @@ const DataCollector = {
     async saveToServer(routeData) {
         const userId = AppState.userProfile?.nickname || '익명';
         try {
-            const response = await fetch(`/api/users/${encodeURIComponent(userId)}/routes`, {
+            const response = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/routes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

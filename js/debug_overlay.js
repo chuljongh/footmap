@@ -33,8 +33,42 @@ const DebugOverlay = {
             <div id="debug-gps" style="color:#ffff00; margin-bottom: 2px;">GPS: Waiting...</div>
             <div id="debug-dist" style="font-size:16px; font-weight:bold; color:#fff; margin-bottom: 2px;">Dist: 0.0m</div>
             <div id="debug-status" style="margin-bottom: 2px;">Status: Ready</div>
-            <div id="debug-sync" style="font-weight:bold">Sync: Idle</div>
+            <div id="debug-sync" style="font-weight:bold; margin-bottom: 6px;">Sync: Idle</div>
+            <button id="debug-test-btn" style="
+                pointer-events: auto;
+                background: #ff6600;
+                color: #fff;
+                border: none;
+                padding: 6px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                cursor: pointer;
+                font-weight: bold;
+            ">🧪 테스트 전송</button>
         `;
+
+        // 테스트 버튼 클릭 이벤트
+        setTimeout(() => {
+            const btn = document.getElementById('debug-test-btn');
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    btn.textContent = '⏳ 전송 중...';
+                    DataCollector.saveToServer({
+                        distance: 0.1,
+                        duration: 60,
+                        mode: 'walking',
+                        startCoords: '127.0,37.0',
+                        endCoords: '127.1,37.1',
+                        points: []
+                    }).then(() => {
+                        btn.textContent = '✅ 성공!';
+                    }).catch((e) => {
+                        btn.textContent = '❌ 실패';
+                        console.error('Test sync failed:', e);
+                    });
+                });
+            }
+        }, 100);
 
         document.body.appendChild(this.element);
         console.log('Debug Overlay Injected into DOM');
