@@ -655,9 +655,13 @@ def get_user_routes(user_id):
 @app.route('/api/users/<user_id>/routes', methods=['POST'])
 def save_user_route(user_id):
     """이동 기록 저장 및 통계 업데이트"""
+    print(f"DEBUG: save_user_route POST called for {user_id}", flush=True)
     data = request.json
     if not data:
+        print("DEBUG: Missing data in POST", flush=True)
         return jsonify({'error': 'Missing data'}), 400
+
+    print(f"DEBUG: Data received: dist={data.get('distance')}, mode={data.get('mode')}", flush=True)
 
     ensure_user(user_id)
     user = User.query.get(user_id)
@@ -684,19 +688,23 @@ def save_user_route(user_id):
     )
     db.session.add(route)
     db.session.commit()
+    print(f"DEBUG: Route created with ID {route.id}", flush=True)
     return jsonify(route.to_dict()), 201
 
 @app.route('/api/routes/<int:route_id>', methods=['PUT', 'POST'])
 def update_route(route_id):
     """이동 기록 실시간 업데이트 (중간 저장)"""
+    print(f"DEBUG: update_route PUT called for ID {route_id}", flush=True)
     data = request.json
     route = Route.query.get(route_id)
     if not route:
+        print(f"DEBUG: Route {route_id} not found", flush=True)
         return jsonify({'error': 'Route not found'}), 404
 
     # 거리 차이 계산 (누적 통계 업데이트용)
     new_distance = data.get('distance', route.distance)
     delta_distance = new_distance - (route.distance or 0)
+    print(f"DEBUG: Update dist {route.distance} -> {new_distance} (Delta: {delta_distance})", flush=True)
 
     # User 통계 업데이트
     user = User.query.get(route.user_id)

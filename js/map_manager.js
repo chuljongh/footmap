@@ -92,7 +92,7 @@ const MapManager = {
         try {
             const lon = coords[0];
             const lat = coords[1];
-            const response = await fetch(`/api/reverse-geo?x=${lon}&y=${lat}`);
+            const response = await fetch(`${Config.API_BASE_URL}/api/reverse-geo?x=${lon}&y=${lat}`);
             const data = await response.json();
 
             if (data.documents && data.documents.length > 0) {

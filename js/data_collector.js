@@ -90,7 +90,7 @@ const DataCollector = {
         const userId = AppState.userProfile?.nickname || '익명';
         try {
             console.log(`[DataCollector] Creating new route on server... User: ${userId}`);
-            const response = await fetch(`/api/users/${encodeURIComponent(userId)}/routes`, {
+            const response = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/routes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -106,6 +106,8 @@ const DataCollector = {
             return await response.json();
         } catch (e) {
             console.error('[DataCollector] Server sync failed:', e);
+            // [NEW] 사용자에게 에러 알림 (테스트용)
+            // if (typeof Utils !== 'undefined') Utils.showToast(`전송 실패: ${e.message}`);
             throw e;
         }
     },
@@ -116,7 +118,7 @@ const DataCollector = {
             console.log('Distance:', routeData.distance);
             console.groupEnd();
 
-            const response = await fetch(`/api/routes/${routeId}`, {
+            const response = await fetch(`${Config.API_BASE_URL}/api/routes/${routeId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -214,7 +216,7 @@ const DataCollector = {
 
     async fetchTrajectories(bounds) {
         try {
-            const response = await fetch(`/api/trajectories?bounds=${bounds.join(',')}`);
+            const response = await fetch(`${Config.API_BASE_URL}/api/trajectories?bounds=${bounds.join(',')}`);
             if (!response.ok) throw new Error('API fetch failed');
             return await response.json();
         } catch (e) {
