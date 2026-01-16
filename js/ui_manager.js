@@ -1040,6 +1040,12 @@ const UIManager = {
         // [NEW] Wake Lock 해제
         this.releaseWakeLock();
 
+        // [DEBUG] 실시간 동기화 타이머 정리
+        if (AppState.realtimeSyncTimer) {
+            clearInterval(AppState.realtimeSyncTimer);
+            AppState.realtimeSyncTimer = null;
+        }
+
         if (btn) {
             const textSpan = btn.querySelector('.btn-text');
             if (textSpan) textSpan.textContent = '경로 안내 시작';
@@ -1097,6 +1103,14 @@ const UIManager = {
         AppState.currentStepIndex = 0;
         AppState.lastRerouteTime = 0;
         this.clearRerouteTimer();
+
+        // [DEBUG] 1초마다 서버로 데이터 전송 (실시간 동기화)
+        if (AppState.realtimeSyncTimer) clearInterval(AppState.realtimeSyncTimer);
+        AppState.realtimeSyncTimer = setInterval(() => {
+            if (AppState.routeHistory && AppState.routeHistory.length >= 2) {
+                this.processAndSaveRoute();
+            }
+        }, 1000);
 
         // Wake Lock - 화면 꺼짐 방지
         this.requestWakeLock();
