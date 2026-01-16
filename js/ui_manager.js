@@ -1270,19 +1270,30 @@ const UIManager = {
     updateNavigationHUD(route) {
         if (!route) return;
 
-        // [UPDATE] 하단 대시보드 1번째 줄로 이동 (XX분 | XXkm)
-        const totalDist = this.formatDistance(route.distance);
-        const totalTime = Math.ceil(route.duration / 60);
+        // [UPDATE] 하단 대시보드 1번째 줄로 이동 (XX분 | XXkm) - 실시간 남은 거리 계산
+        const currentPos = AppState.currentPosition;
+
+        // 남은 거리 (현위치 -> 목적지 직선거리 or 경로상 남은 거리)
+        // 간단히 직선거리로 계산하되, 경로가 있으면 경로상 남은 거리가 더 정확함 (TODO)
+        // 지금은 직선거리 + 20%(굴곡 보정) 사용
+        let remainingDist = 0;
+        if (AppState.destination && currentPos) {
+            remainingDist = Utils.calculateDistance(currentPos, AppState.destination.coords) * 1.2;
+        } else {
+            remainingDist = route.distance; // Fallback
+        }
+
+        const totalDistStr = this.formatDistance(remainingDist);
+        // 남은 시간 (평균 속도 4km/h 가정 -> 66m/min)
+        const remainingTime = Math.ceil(remainingDist / 66);
 
         const statsEl = this.elements['dash-stats'];
         if (statsEl) {
-            statsEl.textContent = `목적지까지 ${totalTime}분 | ${totalDist}`;
+            statsEl.textContent = `목적지까지 ${remainingTime}분 | ${totalDistStr}`;
         }
 
         if (route.legs && route.legs[0].steps && route.legs[0].steps.length > 0) {
             const steps = route.legs[0].steps;
-            const currentPos = AppState.currentPosition;
-
 
             // [FIX] 현재 위치 기반으로 다음 턴까지 거리 계산
             let stepIndex = AppState.currentStepIndex || 0;
@@ -1294,10 +1305,15 @@ const UIManager = {
             const turnLocation = nextStep.maneuver.location; // [lon, lat]
             const distanceToTurn = Utils.calculateDistance(currentPos, turnLocation);
 
+            // [Debug] Overlay에 턴 거리 표시
+             if (typeof DebugOverlay !== 'undefined') {
+                DebugOverlay.update({
+                    status: `Turn: ${distanceToTurn.toFixed(0)}m (${stepIndex}/${steps.length})`
+                });
+            }
+
             // [300m 규칙] 목적지까지 거리 미리 계산 (모든 줌 로직에서 공유)
-            const distToDest = (AppState.destination)
-                ? Utils.calculateDistance(currentPos, AppState.destination.coords)
-                : Infinity;
+            const distToDest = remainingDist;
 
 
             // 턴 지점을 50m 이내로 지나쳤으면 다음 스텝으로 이동 (GPS 오차 고려)
