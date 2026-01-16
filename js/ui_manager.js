@@ -625,7 +625,7 @@ const UIManager = {
         // 사용자 통계 업데이트
         const userId = AppState.userProfile?.nickname || '익명';
         try {
-            const res = await fetch(`/api/users/${encodeURIComponent(userId)}`);
+            const res = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}`);
             if (res.ok) {
                 const userData = await res.json();
                 document.getElementById('stat-walking').textContent = `${(userData.distWalking || 0).toFixed(1)}km`;
@@ -665,19 +665,19 @@ const UIManager = {
 
             switch (tabName) {
                 case 'routes':
-                    const routesRes = await fetch(`/api/users/${encodeURIComponent(userId)}/routes`);
+                    const routesRes = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/routes`);
                     if (!routesRes.ok) throw new Error('Failed to load routes');
                     items = await routesRes.json();
                     renderFn = this.renderRouteItem;
                     break;
                 case 'messages':
-                    const msgsRes = await fetch(`/api/users/${encodeURIComponent(userId)}/messages`);
+                    const msgsRes = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/messages`);
                     if (!msgsRes.ok) throw new Error('Failed to load messages');
                     items = await msgsRes.json();
                     renderFn = this.renderMessageItem;
                     break;
                 case 'comments':
-                    const cmtsRes = await fetch(`/api/users/${encodeURIComponent(userId)}/comments`);
+                    const cmtsRes = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/comments`);
                     if (!cmtsRes.ok) throw new Error('Failed to load comments');
                     items = await cmtsRes.json();
                     renderFn = this.renderCommentItem;
