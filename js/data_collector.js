@@ -106,9 +106,13 @@ const DataCollector = {
                     points: JSON.stringify(routeData.points) // 전체 궤적
                 })
             });
-            return await response.json();
+            if (!response.ok) throw new Error(`Server returned ${response.status}`);
+            const result = await response.json();
+            if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ sync: 'Success (POST)' });
+            return result;
         } catch (e) {
-            console.error('Server sync failed, will retry later:', e);
+            console.error('[DataCollector] Server sync failed:', e);
+            if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ sync: `Fail (POST): ${e.message}` });
             throw e;
         }
     },

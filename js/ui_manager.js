@@ -1196,13 +1196,27 @@ const UIManager = {
     updateNavigationHUD(route) {
         if (!route) return;
 
-        // [UPDATE] 하단 대시보드 1번째 줄로 이동 (XX분 | XXkm)
-        const totalDist = this.formatDistance(route.distance);
-        const totalTime = Math.ceil(route.duration / 60);
+        // [UPDATE] 하단 대시보드 1번째 줄로 이동 (XX분 | XXkm) - 실시간 남은 거리 계산
+        const currentPos = AppState.currentPosition;
+
+        let remainingDist = 0;
+        if (AppState.destination && currentPos) {
+            remainingDist = Utils.calculateDistance(currentPos, AppState.destination.coords) * 1.2;
+        } else {
+            remainingDist = route.distance; // Fallback
+        }
+
+        const totalDistStr = this.formatDistance(remainingDist);
+        const remainingTime = Math.ceil(remainingDist / 66);
+
+        // [Debug] Hook for Distance
+        if (typeof DebugOverlay !== 'undefined') {
+            DebugOverlay.update({ dist: remainingDist });
+        }
 
         const statsEl = this.elements['dash-stats'];
         if (statsEl) {
-            statsEl.textContent = `목적지까지 ${totalTime}분 | ${totalDist}`;
+            statsEl.textContent = `목적지까지 ${remainingTime}분 | ${totalDistStr}`;
         }
 
         if (route.legs && route.legs[0].steps && route.legs[0].steps.length > 0) {
@@ -1219,6 +1233,13 @@ const UIManager = {
 
             const turnLocation = nextStep.maneuver.location; // [lon, lat]
             const distanceToTurn = Utils.calculateDistance(currentPos, turnLocation);
+
+            // [Debug] Hook for Next Turn
+            if (typeof DebugOverlay !== 'undefined') {
+                DebugOverlay.update({
+                    status: `Turn: ${distanceToTurn.toFixed(0)}m (${stepIndex + 1}/${steps.length})`
+                });
+            }
 
             // [300m 규칙] 목적지까지 거리 미리 계산 (모든 줌 로직에서 공유)
             const distToDest = (AppState.destination)

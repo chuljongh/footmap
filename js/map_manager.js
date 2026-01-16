@@ -325,6 +325,18 @@ const MapManager = {
                 const coords = [position.coords.longitude, position.coords.latitude];
                 const heading = position.coords.heading;
                 const speed = position.coords.speed; // m/s
+
+                // [Debug]
+                if (typeof DebugOverlay !== 'undefined') {
+                    DebugOverlay.update({
+                        gps: {
+                            lat: position.coords.latitude,
+                            lon: position.coords.longitude,
+                            acc: position.coords.accuracy
+                        }
+                    });
+                }
+
                 this.updateCurrentPosition(coords, heading, speed);
             },
             null,
