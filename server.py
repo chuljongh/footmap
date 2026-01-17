@@ -733,13 +733,13 @@ def admin_db():
     users = User.query.order_by(User.created_at.desc()).limit(20).all()
     messages = Message.query.order_by(Message.timestamp.desc()).limit(30).all()
 
-    # UTC → KST 변환 (+9시간)
+    # 타임스탬프 표시용 필드 설정 (이미 KST로 저장되어 있으므로 변환 불필요)
     for r in routes:
-        r.timestamp_kst = r.timestamp + timedelta(hours=9) if r.timestamp else None
+        r.timestamp_kst = r.timestamp
     for u in users:
-        u.created_at_kst = u.created_at + timedelta(hours=9) if u.created_at else None
+        u.created_at_kst = u.created_at
     for m in messages:
-        m.timestamp_kst = m.timestamp + timedelta(hours=9) if m.timestamp else None
+        m.timestamp_kst = m.timestamp
 
     # 총 페이지 수 계산
     total_pages = (total_routes + per_page - 1) // per_page if total_routes > 0 else 1
