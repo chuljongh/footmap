@@ -364,7 +364,7 @@ const MapManager = {
         AppState.currentPosition = coords;
         const mapCoords = ol.proj.fromLonLat(coords);
 
-
+        // ===== 1. 마커 위치 업데이트 (항상 실행) =====
         if (AppState.positionMarker) {
             AppState.positionMarker.setPosition(mapCoords);
 
@@ -377,7 +377,7 @@ const MapManager = {
                 if (arrow) {
                     arrow.classList.remove('hidden');
                     arrow.classList.add('opacity-100');
-                    arrow.style.setProperty('--heading', `${heading}deg`); // CSS: transform: rotate(var(--heading))
+                    arrow.style.setProperty('--heading', `${heading}deg`);
                 }
             } else {
                 if (dot) dot.classList.remove('opacity-0');
@@ -388,18 +388,35 @@ const MapManager = {
             }
         }
 
-        // ===== [SIMPLIFIED] 보행 경로 통합 수집 =====
-        // 규칙: 10km/h 이하 + GPS 정확도 20m 이내 + 1m 이상 이동 시에만 기록
+        // ===== 2. 네비게이션 로직 (속도 무관, 항상 실행) =====
+        if (AppState.isNavigating) {
+            // 목적지 100m 이내 진입 감지 (Access Zone)
+            if (AppState.destination && !AppState.isInAccessZone) {
+                const distToDestination = Utils.calculateDistance(coords, AppState.destination.coords);
+                if (distToDestination <= Config.ACCESS_ZONE_METERS) {
+                    AppState.isInAccessZone = true;
+                    AppState.accessHistory = [];
+                }
+            }
+
+            // HUD 업데이트 + Step Snapping + Rerouting
+            if (AppState.activeRoute) {
+                UIManager.updateNavigationHUD(AppState.activeRoute);
+                if (typeof UIManager !== 'undefined') UIManager.checkRouteDeviation(coords, heading);
+            }
+        }
+
+        // ===== 3. 데이터 수집 로직 (속도/정확도 필터 적용) =====
         const currentSpeedKmh = (speed || 0) * 3.6; // m/s → km/h
         const isSlowEnough = currentSpeedKmh <= Config.WALKING_SPEED_THRESHOLD;
         const isAccurate = (position.coords.accuracy || 999) <= Config.GPS_ACCURACY_THRESHOLD;
 
-        // [FILTER] 고속 이동(차량) 또는 부정확한 GPS는 완전히 무시
+        // 고속 이동(차량) 또는 부정확한 GPS는 데이터 수집만 스킵 (네비게이션은 이미 실행됨)
         if (!isSlowEnough || !isAccurate) {
-            return; // 데이터 수집 안 함
+            return;
         }
 
-        // [COMPRESSION] 이전 위치와 1m 미만 이동이면 기록 생략 (정지 상태 압축)
+        // 이전 위치와 1m 미만 이동이면 기록 생략 (압축)
         if (typeof DataCollector !== 'undefined') {
             const lastPoint = DataCollector.walkingBuffer[DataCollector.walkingBuffer.length - 1];
             const distanceMoved = lastPoint ? Utils.calculateDistance(lastPoint.coords, coords) : 999;
@@ -413,17 +430,8 @@ const MapManager = {
             }
         }
 
+        // 통계용 routeHistory/accessHistory 업데이트 (1m 이상 이동 시)
         if (AppState.isNavigating) {
-            // [NEW] 목적지 100m 이내 진입 감지 (접근로 데이터 최적화)
-            if (AppState.destination && !AppState.isInAccessZone) {
-                const distToDestination = Utils.calculateDistance(coords, AppState.destination.coords);
-                if (distToDestination <= Config.ACCESS_ZONE_METERS) {
-                    AppState.isInAccessZone = true;
-                    AppState.accessHistory = []; // 접근로 기록 시작
-                }
-            }
-
-            // [LEGACY] 통계용 routeHistory/accessHistory 도 업데이트 (1m 이상 이동 시)
             const targetHistory = AppState.isInAccessZone ? AppState.accessHistory : AppState.routeHistory;
             const lastHistoryPoint = targetHistory[targetHistory.length - 1];
             const historyDistMoved = lastHistoryPoint ? Utils.calculateDistance(lastHistoryPoint.coords, coords) : 999;
@@ -435,12 +443,6 @@ const MapManager = {
                     mode: AppState.userMode,
                     heading: heading
                 });
-            }
-
-            if (AppState.activeRoute) {
-                UIManager.updateNavigationHUD(AppState.activeRoute);
-                // 경로 진도 동기화 + 이탈 감지 (Step Snapping)
-                if (typeof UIManager !== 'undefined') UIManager.checkRouteDeviation(coords, heading);
             }
         }
     },
