@@ -337,7 +337,7 @@ const MapManager = {
                     });
                 }
 
-                this.updateCurrentPosition(coords, heading, speed);
+                this.updateCurrentPosition(coords, heading, speed, position.coords.accuracy);
             },
             null,
             { enableHighAccuracy: true }
@@ -360,7 +360,7 @@ const MapManager = {
         AppState.map.getView().setCenter(mapCoords);
     },
 
-    updateCurrentPosition(coords, heading = null, speed = null) {
+    updateCurrentPosition(coords, heading = null, speed = null, accuracy = null) {
         AppState.currentPosition = coords;
         const mapCoords = ol.proj.fromLonLat(coords);
 
@@ -409,7 +409,7 @@ const MapManager = {
         // ===== 3. 데이터 수집 로직 (속도/정확도 필터 적용) =====
         const currentSpeedKmh = (speed || 0) * 3.6; // m/s → km/h
         const isSlowEnough = currentSpeedKmh <= Config.WALKING_SPEED_THRESHOLD;
-        const isAccurate = (position.coords.accuracy || 999) <= Config.GPS_ACCURACY_THRESHOLD;
+        const isAccurate = (accuracy || 999) <= Config.GPS_ACCURACY_THRESHOLD;
 
         // 고속 이동(차량) 또는 부정확한 GPS는 데이터 수집만 스킵 (네비게이션은 이미 실행됨)
         if (!isSlowEnough || !isAccurate) {
@@ -424,7 +424,7 @@ const MapManager = {
             if (distanceMoved >= Config.MIN_MOVEMENT_THRESHOLD) {
                 DataCollector.addWalkingPoint({
                     coords: coords,
-                    accuracy: position.coords.accuracy,
+                    accuracy: accuracy,
                     speed: currentSpeedKmh
                 });
             }
