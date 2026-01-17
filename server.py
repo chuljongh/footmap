@@ -700,20 +700,63 @@ def save_user_route(user_id):
 @app.route('/api/trajectories', methods=['GET'])
 def get_trajectories():
     """지도 범위 내 집단지성 궤적 조회 (익명 궤적 노출)"""
-    bounds = request.args.get('bounds', '') # "minLon,minLat,maxLon,maxLat"
+    bounds_str = request.args.get('bounds', '') # "minLon,minLat,maxLon,maxLat"
 
-    query = Route.query
-
-    # 실서비스에서는 공간 쿼리(Spatial Query)를 사용해야 함
-    # 데모용으로 최신 100개의 궤적을 반환하며,
-    # 밀집도 시각화를 위해 랜덤하게 userCount를 부여 (실제로는 경로 중첩 계산 필요)
-    import random
-    routes = query.order_by(Route.timestamp.desc()).limit(100).all()
+    query = Route.query.order_by(Route.timestamp.desc())
+    routes = query.limit(500).all() # 성능 위해 최대 500개까지만 1차 로드
 
     result = []
+
+    # 지도 범위 파싱
+    min_lon, min_lat, max_lon, max_lat = -180, -90, 180, 90
+    filter_bounds = False
+
+    if bounds_str:
+        try:
+            parts = [float(x) for x in bounds_str.split(',')]
+            if len(parts) == 4:
+                min_lon, min_lat, max_lon, max_lat = parts
+                filter_bounds = True
+        except:
+            pass
+
+    import json
+    import random
+
     for r in routes:
+        # 범위 필터링 (간이 구현: 시작점이나 끝점이 범위 내에 있으면 포함)
+        if filter_bounds:
+            try:
+                # 좌표 문자열 "lon,lat" 파싱
+                slon, slat = map(float, r.start_coords.split(',')) if r.start_coords else (0, 0)
+                elon, elat = map(float, r.end_coords.split(',')) if r.end_coords else (0, 0)
+
+                # 시작점이나 끝점이 화면 안에 있거나, 화면이 전체를 포함하는 경우
+                s_in = (min_lon <= slon <= max_lon) and (min_lat <= slat <= max_lat)
+                e_in = (min_lon <= elon <= max_lon) and (min_lat <= elat <= max_lat)
+
+                if not (s_in or e_in):
+                    continue
+            except:
+                continue
+
         d = r.to_dict()
-        d['userCount'] = random.randint(1, 25) # 시각화 테스트용 랜덤 값
+        d['userCount'] = 1 # 실제 유저 수 (향후 집계 로직 필요)
+
+        # [NEW] approach_path도 궤적 데이터에 포함 (존재 시)
+        if r.approach_path:
+            try:
+                # approach_path는 [{"coords": [lon, lat], ...}] 형태의 JSON 배열일 수 있음
+                # 클라가 기대하는 points 포맷은 [[lon,lat], [lon,lat]] 형태의 좌표 배열이거나
+                # [{"coords": [lon, lat]}] 형태일 수 있음. PathManager.js를 보면:
+                # JSON.parse(route.points).map(p => ol.proj.fromLonLat(p.coords))
+                # 즉, 객체 배열 [{coords: [127..., 37...]}, ...] 형태임.
+
+                # 별도의 feature로 추가하지 않고, 원본 데이터에 포함만 시켜둠 (클라 수정 필요 시 대응)
+                pass
+            except:
+                pass
+
         result.append(d)
 
     return jsonify(result)
