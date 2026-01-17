@@ -23,7 +23,13 @@ const Config = {
     MIN_BUBBLE_TOP: 80,         // 최소 상단 여백 (px)
     VIEWPORT_MARGIN: 0.05,      // 뷰포트 여백 비율 (5%)
     BOTTOM_BAR_HEIGHT: 80,      // 하단 바 높이 (px) - 말풍선 경계 계산용
-    MAX_COLLECTION_SPEED: 100,  // 데이터 수집 상한선 (km/h) - 차량 이동 포함 테스트 허용
+
+    // [NEW] 보행 경로 수집 설정 (단순화)
+    WALKING_SPEED_THRESHOLD: 10,     // 보행 판정 기준 (km/h) - 이 이하만 데이터 수집
+    GPS_ACCURACY_THRESHOLD: 20,      // GPS 정확도 기준 (m) - 이 이하만 데이터 수집
+    MIN_MOVEMENT_THRESHOLD: 1,       // 압축 기준 (m) - 이 이상 이동해야 기록
+    APPROACH_BACKTRACK_SECONDS: 15,  // 도착 역추적 (초) - 마지막 N초 데이터 추출
+    ACCESS_ZONE_METERS: 100,         // 접근 구역 (m) - 목적지 근처 정밀 기록 영역
     FLOATING_LABEL_TIMEOUT: 5000, // 플로팅 라벨 숨김 타이머 (ms)
     MIN_FOOTPRINT_ZOOM: 15,     // 발자국 아이콘 렌더링 최소 줌 레벨 (출입구 확인용)
     TRAJECTORY_DEBOUNCE_MS: 300, // 궤적 로드 디바운싱 (ms)

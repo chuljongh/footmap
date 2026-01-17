@@ -388,35 +388,53 @@ const MapManager = {
             }
         }
 
+        // ===== [SIMPLIFIED] 보행 경로 통합 수집 =====
+        // 규칙: 10km/h 이하 + GPS 정확도 20m 이내 + 1m 이상 이동 시에만 기록
+        const currentSpeedKmh = (speed || 0) * 3.6; // m/s → km/h
+        const isSlowEnough = currentSpeedKmh <= Config.WALKING_SPEED_THRESHOLD;
+        const isAccurate = (position.coords.accuracy || 999) <= Config.GPS_ACCURACY_THRESHOLD;
+
+        // [FILTER] 고속 이동(차량) 또는 부정확한 GPS는 완전히 무시
+        if (!isSlowEnough || !isAccurate) {
+            return; // 데이터 수집 안 함
+        }
+
+        // [COMPRESSION] 이전 위치와 1m 미만 이동이면 기록 생략 (정지 상태 압축)
+        if (typeof DataCollector !== 'undefined') {
+            const lastPoint = DataCollector.walkingBuffer[DataCollector.walkingBuffer.length - 1];
+            const distanceMoved = lastPoint ? Utils.calculateDistance(lastPoint.coords, coords) : 999;
+
+            if (distanceMoved >= Config.MIN_MOVEMENT_THRESHOLD) {
+                DataCollector.addWalkingPoint({
+                    coords: coords,
+                    accuracy: position.coords.accuracy,
+                    speed: currentSpeedKmh
+                });
+            }
+        }
+
         if (AppState.isNavigating) {
             // [NEW] 목적지 100m 이내 진입 감지 (접근로 데이터 최적화)
             if (AppState.destination && !AppState.isInAccessZone) {
                 const distToDestination = Utils.calculateDistance(coords, AppState.destination.coords);
-                if (distToDestination <= 100) {
+                if (distToDestination <= Config.ACCESS_ZONE_METERS) {
                     AppState.isInAccessZone = true;
                     AppState.accessHistory = []; // 접근로 기록 시작
                 }
             }
 
-            // [Optimization] 데이터 중복 방지: 3미터 이상 이동 시에만 기록
+            // [LEGACY] 통계용 routeHistory/accessHistory 도 업데이트 (1m 이상 이동 시)
             const targetHistory = AppState.isInAccessZone ? AppState.accessHistory : AppState.routeHistory;
-            const lastPoint = targetHistory[targetHistory.length - 1];
-            const distanceMoved = lastPoint ? Utils.calculateDistance(lastPoint.coords, coords) : 999;
+            const lastHistoryPoint = targetHistory[targetHistory.length - 1];
+            const historyDistMoved = lastHistoryPoint ? Utils.calculateDistance(lastHistoryPoint.coords, coords) : 999;
 
-            if (distanceMoved >= 3) {
-                const pointData = {
+            if (historyDistMoved >= Config.MIN_MOVEMENT_THRESHOLD) {
+                targetHistory.push({
                     coords: coords,
                     timestamp: Date.now(),
                     mode: AppState.userMode,
                     heading: heading
-                };
-
-                // [NEW] 접근 구역 진입 후에는 accessHistory에만 저장
-                if (AppState.isInAccessZone) {
-                    AppState.accessHistory.push(pointData);
-                } else {
-                    AppState.routeHistory.push(pointData);
-                }
+                });
             }
 
             if (AppState.activeRoute) {
