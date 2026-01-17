@@ -5,6 +5,10 @@ const DataCollector = {
     DB_NAME: 'BalgilMapDB',
     STORE_NAME: 'routes',
 
+    // [NEW] 보행 경로 버퍼 (1초 간격 수집용)
+    walkingBuffer: [],
+    lastWalkingRecordTime: 0,
+
     async init() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.DB_NAME, 1);
@@ -22,6 +26,44 @@ const DataCollector = {
                 }
             };
         });
+    },
+
+    // [NEW] 보행 포인트 기록 (1초 간격)
+    addWalkingPoint(point) {
+        const now = Date.now();
+        // 1초 간격 제어
+        if (now - this.lastWalkingRecordTime < 1000) return;
+
+        this.walkingBuffer.push({
+            coords: point.coords,
+            timestamp: now,
+            accuracy: point.accuracy,
+            speed: point.speed
+        });
+        this.lastWalkingRecordTime = now;
+
+        // 버퍼 최대 크기 제한 (60초 = 60개)
+        if (this.walkingBuffer.length > 60) {
+            this.walkingBuffer.shift();
+        }
+    },
+
+    // [NEW] 도착 역추적: 마지막 N초 데이터 추출
+    extractApproachPath(seconds = 15) {
+        const cutoffTime = Date.now() - (seconds * 1000);
+        const recentPoints = this.walkingBuffer.filter(p => p.timestamp >= cutoffTime);
+
+        // 버퍼 초기화
+        this.walkingBuffer = [];
+        this.lastWalkingRecordTime = 0;
+
+        return recentPoints;
+    },
+
+    // [NEW] 버퍼 초기화 (네비게이션 시작 시 호출)
+    resetWalkingBuffer() {
+        this.walkingBuffer = [];
+        this.lastWalkingRecordTime = 0;
     },
 
     // 서버 전송 및 로컬 저장 통합
@@ -103,7 +145,8 @@ const DataCollector = {
                     mode: routeData.mode,
                     startCoords: routeData.startCoords,
                     endCoords: routeData.endCoords,
-                    points: JSON.stringify(routeData.points) // 전체 궤적
+                    points: JSON.stringify(routeData.points), // 전체 궤적
+                    approachPath: JSON.stringify(routeData.approachPath || []) // [NEW] 접근 경로
                 })
             });
             return await response.json();
