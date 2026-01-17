@@ -136,6 +136,7 @@ class Route(db.Model):
     start_coords = db.Column(db.String(50))  # "lon,lat"
     end_coords = db.Column(db.String(50))  # "lon,lat"
     points_json = db.Column(db.Text)  # 전체 이동 궤적 (JSON string of coordinates)
+    approach_path = db.Column(db.Text)  # [NEW] 도보 접근 경로 (마지막 15초, JSON)
     timestamp = db.Column(db.DateTime, default=get_kst_now, index=True)
 
     def to_dict(self):
@@ -680,7 +681,8 @@ def save_user_route(user_id):
         mode=mode,
         start_coords=data.get('startCoords', ''),
         end_coords=data.get('endCoords', ''),
-        points_json=data.get('points', '')
+        points_json=data.get('points', ''),
+        approach_path=data.get('approachPath', '')  # [NEW] 도보 접근 경로
     )
     db.session.add(route)
     db.session.commit()

@@ -910,6 +910,12 @@ const UIManager = {
     // [NEW] 현재 구간 데이터 처리 및 저장 (공통 로직)
     processAndSaveRoute() {
         try {
+            // [NEW] 도착 역추적: 마지막 15초 보행 경로 추출
+            let approachPath = [];
+            if (typeof DataCollector !== 'undefined' && DataCollector.extractApproachPath) {
+                approachPath = DataCollector.extractApproachPath(Config.APPROACH_BACKTRACK_SECONDS);
+            }
+
             // 전체 경로 통합 (일반 구간 + 접근 구간)
             let fullHistory = [...(AppState.routeHistory || []), ...(AppState.accessHistory || [])];
 
@@ -944,7 +950,8 @@ const UIManager = {
                         startCoords: validPoints[0].coords.join(','),
                         endCoords: validPoints[validPoints.length - 1].coords.join(','),
                         destinationCoords: AppState.destination.coords.join(','),
-                        points: validPoints
+                        points: validPoints,
+                        approachPath: approachPath // [NEW] 보행 접근 경로 (마지막 15초)
                     }).catch(e => console.error('Route save err:', e));
                 }
             }

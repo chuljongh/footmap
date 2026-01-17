@@ -325,6 +325,7 @@ const MapManager = {
                 const coords = [position.coords.longitude, position.coords.latitude];
                 const heading = position.coords.heading;
                 const speed = position.coords.speed; // m/s
+                const accuracy = position.coords.accuracy; // [NEW] GPS 정확도 (m)
 
                 // [Debug]
                 if (typeof DebugOverlay !== 'undefined') {
@@ -337,7 +338,7 @@ const MapManager = {
                     });
                 }
 
-                this.updateCurrentPosition(coords, heading, speed);
+                this.updateCurrentPosition(coords, heading, speed, accuracy);
             },
             null,
             { enableHighAccuracy: true }
@@ -360,7 +361,7 @@ const MapManager = {
         AppState.map.getView().setCenter(mapCoords);
     },
 
-    updateCurrentPosition(coords, heading = null, speed = null) {
+    updateCurrentPosition(coords, heading = null, speed = null, accuracy = null) {
         AppState.currentPosition = coords;
         const mapCoords = ol.proj.fromLonLat(coords);
 
@@ -392,9 +393,24 @@ const MapManager = {
             // [NEW] 목적지 100m 이내 진입 감지 (접근로 데이터 최적화)
             if (AppState.destination && !AppState.isInAccessZone) {
                 const distToDestination = Utils.calculateDistance(coords, AppState.destination.coords);
-                if (distToDestination <= 100) {
+                if (distToDestination <= Config.ACCESS_ZONE_METERS) {
                     AppState.isInAccessZone = true;
                     AppState.accessHistory = []; // 접근로 기록 시작
+                }
+            }
+
+            // [NEW] 보행 경로 고해상도 수집 (Access Zone + 저속 + 정확한 GPS)
+            if (AppState.isInAccessZone && typeof DataCollector !== 'undefined') {
+                const speedKmh = (speed || 0) * 3.6; // m/s → km/h
+                const isWalking = speedKmh <= Config.WALKING_SPEED_THRESHOLD;
+                const isAccurate = (accuracy || 999) <= Config.GPS_ACCURACY_THRESHOLD;
+
+                if (isWalking && isAccurate) {
+                    DataCollector.addWalkingPoint({
+                        coords: coords,
+                        accuracy: accuracy,
+                        speed: speedKmh
+                    });
                 }
             }
 
