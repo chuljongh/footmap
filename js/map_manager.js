@@ -404,14 +404,28 @@ const MapManager = {
                 UIManager.updateNavigationHUD(AppState.activeRoute);
                 if (typeof UIManager !== 'undefined') UIManager.checkRouteDeviation(coords, heading);
             }
+
+            // [CRITICAL] routeHistory/accessHistory 업데이트 (1m 이상 이동 시, 속도 무관)
+            const targetHistory = AppState.isInAccessZone ? AppState.accessHistory : AppState.routeHistory;
+            const lastHistoryPoint = targetHistory[targetHistory.length - 1];
+            const historyDistMoved = lastHistoryPoint ? Utils.calculateDistance(lastHistoryPoint.coords, coords) : 999;
+
+            if (historyDistMoved >= 1) { // 1m 이상 이동 시 기록
+                targetHistory.push({
+                    coords: coords,
+                    timestamp: Date.now(),
+                    mode: AppState.userMode,
+                    heading: heading
+                });
+            }
         }
 
-        // ===== 3. 데이터 수집 로직 (속도/정확도 필터 적용) =====
+        // ===== 3. 보행 데이터 수집 (속도/정확도 필터 적용) =====
         const currentSpeedKmh = (speed || 0) * 3.6; // m/s → km/h
         const isSlowEnough = currentSpeedKmh <= Config.WALKING_SPEED_THRESHOLD;
         const isAccurate = (accuracy || 999) <= Config.GPS_ACCURACY_THRESHOLD;
 
-        // 고속 이동(차량) 또는 부정확한 GPS는 데이터 수집만 스킵 (네비게이션은 이미 실행됨)
+        // 고속 이동(차량) 또는 부정확한 GPS는 walkingBuffer 수집만 스킵
         if (!isSlowEnough || !isAccurate) {
             return;
         }
@@ -426,22 +440,6 @@ const MapManager = {
                     coords: coords,
                     accuracy: accuracy,
                     speed: currentSpeedKmh
-                });
-            }
-        }
-
-        // 통계용 routeHistory/accessHistory 업데이트 (1m 이상 이동 시)
-        if (AppState.isNavigating) {
-            const targetHistory = AppState.isInAccessZone ? AppState.accessHistory : AppState.routeHistory;
-            const lastHistoryPoint = targetHistory[targetHistory.length - 1];
-            const historyDistMoved = lastHistoryPoint ? Utils.calculateDistance(lastHistoryPoint.coords, coords) : 999;
-
-            if (historyDistMoved >= Config.MIN_MOVEMENT_THRESHOLD) {
-                targetHistory.push({
-                    coords: coords,
-                    timestamp: Date.now(),
-                    mode: AppState.userMode,
-                    heading: heading
                 });
             }
         }
