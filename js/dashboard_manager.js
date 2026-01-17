@@ -231,6 +231,26 @@ const DashboardManager = {
             </div>
 
             <div class="dash-section">
+                <h3 class="section-title">✍️ 작성한 글</h3>
+                <div class="activity-timeline">
+                    ${social.recentActivity.length > 0
+                        ? social.recentActivity.filter(a => a.type === 'message').slice(0, 5).map(a => this.renderActivityItem(a)).join('')
+                        : '<p class="empty-state">아직 작성한 글이 없습니다. 글을 남겨보세요! ✏️</p>'
+                    }
+                </div>
+            </div>
+
+            <div class="dash-section">
+                <h3 class="section-title">🔖 저장한 글</h3>
+                <div class="activity-timeline" id="saved-messages-list">
+                    ${social.savedMessages && social.savedMessages.length > 0
+                        ? social.savedMessages.slice(0, 5).map(m => this.renderSavedMessageItem(m)).join('')
+                        : '<p class="empty-state">저장한 글이 없습니다. 마음에 드는 글을 저장해보세요! 🔖</p>'
+                    }
+                </div>
+            </div>
+
+            <div class="dash-section">
                 <h3 class="section-title">⭐ 포인트 획득 내역</h3>
                 <div class="points-breakdown">
                     <div class="points-row">
@@ -247,14 +267,18 @@ const DashboardManager = {
                     </div>
                 </div>
             </div>
+        `;
+    },
 
-            <div class="dash-section">
-                <h3 class="section-title">📜 최근 활동</h3>
-                <div class="activity-timeline">
-                    ${social.recentActivity.length > 0
-                        ? social.recentActivity.map(a => this.renderActivityItem(a)).join('')
-                        : '<p class="empty-state">아직 활동 내역이 없습니다. 글을 남겨보세요! ✏️</p>'
-                    }
+    renderSavedMessageItem(msg) {
+        const timeAgo = this.getTimeAgo(new Date(msg.timestamp));
+        const preview = msg.text ? (msg.text.length > 30 ? msg.text.slice(0, 30) + '...' : msg.text) : '(내용 없음)';
+        return `
+            <div class="activity-item" ${msg.coords ? `data-coords="${msg.coords}"` : ''}>
+                <span class="activity-icon">🔖</span>
+                <div class="activity-content">
+                    <p class="activity-text">${preview}</p>
+                    <span class="activity-time">${timeAgo} · ${msg.userId || '익명'}</span>
                 </div>
             </div>
         `;

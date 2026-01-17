@@ -315,7 +315,17 @@ def get_user_dashboard(user_id):
             'commentCount': comment_count,
             'likesReceived': likes_received,
             'savedCount': len(saved_messages),
-            'recentActivity': recent_activity
+            'recentActivity': recent_activity,
+            'savedMessages': [
+                {
+                    'id': sm.message_id,
+                    'text': (Message.query.get(sm.message_id).text[:50] + '...') if Message.query.get(sm.message_id) and len(Message.query.get(sm.message_id).text) > 50 else (Message.query.get(sm.message_id).text if Message.query.get(sm.message_id) else ''),
+                    'userId': Message.query.get(sm.message_id).user_id if Message.query.get(sm.message_id) else '',
+                    'coords': f"{Message.query.get(sm.message_id).coord_x},{Message.query.get(sm.message_id).coord_y}" if Message.query.get(sm.message_id) else '',
+                    'timestamp': int(sm.timestamp.timestamp() * 1000)
+                }
+                for sm in sorted(saved_messages, key=lambda x: x.timestamp, reverse=True)[:5]
+            ]
         },
         'pointsBreakdown': {
             'fromMovement': movement_points,
