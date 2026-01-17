@@ -9,11 +9,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(async () => {
         try {
 
+            // [CRITICAL] DB 초기화는 가장 먼저, 확실하게 완료되어야 함
+            await DataCollector.init();
+
             // 병렬 초기화로 부팅 속도 개선
             await Promise.all([
                 SocialManager.init(),
-                UIManager.init(),
-                DataCollector.init()
+                UIManager.init()
             ]);
 
             DataCollector.syncToServer(); // 초기 동기화 시도

@@ -936,15 +936,33 @@ const UIManager = {
                     }
                 }
 
-                if (validPoints.length >= 5 && totalDistance >= 1) {
+                // [Production vs Debug 조건 분기]
+                const isDebug = Config.DEBUG_MODE || false;
+
+                // 실제 배포용 조건: 5포인트 이상 & 1m 이상 이동
+                const isEligible = (validPoints.length >= 5 && totalDistance >= 1);
+
+                if (isDebug || isEligible) {
+                    if (isDebug) console.log('[DEBUG] Calling DataCollector.saveRoute (Debug Mode)');
+
+                    // [Mock Data Injection] PC 테스트용
+                    let finalPoints = validPoints;
+                    if (Config.USE_MOCK_DATA && finalPoints.length < 2) {
+                        console.log('[DEBUG] Injecting Mock Data (Config.USE_MOCK_DATA=true)');
+                        finalPoints = [
+                            {coords: AppState.currentPosition || [127.11, 37.33], timestamp: Date.now() - 1000},
+                            {coords: AppState.currentPosition || [127.11, 37.33], timestamp: Date.now()}
+                        ];
+                    }
+
                     DataCollector.saveRoute({
-                        distance: totalDistance / 1000,
-                        duration: (validPoints[validPoints.length - 1].timestamp - validPoints[0].timestamp) / 1000,
+                        distance: totalDistance > 0 ? totalDistance / 1000 : 0.001,
+                        duration: 1,
                         mode: AppState.userMode || 'walking',
-                        startCoords: validPoints[0].coords.join(','),
-                        endCoords: validPoints[validPoints.length - 1].coords.join(','),
-                        destinationCoords: AppState.destination.coords.join(','),
-                        points: validPoints
+                        startCoords: finalPoints[0]?.coords.join(',') || '127.0,37.0',
+                        endCoords: finalPoints[finalPoints.length - 1]?.coords.join(',') || '127.0,37.0',
+                        destinationCoords: AppState.destination?.coords.join(',') || '127.0,37.0',
+                        points: finalPoints
                     }).catch(e => console.error('Route save err:', e));
                 }
             }
@@ -1104,13 +1122,55 @@ const UIManager = {
         AppState.lastRerouteTime = 0;
         this.clearRerouteTimer();
 
-        // [DEBUG] 1초마다 서버로 데이터 전송 (실시간 동기화)
-        if (AppState.realtimeSyncTimer) clearInterval(AppState.realtimeSyncTimer);
-        AppState.realtimeSyncTimer = setInterval(() => {
-            if (AppState.routeHistory && AppState.routeHistory.length >= 2) {
-                this.processAndSaveRoute();
-            }
-        }, 1000);
+        // [DEBUG] 전역 타이머로 변경 (Config.FORCE_SYNC_INTERVAL 체크)
+        if (window.realtimeSyncTimer) clearInterval(window.realtimeSyncTimer);
+
+        if (Config.FORCE_SYNC_INTERVAL) {
+            console.log('[DEBUG] Starting FORCE_SYNC_INTERVAL timer');
+
+            window.realtimeSyncTimer = setInterval(() => {
+                try {
+                    // PC 테스트용 Mock Position (GPS 변화 시뮬레이션)
+                    const histLen = AppState.routeHistory?.length || 0;
+
+                    // Config.USE_MOCK_DATA가 true일 때만 가짜 데이터 주입
+                    if (Config.USE_MOCK_DATA && histLen < 2) {
+                         if (!AppState.routeHistory) AppState.routeHistory = [];
+                         // 아주 미세한 랜덤 좌표 추가
+                         const base = AppState.currentPosition || [127.118, 37.330];
+                         AppState.routeHistory.push({
+                             coords: [base[0] + (Math.random()*0.00001), base[1] + (Math.random()*0.00001)],
+                             timestamp: Date.now(),
+                             mode: 'walking'
+                         });
+                    }
+
+                    if (Config.DEBUG_MODE && typeof DebugOverlay !== 'undefined') {
+                        DebugOverlay.update({ sync: `Tick(G): ${AppState.routeHistory.length} -> Saving...` });
+                    }
+
+                    // UIManager 명시적 호출
+                    if (window.UIManager && window.UIManager.processAndSaveRoute) {
+                        window.UIManager.processAndSaveRoute();
+                    } else if (this && this.processAndSaveRoute) {
+                         this.processAndSaveRoute();
+                    }
+
+                } catch (err) {
+                    console.error('Timer Error:', err);
+                    if (Config.DEBUG_MODE && typeof DebugOverlay !== 'undefined') {
+                        DebugOverlay.update({ sync: `Timer Err: ${err.message}` });
+                    }
+                }
+            }, 1000);
+        } else {
+            // [Production Logic] 기본 타이머 (1초마다지만 조건 엄격)
+            AppState.realtimeSyncTimer = setInterval(() => {
+                if (AppState.routeHistory && AppState.routeHistory.length >= 2) {
+                     this.processAndSaveRoute();
+                }
+            }, 1000);
+        }
 
         // Wake Lock - 화면 꺼짐 방지
         this.requestWakeLock();

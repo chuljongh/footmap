@@ -2,8 +2,15 @@
 // 설정 및 상수 (Config)
 // ========================================
 const Config = {
-    // [CRITICAL] API 서버 주소 (APK에서 절대 경로 필요)
+    // [CRITICAL] API 서버 주소
+    // 로컬 테스트: '' (빈 문자열) → 같은 서버로 요청
+    // 배포/APK: 'https://balgilmaeb.onrender.com'
     API_BASE_URL: 'https://balgilmaeb.onrender.com',
+
+    // [DEBUG SETTINGS] 배포 시 반드시 false로 변경!
+    DEBUG_MODE: false,          // 디버그 오버레이 및 로그 출력
+    USE_MOCK_DATA: false,       // PC 테스트용 가짜 위치 데이터 주입
+    FORCE_SYNC_INTERVAL: false, // 1초 간격 강제 동기화 (false면 기본 로직)
 
     // V-world API 키 (데모용)
     VWORLD_API_KEY: 'YOUR_VWORLD_API_KEY',
