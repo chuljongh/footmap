@@ -2,16 +2,6 @@
 // 설정 및 상수 (Config)
 // ========================================
 const Config = {
-    // [CRITICAL] API 서버 주소
-    // 로컬 테스트: '' (빈 문자열) → 같은 서버로 요청
-    // 배포/APK: 'https://balgilmaeb.onrender.com'
-    API_BASE_URL: 'https://balgilmaeb.onrender.com',
-
-    // [DEBUG SETTINGS] 배포 시 반드시 false로 변경!
-    DEBUG_MODE: false,          // 디버그 오버레이 및 로그 출력
-    USE_MOCK_DATA: false,       // PC 테스트용 가짜 위치 데이터 주입
-    FORCE_SYNC_INTERVAL: false, // 1초 간격 강제 동기화 (false면 기본 로직)
-
     // V-world API 키 (데모용)
     VWORLD_API_KEY: 'YOUR_VWORLD_API_KEY',
 
@@ -34,10 +24,6 @@ const Config = {
     VIEWPORT_MARGIN: 0.05,      // 뷰포트 여백 비율 (5%)
     BOTTOM_BAR_HEIGHT: 80,      // 하단 바 높이 (px) - 말풍선 경계 계산용
     MAX_COLLECTION_SPEED: 100,  // 데이터 수집 상한선 (km/h) - 차량 이동 포함 테스트 허용
-    WALKING_SPEED_THRESHOLD: 7.2, // [NEW] 보행 판단 기준 (km/h, 2m/s) - 이 속도 이하만 walking_path에 저장
-    ACCESS_ZONE_METERS: 100,      // [NEW] 접근 구역 진입 거리 (m) - 이 범위 내에서 고정밀 수집
-    GPS_ACCURACY_THRESHOLD: 20,   // [NEW] GPS 정확도 필터 (m) - 이 값 이하만 수집
-    APPROACH_BACKTRACK_SECONDS: 15, // [NEW] 도착 역추적 시간 (초) - 안내 종료 시 추출할 버퍼 길이
     FLOATING_LABEL_TIMEOUT: 5000, // 플로팅 라벨 숨김 타이머 (ms)
     MIN_FOOTPRINT_ZOOM: 15,     // 발자국 아이콘 렌더링 최소 줌 레벨 (출입구 확인용)
     TRAJECTORY_DEBOUNCE_MS: 300, // 궤적 로드 디바운싱 (ms)

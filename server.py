@@ -136,7 +136,6 @@ class Route(db.Model):
     start_coords = db.Column(db.String(50))  # "lon,lat"
     end_coords = db.Column(db.String(50))  # "lon,lat"
     points_json = db.Column(db.Text)  # 전체 이동 궤적 (JSON string of coordinates)
-    approach_path = db.Column(db.Text)  # [NEW] 도보 접근 경로 (마지막 15초, JSON)
     timestamp = db.Column(db.DateTime, default=get_kst_now, index=True)
 
     def to_dict(self):
@@ -149,6 +148,7 @@ class Route(db.Model):
             'startCoords': self.start_coords,
             'endCoords': self.end_coords,
             'points': self.points_json, # 프론트에서 JSON.parse() 필요
+            'approachPath': self.approach_path, # [NEW] 도보 접근 경로
             'timestamp': int(self.timestamp.replace(tzinfo=KST).timestamp() * 1000)
         }
 
@@ -681,8 +681,7 @@ def save_user_route(user_id):
         mode=mode,
         start_coords=data.get('startCoords', ''),
         end_coords=data.get('endCoords', ''),
-        points_json=data.get('points', ''),
-        approach_path=data.get('approachPath', '')  # [NEW] 도보 접근 경로
+        points_json=data.get('points', '')
     )
     db.session.add(route)
     db.session.commit()
@@ -735,13 +734,13 @@ def admin_db():
     users = User.query.order_by(User.created_at.desc()).limit(20).all()
     messages = Message.query.order_by(Message.timestamp.desc()).limit(30).all()
 
-    # 타임스탬프 표시용 필드 설정 (이미 KST로 저장되어 있으므로 변환 불필요)
+    # UTC → KST 변환 (+9시간)
     for r in routes:
-        r.timestamp_kst = r.timestamp
+        r.timestamp_kst = r.timestamp + timedelta(hours=9) if r.timestamp else None
     for u in users:
-        u.created_at_kst = u.created_at
+        u.created_at_kst = u.created_at + timedelta(hours=9) if u.created_at else None
     for m in messages:
-        m.timestamp_kst = m.timestamp
+        m.timestamp_kst = m.timestamp + timedelta(hours=9) if m.timestamp else None
 
     # 총 페이지 수 계산
     total_pages = (total_routes + per_page - 1) // per_page if total_routes > 0 else 1

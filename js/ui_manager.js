@@ -705,7 +705,19 @@ const UIManager = {
         const date = new Date(r.timestamp).toLocaleDateString('ko-KR');
         const dist = r.distance ? r.distance.toFixed(1) + 'km' : '?km';
         const mode = r.mode === 'wheelchair' ? '♿ 휠체어' : '🚶 도보';
-        return this.createRecordItemHTML('📍', `${dist} · ${mode}`, date);
+
+        // [NEW] 접근로 데이터 표시
+        let approachInfo = '';
+        if (r.approachPath) {
+            try {
+                const pathData = typeof r.approachPath === 'string' ? JSON.parse(r.approachPath) : r.approachPath;
+                if (Array.isArray(pathData) && pathData.length > 0) {
+                    approachInfo = ` · 🦶 접근로 ${pathData.length}포인트`;
+                }
+            } catch (e) { /* ignore parse error */ }
+        }
+
+        return this.createRecordItemHTML('📍', `${dist} · ${mode}${approachInfo}`, date);
     },
 
     renderMessageItem(m) {
@@ -910,12 +922,6 @@ const UIManager = {
     // [NEW] 현재 구간 데이터 처리 및 저장 (공통 로직)
     processAndSaveRoute() {
         try {
-            // [NEW] 도착 역추적: 마지막 15초 보행 경로 추출
-            let approachPath = [];
-            if (typeof DataCollector !== 'undefined' && DataCollector.extractApproachPath) {
-                approachPath = DataCollector.extractApproachPath(Config.APPROACH_BACKTRACK_SECONDS);
-            }
-
             // 전체 경로 통합 (일반 구간 + 접근 구간)
             let fullHistory = [...(AppState.routeHistory || []), ...(AppState.accessHistory || [])];
 
@@ -950,8 +956,7 @@ const UIManager = {
                         startCoords: validPoints[0].coords.join(','),
                         endCoords: validPoints[validPoints.length - 1].coords.join(','),
                         destinationCoords: AppState.destination.coords.join(','),
-                        points: validPoints,
-                        approachPath: approachPath // [NEW] 보행 접근 경로 (마지막 15초)
+                        points: validPoints
                     }).catch(e => console.error('Route save err:', e));
                 }
             }
@@ -1257,26 +1262,15 @@ const UIManager = {
             const navRoadName = this.elements['nav-road-name'];
             if (navRoadName) navRoadName.textContent = nextStep.name || '';
 
-            // [배달 최적화 카메라 로직]
-            // 1. 목적지까지 300m 이상 남음: 턴 임박 시에만 확대, 그 외엔 전체 보기
-            if (distToDest > 300) {
-                if (distanceToTurn <= 300 && turnLocation) {
-                    // 방향 전환 임박: Dynamic Zoom 실행
-                    if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
-                        MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
-                    }
-                } else {
-                    // 일반 주행: 전체 경로 보기로 복귀
-                    AppState.isZoomedIn = false;
-                    if (typeof MapManager !== 'undefined' && MapManager.fitViewToDestination) {
-                        MapManager.fitViewToDestination();
-                    }
-                }
-            } else {
-                // 2. 목적지 300m 이내: 무조건 전체 경로 보기 고정. 줌 변화 없음.
-                AppState.isZoomedIn = false;
-                if (typeof MapManager !== 'undefined' && MapManager.fitViewToDestination) {
-                    MapManager.fitViewToDestination();
+            // [단순화] 기본: 항상 현위치+목적지 화면 포함
+            if (typeof MapManager !== 'undefined' && MapManager.fitViewToDestination) {
+                MapManager.fitViewToDestination();
+            }
+
+            // [조건부] 목적지 멀고(>300m) + 턴 가까우면(≤300m): 턴 확대 오버라이드
+            if (distToDest > 300 && distanceToTurn <= 300 && turnLocation) {
+                if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
+                    MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
                 }
             }
 

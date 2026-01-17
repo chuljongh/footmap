@@ -4,8 +4,6 @@
 const DataCollector = {
     DB_NAME: 'BalgilMapDB',
     STORE_NAME: 'routes',
-    walkingBuffer: [], // [NEW] 보행 구간 고해상도 GPS 버퍼 (1초 간격)
-    lastWalkingRecordTime: 0, // [NEW] 마지막 보행 기록 시간 (1초 간격 제어용)
 
     async init() {
         return new Promise((resolve, reject) => {
@@ -41,44 +39,6 @@ const DataCollector = {
                 console.warn('Immediate sync failed, stored locally:', e);
             }
         }
-    },
-
-    // [NEW] 보행 포인트 기록 (1초 간격, Access Zone 내에서만 호출됨)
-    addWalkingPoint(point) {
-        const now = Date.now();
-        // 1초 간격 제어
-        if (now - this.lastWalkingRecordTime < 1000) return;
-
-        this.walkingBuffer.push({
-            coords: point.coords,
-            timestamp: now,
-            accuracy: point.accuracy,
-            speed: point.speed
-        });
-        this.lastWalkingRecordTime = now;
-
-        // 버퍼 최대 크기 제한 (60초 = 60개)
-        if (this.walkingBuffer.length > 60) {
-            this.walkingBuffer.shift();
-        }
-    },
-
-    // [NEW] 도착 역추적: 마지막 N초 데이터 추출
-    extractApproachPath(seconds = 15) {
-        const cutoffTime = Date.now() - (seconds * 1000);
-        const recentPoints = this.walkingBuffer.filter(p => p.timestamp >= cutoffTime);
-
-        // 버퍼 초기화
-        this.walkingBuffer = [];
-        this.lastWalkingRecordTime = 0;
-
-        return recentPoints;
-    },
-
-    // [NEW] 버퍼 초기화 (네비게이션 시작 시 호출)
-    resetWalkingBuffer() {
-        this.walkingBuffer = [];
-        this.lastWalkingRecordTime = 0;
     },
 
     // 현재 네트워크 환경이 전송에 적합한지 확인
@@ -134,7 +94,7 @@ const DataCollector = {
     async saveToServer(routeData) {
         const userId = AppState.userProfile?.nickname || '익명';
         try {
-            const response = await fetch(`${Config.API_BASE_URL}/api/users/${encodeURIComponent(userId)}/routes`, {
+            const response = await fetch(`/api/users/${encodeURIComponent(userId)}/routes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -143,17 +103,12 @@ const DataCollector = {
                     mode: routeData.mode,
                     startCoords: routeData.startCoords,
                     endCoords: routeData.endCoords,
-                    points: JSON.stringify(routeData.points), // 전체 궤적
-                    approachPath: JSON.stringify(routeData.approachPath || []) // [NEW] 도보 접근 경로
+                    points: JSON.stringify(routeData.points) // 전체 궤적
                 })
             });
-            if (!response.ok) throw new Error(`Server returned ${response.status}`);
-            const result = await response.json();
-            if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ sync: 'Success (POST)' });
-            return result;
+            return await response.json();
         } catch (e) {
-            console.error('[DataCollector] Server sync failed:', e);
-            if (typeof DebugOverlay !== 'undefined') DebugOverlay.update({ sync: `Fail (POST): ${e.message}` });
+            console.error('Server sync failed, will retry later:', e);
             throw e;
         }
     },
