@@ -942,13 +942,18 @@ const UIManager = {
 
                     const speedKmh = timeDiff > 0 ? (dist / timeDiff) * 3.6 : 0;
 
-                    if (speedKmh <= Config.MAX_COLLECTION_SPEED) {
+                    if (speedKmh <= 100) { // 100km/h 이상은 GPS 튀는 것으로 간주하고 제외
                         validPoints.push(current);
                         totalDistance += dist;
                     }
                 }
 
                 if (validPoints.length >= 5 && totalDistance >= 1) {
+                    // [NEW] 접근 경로 추출
+                    const approachPath = (typeof DataCollector !== 'undefined')
+                        ? DataCollector.extractApproachPath(Config.APPROACH_BACKTRACK_SECONDS)
+                        : [];
+
                     DataCollector.saveRoute({
                         distance: totalDistance / 1000,
                         duration: (validPoints[validPoints.length - 1].timestamp - validPoints[0].timestamp) / 1000,
@@ -956,7 +961,8 @@ const UIManager = {
                         startCoords: validPoints[0].coords.join(','),
                         endCoords: validPoints[validPoints.length - 1].coords.join(','),
                         destinationCoords: AppState.destination.coords.join(','),
-                        points: validPoints
+                        points: validPoints,
+                        approachPath: approachPath // [NEW] 접근 경로 포함
                     }).catch(e => console.error('Route save err:', e));
                 }
             }
