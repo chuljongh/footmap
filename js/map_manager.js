@@ -282,10 +282,10 @@ const MapManager = {
         });
     },
 
-    // [NEW] 현위치와 목적지를 항상 화면에 포함 (Extent Fit)
-    // 모든 거리에서 기본 동작으로 사용됨
+    // [배달 최적화] 현위치와 목적지를 항상 화면에 포함 (Content Fit)
     fitViewToDestination() {
         if (!AppState.isNavigating || AppState.isUserInteracting) return;
+        if (AppState.isZoomedIn) return; // [FIX] 방향 전환 확대 중에는 간섭 금지
         if (!AppState.currentPosition || !AppState.destination) return;
 
         const extent = ol.extent.boundingExtent([

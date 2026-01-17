@@ -936,33 +936,15 @@ const UIManager = {
                     }
                 }
 
-                // [Production vs Debug 조건 분기]
-                const isDebug = Config.DEBUG_MODE || false;
-
-                // 실제 배포용 조건: 5포인트 이상 & 1m 이상 이동
-                const isEligible = (validPoints.length >= 5 && totalDistance >= 1);
-
-                if (isDebug || isEligible) {
-                    if (isDebug) console.log('[DEBUG] Calling DataCollector.saveRoute (Debug Mode)');
-
-                    // [Mock Data Injection] PC 테스트용
-                    let finalPoints = validPoints;
-                    if (Config.USE_MOCK_DATA && finalPoints.length < 2) {
-                        console.log('[DEBUG] Injecting Mock Data (Config.USE_MOCK_DATA=true)');
-                        finalPoints = [
-                            {coords: AppState.currentPosition || [127.11, 37.33], timestamp: Date.now() - 1000},
-                            {coords: AppState.currentPosition || [127.11, 37.33], timestamp: Date.now()}
-                        ];
-                    }
-
+                if (validPoints.length >= 5 && totalDistance >= 1) {
                     DataCollector.saveRoute({
-                        distance: totalDistance > 0 ? totalDistance / 1000 : 0.001,
-                        duration: 1,
+                        distance: totalDistance / 1000,
+                        duration: (validPoints[validPoints.length - 1].timestamp - validPoints[0].timestamp) / 1000,
                         mode: AppState.userMode || 'walking',
-                        startCoords: finalPoints[0]?.coords.join(',') || '127.0,37.0',
-                        endCoords: finalPoints[finalPoints.length - 1]?.coords.join(',') || '127.0,37.0',
-                        destinationCoords: AppState.destination?.coords.join(',') || '127.0,37.0',
-                        points: finalPoints
+                        startCoords: validPoints[0].coords.join(','),
+                        endCoords: validPoints[validPoints.length - 1].coords.join(','),
+                        destinationCoords: AppState.destination.coords.join(','),
+                        points: validPoints
                     }).catch(e => console.error('Route save err:', e));
                 }
             }
@@ -1058,12 +1040,6 @@ const UIManager = {
         // [NEW] Wake Lock 해제
         this.releaseWakeLock();
 
-        // [DEBUG] 실시간 동기화 타이머 정리
-        if (AppState.realtimeSyncTimer) {
-            clearInterval(AppState.realtimeSyncTimer);
-            AppState.realtimeSyncTimer = null;
-        }
-
         if (btn) {
             const textSpan = btn.querySelector('.btn-text');
             if (textSpan) textSpan.textContent = '경로 안내 시작';
@@ -1121,56 +1097,6 @@ const UIManager = {
         AppState.currentStepIndex = 0;
         AppState.lastRerouteTime = 0;
         this.clearRerouteTimer();
-
-        // [DEBUG] 전역 타이머로 변경 (Config.FORCE_SYNC_INTERVAL 체크)
-        if (window.realtimeSyncTimer) clearInterval(window.realtimeSyncTimer);
-
-        if (Config.FORCE_SYNC_INTERVAL) {
-            console.log('[DEBUG] Starting FORCE_SYNC_INTERVAL timer');
-
-            window.realtimeSyncTimer = setInterval(() => {
-                try {
-                    // PC 테스트용 Mock Position (GPS 변화 시뮬레이션)
-                    const histLen = AppState.routeHistory?.length || 0;
-
-                    // Config.USE_MOCK_DATA가 true일 때만 가짜 데이터 주입
-                    if (Config.USE_MOCK_DATA && histLen < 2) {
-                         if (!AppState.routeHistory) AppState.routeHistory = [];
-                         // 아주 미세한 랜덤 좌표 추가
-                         const base = AppState.currentPosition || [127.118, 37.330];
-                         AppState.routeHistory.push({
-                             coords: [base[0] + (Math.random()*0.00001), base[1] + (Math.random()*0.00001)],
-                             timestamp: Date.now(),
-                             mode: 'walking'
-                         });
-                    }
-
-                    if (Config.DEBUG_MODE && typeof DebugOverlay !== 'undefined') {
-                        DebugOverlay.update({ sync: `Tick(G): ${AppState.routeHistory.length} -> Saving...` });
-                    }
-
-                    // UIManager 명시적 호출
-                    if (window.UIManager && window.UIManager.processAndSaveRoute) {
-                        window.UIManager.processAndSaveRoute();
-                    } else if (this && this.processAndSaveRoute) {
-                         this.processAndSaveRoute();
-                    }
-
-                } catch (err) {
-                    console.error('Timer Error:', err);
-                    if (Config.DEBUG_MODE && typeof DebugOverlay !== 'undefined') {
-                        DebugOverlay.update({ sync: `Timer Err: ${err.message}` });
-                    }
-                }
-            }, 1000);
-        } else {
-            // [Production Logic] 기본 타이머 (1초마다지만 조건 엄격)
-            AppState.realtimeSyncTimer = setInterval(() => {
-                if (AppState.routeHistory && AppState.routeHistory.length >= 2) {
-                     this.processAndSaveRoute();
-                }
-            }, 1000);
-        }
 
         // Wake Lock - 화면 꺼짐 방지
         this.requestWakeLock();
@@ -1270,27 +1196,13 @@ const UIManager = {
     updateNavigationHUD(route) {
         if (!route) return;
 
-        // [UPDATE] 하단 대시보드 1번째 줄로 이동 (XX분 | XXkm) - 실시간 남은 거리 계산
-        const currentPos = AppState.currentPosition;
-
-        let remainingDist = 0;
-        if (AppState.destination && currentPos) {
-            remainingDist = Utils.calculateDistance(currentPos, AppState.destination.coords) * 1.2;
-        } else {
-            remainingDist = route.distance; // Fallback
-        }
-
-        const totalDistStr = this.formatDistance(remainingDist);
-        const remainingTime = Math.ceil(remainingDist / 66);
-
-        // [Debug] Hook for Distance
-        if (typeof DebugOverlay !== 'undefined') {
-            DebugOverlay.update({ dist: remainingDist });
-        }
+        // [UPDATE] 하단 대시보드 1번째 줄로 이동 (XX분 | XXkm)
+        const totalDist = this.formatDistance(route.distance);
+        const totalTime = Math.ceil(route.duration / 60);
 
         const statsEl = this.elements['dash-stats'];
         if (statsEl) {
-            statsEl.textContent = `목적지까지 ${remainingTime}분 | ${totalDistStr}`;
+            statsEl.textContent = `목적지까지 ${totalTime}분 | ${totalDist}`;
         }
 
         if (route.legs && route.legs[0].steps && route.legs[0].steps.length > 0) {
@@ -1307,13 +1219,6 @@ const UIManager = {
 
             const turnLocation = nextStep.maneuver.location; // [lon, lat]
             const distanceToTurn = Utils.calculateDistance(currentPos, turnLocation);
-
-            // [Debug] Hook for Next Turn
-            if (typeof DebugOverlay !== 'undefined') {
-                DebugOverlay.update({
-                    status: `Turn: ${distanceToTurn.toFixed(0)}m (${stepIndex + 1}/${steps.length})`
-                });
-            }
 
             // [300m 규칙] 목적지까지 거리 미리 계산 (모든 줌 로직에서 공유)
             const distToDest = (AppState.destination)
@@ -1345,15 +1250,26 @@ const UIManager = {
             const navRoadName = this.elements['nav-road-name'];
             if (navRoadName) navRoadName.textContent = nextStep.name || '';
 
-            // [단순화] 기본: 항상 현위치+목적지 화면 포함
-            if (typeof MapManager !== 'undefined' && MapManager.fitViewToDestination) {
-                MapManager.fitViewToDestination();
-            }
-
-            // [조건부] 목적지 멀고(>300m) + 턴 가까우면(≤300m): 턴 확대 오버라이드
-            if (distToDest > 300 && distanceToTurn <= 300 && turnLocation) {
-                if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
-                    MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
+            // [배달 최적화 카메라 로직]
+            // 1. 목적지까지 300m 이상 남음: 턴 임박 시에만 확대, 그 외엔 전체 보기
+            if (distToDest > 300) {
+                if (distanceToTurn <= 300 && turnLocation) {
+                    // 방향 전환 임박: Dynamic Zoom 실행
+                    if (typeof MapManager !== 'undefined' && MapManager.handleDynamicZoom) {
+                        MapManager.handleDynamicZoom(distanceToTurn, turnLocation);
+                    }
+                } else {
+                    // 일반 주행: 전체 경로 보기로 복귀
+                    AppState.isZoomedIn = false;
+                    if (typeof MapManager !== 'undefined' && MapManager.fitViewToDestination) {
+                        MapManager.fitViewToDestination();
+                    }
+                }
+            } else {
+                // 2. 목적지 300m 이내: 무조건 전체 경로 보기 고정. 줌 변화 없음.
+                AppState.isZoomedIn = false;
+                if (typeof MapManager !== 'undefined' && MapManager.fitViewToDestination) {
+                    MapManager.fitViewToDestination();
                 }
             }
 
