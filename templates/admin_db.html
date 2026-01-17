@@ -61,9 +61,11 @@
             <th>ID</th>
             <th>User</th>
             <th>Mode</th>
+            <th>Start → End</th>
             <th>Distance</th>
             <th>Duration</th>
             <th>Points</th>
+            <th>Approach</th>
             <th>Timestamp (KST)</th>
         </tr>
         {% for route in routes %}
@@ -71,9 +73,21 @@
             <td>{{ route.id }}</td>
             <td>{{ route.user_id or '익명' }}</td>
             <td class="mode-{{ route.mode or 'walking' }}">{{ route.mode or '-' }}</td>
+            <td style="font-size:11px;">
+                {% if route.start_coords %}{{ route.start_coords[:20] }}...{% else %}-{% endif %}
+                →
+                {% if route.end_coords %}{{ route.end_coords[:20] }}...{% else %}-{% endif %}
+            </td>
             <td>{{ "%.2f"|format(route.distance or 0) }} km</td>
             <td>{{ "%.0f"|format(route.duration or 0) }}s</td>
             <td class="points-cell">{{ (route.points_json|length) if route.points_json else 0 }} chars</td>
+            <td style="color:#00d4aa;">
+                {% if route.approach_path and route.approach_path|length > 2 %}
+                🦶 {{ route.approach_path|length }} chars
+                {% else %}
+                -
+                {% endif %}
+            </td>
             <td class="timestamp">{{ route.timestamp_kst }}</td>
         </tr>
         {% endfor %}
