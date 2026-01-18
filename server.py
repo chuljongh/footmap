@@ -726,10 +726,29 @@ def save_user_route(user_id):
     else:
         end_coords = str(end_coords_raw) if end_coords_raw else ''
 
+    # [Phase 9] 중복 경로 감지 (Idempotency Check)
+    # 동일 유저가 1분 이내에 정확히 같은 경로를 보낸 경우 중복으로 간주
+    duration = data.get('duration', 0)
+    one_minute_ago = get_kst_now() - timedelta(minutes=1)
+
+    existing_route = Route.query.filter(
+        Route.user_id == user_id,
+        Route.start_coords == start_coords,
+        Route.end_coords == end_coords,
+        Route.distance == distance,
+        Route.duration == duration,
+        Route.timestamp >= one_minute_ago
+    ).first()
+
+    if existing_route:
+        # 중복 데이터 - 기존 경로 반환 (클라이언트에게 "성공"으로 응답)
+        print(f"[Phase 9] Duplicate route detected for user {user_id}, returning existing route {existing_route.id}")
+        return jsonify(existing_route.to_dict()), 200  # 200 OK (not 201 Created)
+
     route = Route(
         user_id=user_id,
         distance=distance,
-        duration=data.get('duration', 0),
+        duration=duration,
         mode=mode,
         start_coords=start_coords,
         end_coords=end_coords,
