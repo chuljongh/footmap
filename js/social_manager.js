@@ -248,7 +248,7 @@ const SocialManager = {
 
     renderMessageCards(messages) {
         const container = this.elements['message-cards-container'];
-        const currentUser = AppState.userProfile?.nickname || '익명';
+        const currentUserId = AppState.userId;
 
         if (messages.length === 0) {
             // [FIX] 이미 빈 상태 카드가 있으면 다시 렌더링하지 않음 (깜빡임 방지)
@@ -314,7 +314,7 @@ const SocialManager = {
 
         container.innerHTML = ''; // Reverting to clear container logic for safety
         messages.forEach(msg => {
-            const isOwner = msg.userId === currentUser;
+            const isOwner = msg.userId === currentUserId;
             const card = document.createElement('div');
             card.className = 'speech-bubble'; // Unified class
             card.setAttribute('data-id', msg.id);
@@ -326,10 +326,10 @@ const SocialManager = {
                 <button class="close-bubble" data-action="remove-card">✕</button>
 
                 <div class="bubble-content" data-action="open-thread" data-msg-id="${msg.id}">
-                    ${msg.tags ? `<div class="bubble-tags">${msg.tags}</div>` : ''}
-                    <div class="bubble-text">${msg.text}</div>
+                    ${msg.tags ? `<div class="bubble-tags">${Utils.sanitize(msg.tags)}</div>` : ''}
+                    <div class="bubble-text">${Utils.sanitize(msg.text)}</div>
                     <div class="bubble-meta">
-                        <span class="bubble-author">${msg.userId}</span>
+                        <span class="bubble-author">${Utils.sanitize(msg.nickname || msg.userId)} (${msg.userId.substring(0, 3)}...)</span>
                         <span>${dateStr}</span>
                     </div>
                 </div>
@@ -497,10 +497,10 @@ const SocialManager = {
         list.innerHTML = comments.map(c => `
             <div class="comment-item">
                 <div class="comment-header">
-                    <span class="comment-user">${c.userId}</span>
+                    <span class="comment-user">${Utils.sanitize(c.nickname || c.userId)}</span>
                     <span class="comment-time">${new Date(c.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
-                <div class="comment-text">${c.text}</div>
+                <div class="comment-text">${Utils.sanitize(c.text)}</div>
             </div>
         `).join('');
     },
@@ -516,7 +516,7 @@ const SocialManager = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    userId: AppState.userProfile?.nickname || '익명',
+                    userId: AppState.userId,
                     text: text
                 })
             });
@@ -531,7 +531,7 @@ const SocialManager = {
     // 기본 액션 (좋아요/공유/수정/삭제)
     // ========================================
     async handleLike(id, type, btnElement) {
-        const userId = AppState.userProfile?.nickname || 'anonymous';
+        const userId = AppState.userId;
         try {
             const response = await fetch(`/api/messages/${id}/vote`, {
                 method: 'POST',
@@ -602,7 +602,7 @@ const SocialManager = {
                 const response = await fetch(`/api/messages/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: AppState.userProfile?.nickname, text: newText })
+                    body: JSON.stringify({ userId: AppState.userId, text: newText })
                 });
 
                 if (!response.ok) throw new Error('Failed to update message');
@@ -621,7 +621,7 @@ const SocialManager = {
                 const response = await fetch(`/api/messages/${id}`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: AppState.userProfile?.nickname })
+                    body: JSON.stringify({ userId: AppState.userId })
                 });
 
                 if (!response.ok) throw new Error('Failed to delete message');
@@ -635,7 +635,7 @@ const SocialManager = {
     },
 
     async handleSave(id) {
-        const userId = AppState.userProfile?.nickname || 'anonymous';
+        const userId = AppState.userId;
         try {
             const response = await fetch(`/api/messages/${id}/save`, {
                 method: 'POST',
@@ -654,7 +654,7 @@ const SocialManager = {
     },
 
     async handleUnsave(id) {
-        const userId = AppState.userProfile?.nickname || 'anonymous';
+        const userId = AppState.userId;
         try {
             const response = await fetch(`/api/messages/${id}/save`, {
                 method: 'DELETE',
@@ -677,7 +677,7 @@ const SocialManager = {
         const text = input?.value.trim();
         if (!text || !this.currentMessageId) return;
 
-        const userId = AppState.userProfile?.nickname || '익명';
+        const userId = AppState.userId;
         try {
             const response = await fetch(`/api/messages/${this.currentMessageId}/comments`, {
                 method: 'POST',
@@ -1251,7 +1251,7 @@ const SocialManager = {
         }
 
         const payload = {
-            userId: AppState.userProfile?.nickname || '익명',
+            userId: AppState.userId,
             text: text,
             tags: parsedTags, // [FIX] Use parsed tags with auto-hashtags
             coords: targetCoords

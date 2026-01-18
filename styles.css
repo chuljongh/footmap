@@ -934,10 +934,22 @@ body .marker-number.hidden {
     color: var(--text-primary);
     font-size: 16px;
     font-weight: 700;
-    text-align: center;
-    width: 100%;
+    text-align: right; /* ID 접미사와 함께 중앙 정렬 느낌을 위해 우측 정렬 */
+    width: auto;
+    max-width: 120px;
     outline: none;
     border-bottom: 1px solid transparent;
+}
+
+.id-suffix {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    opacity: 0.8;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    flex-shrink: 0;
 }
 
 #profile-nickname:focus,

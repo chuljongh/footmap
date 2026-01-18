@@ -405,18 +405,45 @@ const MapManager = {
                 if (typeof UIManager !== 'undefined') UIManager.checkRouteDeviation(coords, heading);
             }
 
-            // [CRITICAL] routeHistory/accessHistory 업데이트 (1m 이상 이동 시, 속도 무관)
+            // [CRITICAL] routeHistory/accessHistory 업데이트 (1m 이상 이동 시)
             const targetHistory = AppState.isInAccessZone ? AppState.accessHistory : AppState.routeHistory;
             const lastHistoryPoint = targetHistory[targetHistory.length - 1];
             const historyDistMoved = lastHistoryPoint ? Utils.calculateDistance(lastHistoryPoint.coords, coords) : 999;
 
-            if (historyDistMoved >= 1) { // 1m 이상 이동 시 기록
-                targetHistory.push({
-                    coords: coords,
-                    timestamp: Date.now(),
-                    mode: AppState.userMode,
-                    heading: heading
-                });
+            // 1m 이상 이동 + GPS Drift 필터 (Phase 7)
+            if (historyDistMoved >= 1) {
+                // GPS 튀는 현상(Drift) 방지: 정지 상태 필터링
+                const isMoving = (speed * 3.6) > 0.5;  // 0.5km/h 이하면 정지로 간주
+                const isAccurateEnough = (accuracy || 999) <= 20;  // 20m 이상 오차면 무시
+
+                if (isMoving && isAccurateEnough) {
+                    targetHistory.push({
+                        coords: coords,
+                        timestamp: Date.now(),
+                        mode: AppState.userMode,
+                        heading: heading
+                    });
+                }
+            }
+
+            // [NEW] 세션 상태 주기적 저장 (10초 주기) - 이동 여부와 무관하게 항상 실행
+            const now = Date.now();
+            if (!this.lastSessionSaveTime) this.lastSessionSaveTime = 0;
+
+            if (now - this.lastSessionSaveTime > 10000) {
+                if (typeof DataCollector !== 'undefined') {
+                    DataCollector.saveSessionState({
+                        isNavigating: true,
+                        destination: AppState.destination,
+                        waypoints: AppState.waypoints || [],
+                        startTime: AppState.startTime || now,
+                        userMode: AppState.userMode,
+                        routeHistory: AppState.routeHistory,
+                        accessHistory: AppState.accessHistory,
+                        currentStepIndex: AppState.currentStepIndex || 0
+                    }).catch(e => console.warn('[Session] Save failed:', e));
+                    this.lastSessionSaveTime = now;
+                }
             }
         }
 

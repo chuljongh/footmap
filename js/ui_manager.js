@@ -6,6 +6,7 @@ const UIManager = {
     elements: {},
 
     init() {
+        AppState.userId = Utils.getOrInitUserId(); // [Phase 4] 고유 식별자 초기화
         this.cacheElements();
         this.historyTimer = null; // 검색 기록 타이머
         this.injectSVGIcons(); // 아이콘 주입
@@ -147,6 +148,7 @@ const UIManager = {
     updateProfileUI() {
         let nickname = Utils.loadState('userNickname');
         let profileImg = Utils.loadState('userProfileImg');
+        const userId = AppState.userId;
 
         if (!nickname) {
             nickname = Utils.generateRandomNickname();
@@ -157,24 +159,48 @@ const UIManager = {
             Utils.saveState('userProfileImg', profileImg);
         }
 
-        AppState.userProfile = { nickname, profileImg }; // 전역 상태에 저장
+        AppState.userProfile = { userId, nickname, profileImg }; // 전역 상태에 저장
 
         const nicknameEl = document.getElementById('profile-nickname');
         const imgEl = document.getElementById('profile-img');
+        const idSuffixEl = document.getElementById('profile-id-suffix');
 
         if (nicknameEl) nicknameEl.value = nickname;
         if (imgEl) imgEl.src = profileImg;
+        // [Phase 5] userId null 체크 추가
+        if (idSuffixEl && userId) idSuffixEl.textContent = `(${userId.substring(0, 3)}...)`;
 
-        nicknameEl?.addEventListener('blur', () => {
-            nicknameEl.setAttribute('readonly', true);
-            Utils.saveState('userNickname', nicknameEl.value);
-            AppState.userProfile.nickname = nicknameEl.value;
-        });
+        // [Phase 5] 이벤트 리스너 중복 방지
+        if (nicknameEl && !nicknameEl._listenerAttached) {
+            nicknameEl.addEventListener('blur', async () => {
+                nicknameEl.setAttribute('readonly', true);
+                const newNickname = nicknameEl.value.trim();
 
-        nicknameEl?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') nicknameEl.blur();
-        });
+                if (newNickname && newNickname !== AppState.userProfile.nickname) {
+                    Utils.saveState('userNickname', newNickname);
+                    AppState.userProfile.nickname = newNickname;
+
+                    // [Phase 4] 서버에 별명 업데이트 (ID는 고정)
+                    try {
+                        await fetch(`/api/users/${userId}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ nickname: newNickname })
+                        });
+                    } catch (e) {
+                        console.error('Nickname sync failed:', e);
+                    }
+                }
+            });
+
+            nicknameEl.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') nicknameEl.blur();
+            });
+
+            nicknameEl._listenerAttached = true;
+        }
     },
+
 
     bindEvents() {
         // 온보딩
@@ -1084,6 +1110,11 @@ const UIManager = {
         // 3. Data Saving (Async, Safe)
         this.processAndSaveRoute();
 
+        // [NEW] 세션 상태 삭제 (정상 종료)
+        if (typeof DataCollector !== 'undefined') {
+            DataCollector.clearSessionState();
+        }
+
         // [NEW] 재탐색 타이머 정리
         this.clearRerouteTimer();
 
@@ -1107,6 +1138,21 @@ const UIManager = {
         if (AppState.destinationClearTimer) {
             clearTimeout(AppState.destinationClearTimer);
             AppState.destinationClearTimer = null;
+        }
+
+        // [NEW] 세션 상태 초기 저장 (persistence)
+        if (typeof DataCollector !== 'undefined') {
+            const now = Date.now();
+            AppState.startTime = now; // 세션 시작 시간 기록
+            DataCollector.saveSessionState({
+                isNavigating: true,
+                destination: AppState.destination,
+                waypoints: AppState.waypoints || [],
+                startTime: now,
+                userMode: AppState.userMode,
+                routeHistory: [],
+                accessHistory: []
+            });
         }
 
         AppState.isNavigating = true;
@@ -1360,6 +1406,57 @@ const UIManager = {
             overlay.style.setProperty('--drag-y', `${startTop + (e.touches[0].clientY - startY)}px`);
         });
         document.addEventListener('touchend', () => isDragging = false);
+    },
+
+    // [NEW] 세션 복원 실행 (Seamless Navigation)
+    async restoreNavigationSession(state) {
+        if (!state) return;
+
+        try {
+            console.log('🔄 Navigation session restoring...', state);
+
+            // 1. AppState 복구
+            AppState.isNavigating = true;
+            AppState.destination = state.destination;
+            AppState.waypoints = state.waypoints || [];
+            AppState.startTime = state.startTime;
+            AppState.userMode = state.userMode;
+            AppState.routeHistory = state.routeHistory || [];
+            AppState.accessHistory = state.accessHistory || [];
+            AppState.currentStepIndex = state.currentStepIndex || 0;
+
+            // 2. UI 초기 상태 설정
+            document.body.classList.add('search-hidden');
+            document.getElementById('navigation-hud')?.classList.remove('hidden');
+            document.getElementById('dashboard-container')?.classList.remove('hidden');
+            document.getElementById('pre-nav-actions')?.classList.add('hidden');
+
+            this.updateDashboard(AppState.userMode);
+            this.updateModeIndicator();
+
+            // 3. 지도 및 경로 복구 (Kakao API 재호출)
+            if (AppState.currentPosition && AppState.destination) {
+                await RouteManager.showRoute(
+                    AppState.currentPosition,
+                    AppState.destination.coords,
+                    AppState.waypoints
+                );
+                MapManager.fitViewToRoute();
+            }
+
+            // 4. 저장된 진행 상태(Step) 반영
+            if (AppState.activeRoute) {
+                this.updateNavigationHUD(AppState.activeRoute);
+            }
+
+            // 5. Wake Lock 재요청
+            this.requestWakeLock();
+
+            Utils.showToast('✅ 이전 안내를 복원했습니다.');
+        } catch (err) {
+            console.error('Failed to restore session:', err);
+            Utils.showToast('❌ 안내 복원 중 오류가 발생했습니다.');
+        }
     },
 
     // [NEW] Wake Lock API - 화면 꺼짐 방지

@@ -68,6 +68,13 @@
 - [x] 지도 범례(Legend) 위치 이동
   - [x] 우측 하단 고정 -> 사이드 메뉴 최하단 배치
   - [x] 토글 방식(Click to Expand) 구현
+- [x] 경로 안내 지속성 (Seamless Navigation Persistence) 구현
+    - [x] `js/data_collector.js`: IndexedDB v2 업그레이드 및 세션 스토어 추가
+    - [x] `js/data_collector.js`: 세션 저장/로드/삭제 및 검증 로직 구현
+    - [x] `js/ui_manager.js`: 안내 시작/종료 시 세션 상태 연동
+    - [x] `js/map_manager.js`: 위치 업데이트 시 10초 주기(Throttle) 세션 저장
+    - [x] `js/app.js`: 앱 실행 시 세션 복원 및 타임아웃 처리 로직 추가
+    - [x] `js/app.js`: `beforeunload` 이벤트로 종료 시 강제 저장 추가
 
 ## Phase 3: 백엔드 및 데이터 에코시스템
 - [x] Flask + SQLite 백엔드 구현 (메시지 API)

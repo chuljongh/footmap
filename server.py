@@ -43,8 +43,9 @@ KAKAO_REST_API_KEY = "63106d5c2ee3c16a39a6dfb41960da8a"
 # ========================================
 class User(db.Model):
     """사용자 정보 및 활동 통계"""
-    id = db.Column(db.String(100), primary_key=True) # 닉네임을 ID로 사용
+    id = db.Column(db.String(100), primary_key=True) # UUID (or Legacy Nickname)
     profile_img = db.Column(db.Text)
+    nickname = db.Column(db.String(100)) # 표시 이름 (Phase 4 도입)
     points = db.Column(db.Integer, default=0)
     total_distance = db.Column(db.Float, default=0.0)
     dist_walking = db.Column(db.Float, default=0.0)
@@ -56,6 +57,7 @@ class User(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'nickname': self.nickname or self.id, # 닉네임 없으면 ID라도 표시 (하위 호환)
             'profileImg': self.profile_img,
             'points': self.points,
             'totalDistance': self.total_distance,
@@ -81,11 +83,17 @@ class Message(db.Model):
     edited = db.Column(db.Boolean, default=False)
     timestamp = db.Column(db.DateTime, default=get_kst_now, index=True)
     comments = db.relationship('Comment', backref='message', lazy=True, cascade='all, delete-orphan')
+    # [Phase 5] N+1 쿼리 최적화용 관계
+    author = db.relationship('User', lazy='joined')
 
     def to_dict(self, include_comments=False):
+        # [Phase 5] N+1 없이 author 관계 활용
+        nickname = self.author.nickname if self.author else self.user_id
+
         result = {
             'id': self.id,
             'userId': self.user_id,
+            'nickname': nickname, # [Phase 4] 작성자 표시 이름
             'text': self.text,
             'tags': self.tags,
             'coords': [self.coord_x, self.coord_y],
@@ -108,12 +116,18 @@ class Comment(db.Model):
     user_id = db.Column(db.String(100), db.ForeignKey('user.id'), nullable=False)
     text = db.Column(db.String(200), nullable=False)
     timestamp = db.Column(db.DateTime, default=get_kst_now)
+    # [Phase 5] N+1 쿼리 최적화용 관계
+    author = db.relationship('User', lazy='joined')
 
     def to_dict(self):
+        # [Phase 5] N+1 없이 author 관계 활용
+        nickname = self.author.nickname if self.author else self.user_id
+
         return {
             'id': self.id,
             'messageId': self.message_id,
             'userId': self.user_id,
+            'nickname': nickname, # [Phase 4] 작성자 표시 이름
             'text': self.text,
             'timestamp': int(self.timestamp.replace(tzinfo=KST).timestamp() * 1000)
         }
@@ -136,6 +150,7 @@ class Route(db.Model):
     start_coords = db.Column(db.String(50))  # "lon,lat"
     end_coords = db.Column(db.String(50))  # "lon,lat"
     points_json = db.Column(db.Text)  # 전체 이동 궤적 (JSON string of coordinates)
+    approach_path = db.Column(db.Text)  # [Phase 6] 도보 접근 경로 (100m zone)
     timestamp = db.Column(db.DateTime, default=get_kst_now, index=True)
 
     def to_dict(self):
@@ -194,24 +209,34 @@ def get_user_profile(user_id):
 @app.route('/api/users/<user_id>', methods=['POST', 'PUT'])
 def update_user_profile(user_id):
     data = request.json
-    user = User.query.get(user_id)
-    if not user:
-        user = User(id=user_id)
-        db.session.add(user)
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            user = User(id=user_id)
+            db.session.add(user)
 
-    if 'profileImg' in data: user.profile_img = data['profileImg']
-    if 'bio' in data: user.bio = data['bio']
+        if 'profileImg' in data: user.profile_img = data['profileImg']
+        if 'bio' in data: user.bio = data['bio']
+        if 'nickname' in data: user.nickname = data['nickname'] # 별명 수정 허용
 
-    db.session.commit()
-    return jsonify(user.to_dict())
+        db.session.commit()
+        return jsonify(user.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Database error', 'detail': str(e)}), 500
 
 def ensure_user(user_id):
     """사용자가 없으면 생성 (FK 제약 조건 해결용)"""
     user = User.query.get(user_id)
     if not user:
-        user = User(id=user_id)
-        db.session.add(user)
-        db.session.commit()
+        try:
+            user = User(id=user_id)
+            db.session.add(user)
+            db.session.commit()
+        except Exception:
+            # [Phase 5] 동시 생성 레이스컨디션 처리 (IntegrityError)
+            db.session.rollback()
+            user = User.query.get(user_id)
     return user
 
 # ========================================
@@ -673,8 +698,11 @@ def save_user_route(user_id):
     ensure_user(user_id)
     user = User.query.get(user_id)
 
-    distance = data.get('distance', 0)
+    # [Phase 5] 입력 검증
+    distance = max(0, data.get('distance', 0))  # 음수 방지
     mode = data.get('mode', 'walking')
+    if mode not in ['walking', 'wheelchair', 'vehicle']:
+        return jsonify({'error': 'Invalid mode'}), 400
 
     # 통계 업데이트
     if mode == 'walking':
@@ -684,14 +712,29 @@ def save_user_route(user_id):
 
     user.total_distance += distance
 
+    # [Phase 6] 좌표 배열을 문자열로 정규화
+    start_coords_raw = data.get('startCoords', '')
+    end_coords_raw = data.get('endCoords', '')
+
+    if isinstance(start_coords_raw, list) and len(start_coords_raw) >= 2:
+        start_coords = f"{start_coords_raw[0]},{start_coords_raw[1]}"
+    else:
+        start_coords = str(start_coords_raw) if start_coords_raw else ''
+
+    if isinstance(end_coords_raw, list) and len(end_coords_raw) >= 2:
+        end_coords = f"{end_coords_raw[0]},{end_coords_raw[1]}"
+    else:
+        end_coords = str(end_coords_raw) if end_coords_raw else ''
+
     route = Route(
         user_id=user_id,
         distance=distance,
         duration=data.get('duration', 0),
         mode=mode,
-        start_coords=data.get('startCoords', ''),
-        end_coords=data.get('endCoords', ''),
-        points_json=data.get('points', '')
+        start_coords=start_coords,
+        end_coords=end_coords,
+        points_json=data.get('points', ''),
+        approach_path=data.get('approachPath', '')  # [Phase 6] 접근 경로 저장
     )
     db.session.add(route)
     db.session.commit()

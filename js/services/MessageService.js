@@ -7,7 +7,10 @@ const MessageService = {
         try {
             const response = await fetch('/api/messages');
             if (response.ok) {
-                return await response.json();
+                const data = await response.json();
+                // [Phase 5] 캐시에 저장 (오프라인 폴백용)
+                localStorage.setItem('balgil_messages', JSON.stringify(data));
+                return data;
             } else {
                 throw new Error('Server error');
             }
@@ -68,7 +71,7 @@ const MessageService = {
         const response = await fetch(`/api/messages/${messageId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
+            body: JSON.stringify({ userId: AppState.userId, text })
         });
 
         if (!response.ok) {
@@ -80,7 +83,9 @@ const MessageService = {
     // 메시지 삭제
     async deleteMessage(messageId) {
         const response = await fetch(`/api/messages/${messageId}`, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: AppState.userId })
         });
 
         if (!response.ok) {

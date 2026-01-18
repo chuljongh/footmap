@@ -56,7 +56,7 @@ const DashboardManager = {
         this.showLoading();
 
         try {
-            const userId = Utils.loadState('userId') || 'anonymous';
+            const userId = AppState.userId;
             const response = await fetch(`/api/user/${userId}/dashboard`);
 
             if (!response.ok) throw new Error('Failed to fetch dashboard data');

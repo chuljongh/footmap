@@ -2,6 +2,7 @@
 // 앱 상태 관리 (State)
 // ========================================
 const AppState = {
+    userId: null, // [Phase 4] 고유 식별자 (UUID)
     currentScreen: 'splash',
     userMode: 'walking', // 'walking' | 'wheelchair'
     destination: null,

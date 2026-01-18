@@ -14,6 +14,14 @@ const Utils = {
         }
     },
 
+    // [Phase 5] XSS 방지용 HTML 이스케이프
+    sanitize(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    },
+
     // LocalStorage 저장/로드
     saveState(key, value) {
         try {
@@ -30,6 +38,33 @@ const Utils = {
         } catch (e) {
             return defaultValue;
         }
+    },
+
+    // [Phase 4] 실식별자(ID) 발급 및 관리
+    getOrInitUserId() {
+        let userId = this.loadState('userId');
+
+        // 1. 이미 ID가 있으면 그대로 반환
+        if (userId) return userId;
+
+        // 2. 마이그레이션: 기존 nickname이 ID였다면 이를 userId로 계승 (기존 데이터 유지)
+        const legacyNickname = this.loadState('userNickname');
+        if (legacyNickname) {
+            userId = legacyNickname;
+        } else {
+            // 3. 신규 사용자면 UUID 발급
+            userId = this.generateUUID();
+        }
+
+        this.saveState('userId', userId);
+        return userId;
+    },
+
+    generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     },
 
     // 랜덤 별명 생성기

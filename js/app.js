@@ -77,8 +77,58 @@ document.addEventListener('DOMContentLoaded', async () => {
             MapManager.init(); // 지도 초기화
 
             UIManager.updateModeIndicator();
+
+            // [NEW] 세션 복원 서비스 (Seamless Navigation)
+            setTimeout(async () => {
+                try {
+                    let savedState = await DataCollector.loadSessionState();
+
+                    // [fallback] IndexedDB에 없으면 localStorage(비상용) 확인
+                    if (!savedState) {
+                        const emergencyState = localStorage.getItem('emergency_nav_state');
+                        if (emergencyState) {
+                            try {
+                                savedState = JSON.parse(emergencyState);
+                                console.log('⚠️ Restoring from emergency local storage');
+                            } catch (e) {
+                                localStorage.removeItem('emergency_nav_state');
+                            }
+                        }
+                    }
+
+                    if (savedState) {
+                        // 시간 조건 없이 무조건 자동 복원 (Seamless)
+                        await UIManager.restoreNavigationSession(savedState);
+                    }
+                } catch (e) {
+                    console.error('Session restore failed:', e);
+                }
+            }, 1000); // 지도 초기화 대기
+
         } else {
             Utils.showScreen('permission-screen');
         }
+
+        // [NEW] 앱 종료 직전 강제 저장 서비스
+        window.addEventListener('beforeunload', () => {
+            if (AppState.isNavigating) {
+                // 동기 방식으로 저장 시도 (브라우저 제약이 있을 수 있음)
+                // IndexedDB는 비동기라 완벽하지 않지만, 최대한 마지막 상태를 localstorage에 백업
+                const minimalState = {
+                    isNavigating: true,
+                    destination: AppState.destination,
+                    waypoints: AppState.waypoints || [],
+                    startTime: AppState.startTime,
+                    userMode: AppState.userMode,
+                    routeHistory: AppState.routeHistory,
+                    accessHistory: AppState.accessHistory,
+                    lastUpdate: Date.now()
+                };
+                // beforeunload에서는 비동기 DB 작업이 실패할 확률이 높으므로 localStorage 병행
+                localStorage.setItem('emergency_nav_state', JSON.stringify(minimalState));
+            } else {
+                localStorage.removeItem('emergency_nav_state');
+            }
+        });
     }, 1500); // 2000ms -> 1500ms로 단축 (영상 루프 최적화)
 });
