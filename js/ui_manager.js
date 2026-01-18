@@ -1452,7 +1452,8 @@ const UIManager = {
             // 5. Wake Lock 재요청
             this.requestWakeLock();
 
-            Utils.showToast('✅ 이전 안내를 복원했습니다.');
+            // 세션 복원 완료 (Seamless - 토스트 없음)
+            console.log('✅ Session restored successfully');
         } catch (err) {
             console.error('Failed to restore session:', err);
             Utils.showToast('❌ 안내 복원 중 오류가 발생했습니다.');
