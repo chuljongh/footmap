@@ -163,7 +163,7 @@ class Route(db.Model):
             'startCoords': self.start_coords,
             'endCoords': self.end_coords,
             'points': self.points_json, # 프론트에서 JSON.parse() 필요
-            'approachPath': self.approach_path, # [NEW] 도보 접근 경로
+            'approachPath': getattr(self, 'approach_path', None),  # [Phase 6] 안전한 접근
             'timestamp': int(self.timestamp.replace(tzinfo=KST).timestamp() * 1000)
         }
 

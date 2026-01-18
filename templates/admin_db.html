@@ -82,8 +82,9 @@
             <td>{{ "%.0f"|format(route.duration or 0) }}s</td>
             <td class="points-cell">{{ (route.points_json|length) if route.points_json else 0 }} chars</td>
             <td style="color:#00d4aa;">
-                {% if route.approach_path and route.approach_path|length > 2 %}
-                🦶 {{ route.approach_path|length }} chars
+                {% set ap = route.approach_path|default('', true) %}
+                {% if ap and ap|length > 2 %}
+                🦶 {{ ap|length }} chars
                 {% else %}
                 -
                 {% endif %}
