@@ -1677,12 +1677,13 @@ body .marker-number.hidden {
 .hud-card {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 10px;
+    padding: 8px 12px; /* 높이 축소: 12px -> 8px */
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     pointer-events: auto;
 }
+
 
 /* 메인 카드 (첫 번째 턴) */
 .hud-card-main {
@@ -1692,10 +1693,11 @@ body .marker-number.hidden {
 }
 
 .hud-card-main .hud-icon.large {
-    width: 44px;
-    height: 44px;
+    width: 32px; /* 아이콘 축소: 44px -> 32px */
+    height: 32px;
     flex-shrink: 0;
 }
+
 
 .hud-card-main .hud-icon.large svg {
     width: 100%;
@@ -1709,11 +1711,12 @@ body .marker-number.hidden {
 }
 
 .hud-card-main .hud-value.large {
-    font-size: 32px;
+    font-size: 26px; /* 폰트 축소: 32px -> 26px */
     font-weight: 700;
     line-height: 1;
     letter-spacing: -0.5px;
 }
+
 
 .hud-road {
     font-size: 13px;
