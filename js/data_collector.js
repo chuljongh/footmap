@@ -16,7 +16,7 @@ const DataCollector = {
 
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.DB_NAME, 2); // DB 버전 업그레이드 (v2)
+            const request = indexedDB.open(this.DB_NAME, 3); // DB 버전 업그레이드 (v3: session_state 스토어 추가)
 
             request.onerror = () => reject(request.error);
             request.onsuccess = () => {
