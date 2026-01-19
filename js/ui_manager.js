@@ -1541,26 +1541,23 @@ const UIManager = {
         };
 
         try {
-            // 1. 글쓰기 모달 (직접 닫기)
-            if (isVisible('write-modal')) {
+            // 1. 글쓰기 모달 (Class: hidden)
+            const writeModal = document.getElementById('write-modal');
+            if (writeModal && !writeModal.classList.contains('hidden')) {
                 debugToast('🔙 글쓰기 모달 닫음');
-                // SocialManager.closeWriteModal() -> MISSING, using DOM
-                const el = document.getElementById('write-modal');
-                if (el) el.classList.add('hidden');
+                writeModal.classList.add('hidden');
 
-                // 혹시 SocialManager 상태 플래그가 있다면 해제 (없더라도 무방)
                 if (typeof SocialManager !== 'undefined') SocialManager.isWriting = false;
                 return;
             }
 
-            // 2. 스레드 패널 (직접 닫기)
-            if (isVisible('thread-panel')) {
+            // 2. 스레드 패널 (Class: open on slide-in panel)
+            // [CRITICAL FIX] Strict check for 'open' class to prevent infinite loop
+            const threadPanel = document.getElementById('thread-panel');
+            if (threadPanel && threadPanel.classList.contains('open')) {
                 debugToast('🔙 스레드 패널 닫음');
-                // SocialManager.closeThreadPanel() -> MISSING, using DOM
-                const el = document.getElementById('thread-panel');
-                if (el) el.classList.remove('open');
+                threadPanel.classList.remove('open');
 
-                // 패널 닫을 때 연관된 상태 정리
                 const inputBar = document.querySelector('.thread-input-bar');
                 if (inputBar) inputBar.classList.add('hidden');
                 return;
@@ -1569,56 +1566,59 @@ const UIManager = {
             // 3. 대화 오버레이 (Talk Mode)
             if (typeof SocialManager !== 'undefined' && SocialManager.isTalkMode) {
                 debugToast('🔙 대화 모드 종료');
-                // SocialManager.closeTalkMode() might be missing? Check safely
                 if (typeof SocialManager.closeTalkMode === 'function') {
                     SocialManager.closeTalkMode();
                 } else {
-                    // Fallback DOM manipulation
                     const overlay = document.getElementById('talk-mode-overlay');
                     if (overlay) overlay.classList.add('hidden');
                     SocialManager.isTalkMode = false;
-
-                    // UI 복구
                     const mainUI = document.getElementById('main-ui-container');
                     if (mainUI) mainUI.classList.remove('hidden');
                 }
                 return;
             }
 
-            // 4. 대시보드 모달
+            // 4. 대시보드 모달 (Class: hidden)
             if (typeof DashboardManager !== 'undefined' && DashboardManager.isOpen) {
                  debugToast('🔙 대시보드 닫음');
                  DashboardManager.close();
                  return;
             }
-            if (isVisible('dashboard-modal')) {
+            const dashboardModal = document.getElementById('dashboard-modal');
+            if (dashboardModal && !dashboardModal.classList.contains('hidden')) {
                  debugToast('🔙 대시보드 강제 닫음');
-                 document.getElementById('dashboard-modal').classList.add('hidden');
+                 dashboardModal.classList.add('hidden');
                  if (typeof DashboardManager !== 'undefined') DashboardManager.isOpen = false;
                  return;
             }
 
-            // 5. 좌측 사이드 메뉴
-            if (isVisible('side-menu', this.elements['side-menu'])) {
+            // 5. 좌측 사이드 메뉴 (Class: open)
+            const sideMenu = document.getElementById('side-menu');
+            if (sideMenu && sideMenu.classList.contains('open')) {
                 debugToast('🔙 메뉴 닫음');
-                this.closeMenu();
+                // Use closeMenu if available or manual
+                if (this.closeMenu) this.closeMenu();
+                else sideMenu.classList.remove('open');
                 return;
             }
 
-            // 6. 기타 모달들
-            if (isVisible('my-records-modal')) {
+            // 6. 기타 모달들 (Class: hidden)
+            const myRecords = document.getElementById('my-records-modal');
+            if (myRecords && !myRecords.classList.contains('hidden')) {
                 debugToast('🔙 내 기록 닫음');
-                document.getElementById('my-records-modal').classList.add('hidden');
+                myRecords.classList.add('hidden');
                 return;
             }
 
-            if (isVisible('overlay-settings-modal')) {
+            const overlaySettings = document.getElementById('overlay-settings-modal');
+            if (overlaySettings && !overlaySettings.classList.contains('hidden')) {
                  debugToast('🔙 설정 모달 닫음');
-                 document.getElementById('overlay-settings-modal').classList.add('hidden');
+                 overlaySettings.classList.add('hidden');
                  return;
             }
 
-            if (isVisible('waypoint-modal')) {
+            const waypointModal = document.getElementById('waypoint-modal');
+            if (waypointModal && !waypointModal.classList.contains('hidden')) {
                  debugToast('🔙 경유지 모달 닫음');
                  this.handleWaypointAction('cancel');
                  return;
