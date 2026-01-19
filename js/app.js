@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         console.log('🪟 Floating mode activated:', AppState.floatingDest);
+
+        // [FIX-1] 플로팅 모드에서 스플래시 강제 제거 (동영상 자동재생 실패 방지)
+        document.querySelector('.splash-screen')?.remove();
     }
 
     // 스플래시 화면 표시 후 온보딩 또는 메인 화면으로 전환
