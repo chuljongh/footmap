@@ -152,8 +152,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     if (savedState) {
-                        // 시간 조건 없이 무조건 자동 복원 (Seamless)
-                        await UIManager.restoreNavigationSession(savedState);
+                        // [FIX-1] 10분 이내의 세션만 복원 (오래된 세션 자동 시작 방지)
+                        const TEN_MINUTES = 10 * 60 * 1000;
+                        const sessionAge = Date.now() - (savedState.lastUpdate || savedState.startTime || 0);
+
+                        if (sessionAge < TEN_MINUTES && savedState.destination) {
+                            console.log('🔄 Restoring recent session:', sessionAge / 1000, 'seconds old');
+                            await UIManager.restoreNavigationSession(savedState);
+                        } else {
+                            console.log('⏰ Session too old or invalid, skipping restore:', sessionAge / 1000, 'seconds');
+                            // 오래된 세션 정리
+                            localStorage.removeItem('emergency_nav_state');
+                            await DataCollector.clearSessionState?.();
+                        }
                     }
                 } catch (e) {
                     console.error('Session restore failed:', e);
