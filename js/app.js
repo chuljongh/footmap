@@ -196,6 +196,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     userMode: AppState.userMode,
                     routeHistory: AppState.routeHistory,
                     accessHistory: AppState.accessHistory,
+                    // [CRITICAL FIX] Restore Active Route & Step
+                    activeRoute: AppState.activeRoute,
+                    currentStepIndex: AppState.currentStepIndex || 0,
                     lastUpdate: Date.now()
                 };
                 // beforeunload에서는 비동기 DB 작업이 실패할 확률이 높으므로 localStorage 병행

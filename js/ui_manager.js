@@ -1439,6 +1439,7 @@ const UIManager = {
             AppState.routeHistory = state.routeHistory || [];
             AppState.accessHistory = state.accessHistory || [];
             AppState.currentStepIndex = state.currentStepIndex || 0;
+            AppState.activeRoute = state.activeRoute || null; // [CRITICAL] Restore Route Data
 
             // 2. UI 초기 상태 설정
             document.body.classList.add('search-hidden');
@@ -1449,20 +1450,35 @@ const UIManager = {
             this.updateDashboard(AppState.userMode);
             this.updateModeIndicator();
 
-            // 3. 지도 및 경로 복구 (Kakao API 재호출)
-            if (AppState.currentPosition && AppState.destination) {
-                await RouteManager.showRoute(
-                    AppState.currentPosition,
-                    AppState.destination.coords,
-                    AppState.waypoints
-                );
-                MapManager.fitViewToRoute();
-            }
-
-            // 4. 저장된 진행 상태(Step) 반영
+            // [FIX] HUD 즉시 업데이트 (GPS 대기 없이 표시)
             if (AppState.activeRoute) {
+                console.log('🔄 Restoring HUD with saved route data');
                 this.updateNavigationHUD(AppState.activeRoute);
             }
+
+            // 3. 지도 및 경로 복구
+            // GPS가 아직 없으면 저장된 마지막 위치나 경로 시작점 사용
+            const lastKnownPos = (AppState.routeHistory.length > 0)
+                 ? AppState.routeHistory[AppState.routeHistory.length - 1].coords
+                 : null;
+
+            if (AppState.currentPosition || lastKnownPos) {
+                 const startPos = AppState.currentPosition || lastKnownPos;
+                 if (AppState.destination) {
+                     // 이미 계산된 activeRoute가 있다면 API 호출 없이 그리기만 시도할 수도 있지만
+                     // 안전하게 재호출하여 맵 매칭 보정
+                     await RouteManager.showRoute(
+                        startPos,
+                        AppState.destination.coords,
+                        AppState.waypoints
+                    );
+                    MapManager.fitViewToRoute();
+                 }
+            } else if (AppState.activeRoute) {
+                // 위치는 모르지만 경로는 있는 경우 (매우 드묾) -> 경로라도 그림
+                RouteManager.drawRoute(AppState.activeRoute.geometry);
+            }
+
 
             // 5. Wake Lock 재요청
             this.requestWakeLock();
