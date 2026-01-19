@@ -3347,3 +3347,79 @@ body.search-hidden .top-bar-wrapper {
     .marker-number { font-size: 11px !important; }
     .user-dot { width: 16px !important; height: 16px !important; border-width: 2px !important; }
 }
+
+/* ========================================
+   플로팅 모드 (안드로이드 오버레이)
+   - 상단/하단 바 숨김
+   - 지도 전체화면
+   - HUD와 메시지만 표시
+   ======================================== */
+body.floating-mode .top-bar,
+body.floating-mode #search-btn,
+body.floating-mode .bottom-bar,
+body.floating-mode .modal,
+body.floating-mode .overlay,
+body.floating-mode #menu-panel,
+body.floating-mode .splash-screen,
+body.floating-mode #talk-overlay {
+    display: none !important;
+}
+
+/* 플로팅 모드: 지도 전체화면 */
+body.floating-mode #map-container,
+body.floating-mode #map {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+}
+
+/* 플로팅 모드: HUD 조정 (더 컴팩트하게) */
+body.floating-mode .navigation-hud {
+    top: 8px !important;
+    left: 8px !important;
+    right: 8px !important;
+    z-index: 1000 !important;
+}
+
+body.floating-mode .hud-card {
+    padding: 6px 10px !important;
+}
+
+body.floating-mode .hud-card-main .hud-icon.large {
+    width: 28px !important;
+    height: 28px !important;
+}
+
+body.floating-mode .hud-card-main .hud-value.large {
+    font-size: 22px !important;
+}
+
+/* 플로팅 모드: 메시지 오버레이 (하단 고정) */
+body.floating-mode #message-overlay {
+    position: fixed !important;
+    bottom: 8px !important;
+    left: 8px !important;
+    right: 8px !important;
+    top: auto !important;
+    z-index: 1000 !important;
+    background: transparent !important;
+    pointer-events: auto !important;
+}
+
+body.floating-mode .message-cards-container {
+    max-height: 40% !important;
+    overflow: hidden !important;
+}
+
+/* 플로팅 모드: 불필요한 요소 숨김 */
+body.floating-mode .dashboard-container,
+body.floating-mode .position-recenter-btn,
+body.floating-mode .ol-control,
+body.floating-mode .ol-attribution {
+    display: none !important;
+}

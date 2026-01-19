@@ -3,7 +3,28 @@
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
 
+    // ========================================
+    // [NEW] 플로팅 모드 감지 (안드로이드 오버레이)
+    // URL: ?mode=floating&dest_lat=37.5&dest_lng=127.0&dest_name=목적지
+    // ========================================
+    const urlParams = new URLSearchParams(window.location.search);
+    const isFloatingMode = urlParams.get('mode') === 'floating';
 
+    if (isFloatingMode) {
+        AppState.isFloatingMode = true;
+        document.body.classList.add('floating-mode');
+
+        // 목적지 파라미터 파싱
+        const destLat = parseFloat(urlParams.get('dest_lat'));
+        const destLng = parseFloat(urlParams.get('dest_lng'));
+        const destName = urlParams.get('dest_name') || '목적지';
+
+        if (!isNaN(destLat) && !isNaN(destLng)) {
+            AppState.floatingDest = { lat: destLat, lng: destLng, name: destName };
+        }
+
+        console.log('🪟 Floating mode activated:', AppState.floatingDest);
+    }
 
     // 스플래시 화면 표시 후 온보딩 또는 메인 화면으로 전환
     setTimeout(async () => {
@@ -81,6 +102,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             // [NEW] 세션 복원 서비스 (Seamless Navigation)
             setTimeout(async () => {
                 try {
+                    // [FLOATING MODE] 플로팅 모드에서 목적지가 전달된 경우 자동 경로 안내
+                    if (AppState.isFloatingMode && AppState.floatingDest) {
+                        console.log('🪟 Floating mode: Auto-starting navigation to', AppState.floatingDest);
+                        const { lat, lng, name } = AppState.floatingDest;
+
+                        // 목적지 설정
+                        AppState.destination = { name, coords: [lng, lat] };
+                        MapManager.setDestination([lng, lat]);
+
+                        // GPS 위치 확보 대기 후 경로 안내 시작
+                        const waitForPosition = () => {
+                            if (AppState.currentPosition) {
+                                UIManager.handleNavigateStart();
+                                // [NEW] 메시지 오버레이 자동 열기
+                                setTimeout(() => SocialManager.openTalkMode(), 500);
+                            } else {
+                                setTimeout(waitForPosition, 500);
+                            }
+                        };
+                        setTimeout(waitForPosition, 1000);
+                        return; // 플로팅 모드에서는 세션 복원 스킵
+                    }
+
+                    // [FLOATING MODE] 목적지 없이 플로팅 모드로 진입한 경우 (세션 복원 후 메시지 열기)
+                    if (AppState.isFloatingMode) {
+                        // 세션 복원 후 메시지 열기 예약
+                        setTimeout(() => SocialManager.openTalkMode(), 2000);
+                    }
+
                     let savedState = await DataCollector.loadSessionState();
 
                     // [fallback] IndexedDB에 없으면 localStorage(비상용) 확인

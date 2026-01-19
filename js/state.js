@@ -44,7 +44,11 @@ const AppState = {
 
     // [NEW] 경로 이탈 재탐색
     rerouteTimer: null,       // 재탐색 대기 타이머
-    lastRerouteTime: 0        // 마지막 재탐색 시각 (쿨다운용)
+    lastRerouteTime: 0,       // 마지막 재탐색 시각 (쿨다운용)
+
+    // [NEW] 플로팅 모드 (안드로이드 오버레이)
+    isFloatingMode: false,    // URL 파라미터 ?mode=floating 감지
+    floatingDest: null        // { lat, lng, name } - 플로팅에서 전달받은 목적지
 };
 
 // Explicit Global Export
