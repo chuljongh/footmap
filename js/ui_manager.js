@@ -1502,6 +1502,129 @@ const UIManager = {
             AppState.wakeLock = null;
 
         }
+    },
+
+    // [PHASE 8] 안드로이드 물리 뒤로가기 대응 (계층형 - Debugging & Robust Version)
+    handleBackAction() {
+        // [DEBUG] 진단용 토스트 출력
+        const debugToast = (msg) => {
+            if (window.Android && window.Android.showToast) {
+                window.Android.showToast(msg);
+            }
+            console.log(msg);
+        };
+
+        debugToast('🔍 Web: handleBackAction 호출됨');
+
+        // 가시성 체크 헬퍼 함수 (Robust check)
+        const isVisible = (elId, elRef = null) => {
+            const el = elRef || document.getElementById(elId);
+            if (!el) return false;
+
+            // 1. 클래스 체크 (.hidden이 없거나 .open/.visible이 있거나)
+            const hasHidden = el.classList.contains('hidden');
+            const hasOpen = el.classList.contains('open');
+            const hasVisible = el.classList.contains('visible');
+
+            // 2. 실제 스타일 체크
+            const style = window.getComputedStyle(el);
+            const isDisplayAds = style.display !== 'none';
+            const isVisibilityAds = style.visibility !== 'hidden';
+            const isOpacityAds = style.opacity !== '0';
+
+            // 종합 판단: hidden 클래스가 없고, 실제 display가 none이 아니어야 함
+            // 또는 open/visible 클래스가 명시적으로 있고 실제 보여야 함
+            if (hasOpen || hasVisible) {
+                return isDisplayAds && isVisibilityAds && isOpacityAds;
+            }
+            return !hasHidden && isDisplayAds && isVisibilityAds && isOpacityAds;
+        };
+
+        // 1. 글쓰기 모달
+        if (typeof SocialManager !== 'undefined') {
+            if (isVisible('write-modal')) {
+                debugToast('🔙 글쓰기 모달 닫음');
+                SocialManager.closeWriteModal();
+                return;
+            }
+
+            // 2. 스레드 패널
+            if (isVisible('thread-panel')) {
+                debugToast('🔙 스레드 패널 닫음');
+                SocialManager.closeThreadPanel();
+                return;
+            }
+
+            // 3. 대화 오버레이 (Talk Mode)
+            if (SocialManager.isTalkMode) {
+                debugToast('🔙 대화 모드 종료');
+                SocialManager.closeTalkMode();
+                return;
+            }
+        }
+
+        // 4. 대시보드 모달
+        if (typeof DashboardManager !== 'undefined' && DashboardManager.isOpen) {
+             debugToast('🔙 대시보드 닫음');
+             DashboardManager.close();
+             return;
+        }
+        // 혹시 모르니 DOM 직접 체크
+        if (isVisible('dashboard-modal')) {
+             debugToast('🔙 대시보드 강제 닫음');
+             document.getElementById('dashboard-modal').classList.add('hidden');
+             DashboardManager.isOpen = false;
+             return;
+        }
+
+        // 5. 좌측 사이드 메뉴
+        if (isVisible('side-menu', this.elements['side-menu'])) {
+            debugToast('🔙 메뉴 닫음');
+            this.closeMenu();
+            return;
+        }
+
+        // 6. 기타 모달들
+        if (isVisible('my-records-modal')) {
+            debugToast('🔙 내 기록 닫음');
+            document.getElementById('my-records-modal').classList.add('hidden');
+            return;
+        }
+
+        if (isVisible('overlay-settings-modal')) {
+             debugToast('🔙 설정 모달 닫음');
+             document.getElementById('overlay-settings-modal').classList.add('hidden');
+             return;
+        }
+
+        if (isVisible('waypoint-modal')) {
+             debugToast('🔙 경유지 모달 닫음');
+             this.handleWaypointAction('cancel');
+             return;
+        }
+
+        // 7. 검색 제안/기록 (visible 클래스 사용)
+        const searchSuggestions = document.getElementById('search-suggestions');
+        if (searchSuggestions && (searchSuggestions.classList.contains('visible') || searchSuggestions.classList.contains('history-mode'))) {
+             debugToast('🔙 검색 제안 닫음');
+             searchSuggestions.classList.remove('visible', 'history-mode');
+             return;
+        }
+
+        // 7.1 태그 검색 결과 뷰 (소셜 매니저 내부)
+        const tagsResult = document.getElementById('tags-result-view');
+        if (tagsResult && !tagsResult.classList.contains('hidden')) {
+             debugToast('🔙 태그 검색 결과 닫음');
+             tagsResult.classList.add('hidden');
+             document.getElementById('tags-main-view')?.classList.remove('hidden');
+             return;
+        }
+
+        // 8. 더 이상 닫을 것이 없음 -> 안드로이드에게 위임
+        debugToast('🚪 앱 종료/내비 종료 요청');
+        if (window.Android && window.Android.triggerBackExit) {
+            window.Android.triggerBackExit();
+        }
     }
 };
 
