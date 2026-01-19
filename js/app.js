@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 스플래시 화면 표시 후 온보딩 또는 메인 화면으로 전환
+    // [FLOATING MODE] 플로팅 모드에서는 스플래시 스킵
+    const splashDelay = isFloatingMode ? 0 : 1500;
     setTimeout(async () => {
         try {
 
@@ -180,5 +182,5 @@ document.addEventListener('DOMContentLoaded', async () => {
                 localStorage.removeItem('emergency_nav_state');
             }
         });
-    }, 1500); // 2000ms -> 1500ms로 단축 (영상 루프 최적화)
+    }, splashDelay); // 플로팅 모드: 0ms, 일반 모드: 1500ms
 });
