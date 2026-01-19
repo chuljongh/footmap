@@ -292,6 +292,15 @@ body .hidden {
     z-index: 10;
 }
 
+.splash-character::-webkit-media-controls {
+    display: none !important;
+}
+
+.splash-character::-webkit-media-controls-start-playback-button {
+    display: none !important;
+    -webkit-appearance: none;
+}
+
 .mode-icon-img {
     width: 1.5rem;
     /* SVG 기본 크기와 맞춤 */
