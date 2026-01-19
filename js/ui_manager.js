@@ -1483,6 +1483,13 @@ const UIManager = {
             // 5. Wake Lock 재요청
             this.requestWakeLock();
 
+            // [FIX] 안드로이드 상태 동기화 (재시작 시 플로팅 모드 정상 동작 위해 필수)
+            if (window.Android && window.Android.setNavigationState && AppState.destination) {
+                const coords = AppState.destination.coords;
+                const name = AppState.destination.name || '목적지';
+                window.Android.setNavigationState(true, coords[1], coords[0], name);
+            }
+
             // 세션 복원 완료 (Seamless - 토스트 없음)
             console.log('✅ Session restored successfully');
         } catch (err) {
@@ -1520,30 +1527,51 @@ const UIManager = {
         }
     },
 
-    // [PHASE 8] 안드로이드 물리 뒤로가기 대응 (계층형 - Debugging & Robust Version)
+    // [PHASE 8] 안드로이드 물리 뒤로가기 대응 (계층형 - Robust Version)
     handleBackAction() {
-        try {
-            // 1. 글쓰기 모달 (Class: hidden)
-            const writeModal = document.getElementById('write-modal');
-            if (writeModal && !writeModal.classList.contains('hidden')) {
-                writeModal.classList.add('hidden');
+        // 헬퍼: 안전한 가시성 체크 (무한 루프 방지)
+        // 화면에 실제로 공간을 차지하고 있고, 뷰포트 내에 존재하는지 확인
+        const isSafeVisible = (el) => {
+            if (!el) return false;
+            // 1. 기본 스타일 체크
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+            if (el.classList.contains('hidden')) return false;
 
+            // 2. 화면 점유 체크 (transform 등으로 화면 밖으로 나간 경우 제외)
+            const rect = el.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return false;
+
+            // 3. 뷰포트 내 존재 여부 (일부 픽셀이라도 보여야 함)
+            const isInViewport = (
+                rect.top < window.innerHeight &&
+                rect.bottom > 0 &&
+                rect.left < window.innerWidth &&
+                rect.right > 0
+            );
+            return isInViewport;
+        };
+
+        try {
+            // 우선순위 1: 글쓰기/작성 중인 상태
+            const writeModal = document.getElementById('write-modal');
+            if (isSafeVisible(writeModal)) {
+                writeModal.classList.add('hidden');
                 if (typeof SocialManager !== 'undefined') SocialManager.isWriting = false;
                 return;
             }
 
-            // 2. 스레드 패널 (Class: open on slide-in panel)
-            // [CRITICAL FIX] Strict check for 'open' class to prevent infinite loop
+            // 우선순위 2: 스레드 패널 (슬라이드 패널)
             const threadPanel = document.getElementById('thread-panel');
+            // 슬라이드 패널은 open 클래스가 있을 때만 닫기 (visible check만으론 부족할 수 있음)
             if (threadPanel && threadPanel.classList.contains('open')) {
                 threadPanel.classList.remove('open');
-
                 const inputBar = document.querySelector('.thread-input-bar');
                 if (inputBar) inputBar.classList.add('hidden');
                 return;
             }
 
-            // 3. 대화 오버레이 (Talk Mode)
+            // 우선순위 3: 대화 모드 / 오버레이
             if (typeof SocialManager !== 'undefined' && SocialManager.isTalkMode) {
                 if (typeof SocialManager.closeTalkMode === 'function') {
                     SocialManager.closeTalkMode();
@@ -1551,62 +1579,54 @@ const UIManager = {
                     const overlay = document.getElementById('message-overlay');
                     if (overlay) overlay.classList.add('hidden');
                     SocialManager.isTalkMode = false;
-                    const mainUI = document.getElementById('main-ui-container');
-                    if (mainUI) mainUI.classList.remove('hidden');
+                    document.getElementById('main-ui-container')?.classList.remove('hidden');
                 }
                 return;
             }
 
-            // 4. 대시보드 모달 (Class: hidden)
-            if (typeof DashboardManager !== 'undefined' && DashboardManager.isOpen) {
-                 DashboardManager.close();
-                 return;
-            }
+            // 우선순위 4: 대시보드 및 각종 모달
             const dashboardModal = document.getElementById('dashboard-modal');
-            if (dashboardModal && !dashboardModal.classList.contains('hidden')) {
+            if (isSafeVisible(dashboardModal)) {
                  dashboardModal.classList.add('hidden');
                  if (typeof DashboardManager !== 'undefined') DashboardManager.isOpen = false;
                  return;
             }
 
-            // 5. 좌측 사이드 메뉴 (Class: open)
-            const sideMenu = document.getElementById('side-menu');
-            if (sideMenu && sideMenu.classList.contains('open')) {
-                // Use closeMenu if available or manual
-                if (this.closeMenu) this.closeMenu();
-                else sideMenu.classList.remove('open');
-                return;
-            }
-
-            // 6. 기타 모달들 (Class: hidden)
             const myRecords = document.getElementById('my-records-modal');
-            if (myRecords && !myRecords.classList.contains('hidden')) {
+            if (isSafeVisible(myRecords)) {
                 myRecords.classList.add('hidden');
                 return;
             }
 
             const overlaySettings = document.getElementById('overlay-settings-modal');
-            if (overlaySettings && !overlaySettings.classList.contains('hidden')) {
+            if (isSafeVisible(overlaySettings)) {
                  overlaySettings.classList.add('hidden');
                  return;
             }
 
             const waypointModal = document.getElementById('waypoint-modal');
-            if (waypointModal && !waypointModal.classList.contains('hidden')) {
+            if (isSafeVisible(waypointModal)) {
                  this.handleWaypointAction('cancel');
                  return;
             }
 
-            // 7. 검색 제안/기록 (visible 클래스 사용)
+            // 우선순위 5: 사이드 메뉴
+            const sideMenu = document.getElementById('side-menu');
+            if (sideMenu && sideMenu.classList.contains('open')) {
+                if (this.closeMenu) this.closeMenu();
+                else sideMenu.classList.remove('open');
+                return;
+            }
+
+            // 우선순위 6: 검색 제안 및 태그 결과
             const searchSuggestions = document.getElementById('search-suggestions');
-            if (searchSuggestions && (searchSuggestions.classList.contains('visible') || searchSuggestions.classList.contains('history-mode'))) {
+            if (isSafeVisible(searchSuggestions)) {
                  searchSuggestions.classList.remove('visible', 'history-mode');
                  return;
             }
 
-            // 7.1 태그 검색 결과 뷰
             const tagsResult = document.getElementById('tags-result-view');
-            if (tagsResult && !tagsResult.classList.contains('hidden')) {
+            if (isSafeVisible(tagsResult)) {
                  tagsResult.classList.add('hidden');
                  document.getElementById('tags-main-view')?.classList.remove('hidden');
                  return;
@@ -1614,10 +1634,9 @@ const UIManager = {
 
         } catch (e) {
             console.error('Back Action Error:', e);
-            // 에러 나더라도 종료 신호는 보내야 함
         }
 
-        // 8. 더 이상 닫을 것이 없음 -> 안드로이드에게 위임
+        // 더 이상 닫을 것이 없음 -> 안드로이드에게 위임
         if (window.Android && window.Android.triggerBackExit) {
             window.Android.triggerBackExit();
         }
