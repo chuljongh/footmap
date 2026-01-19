@@ -1516,30 +1516,6 @@ const UIManager = {
 
         debugToast('🔍 Web: handleBackAction 호출됨');
 
-        // 가시성 체크 헬퍼 함수 (Robust check)
-        const isVisible = (elId, elRef = null) => {
-            const el = elRef || document.getElementById(elId);
-            if (!el) return false;
-
-            // 1. 클래스 체크 (.hidden이 없거나 .open/.visible이 있거나)
-            const hasHidden = el.classList.contains('hidden');
-            const hasOpen = el.classList.contains('open');
-            const hasVisible = el.classList.contains('visible');
-            const hasHide = el.classList.contains('hide'); // Some elements use 'hide'
-
-            // 2. 실제 스타일 체크
-            const style = window.getComputedStyle(el);
-            const isDisplayAds = style.display !== 'none';
-            const isVisibilityAds = style.visibility !== 'hidden';
-            const isOpacityAds = style.opacity !== '0';
-
-            // 종합 판단
-            if (hasOpen || hasVisible) {
-                return isDisplayAds && isVisibilityAds && isOpacityAds && !hasHide;
-            }
-            return !hasHidden && !hasHide && isDisplayAds && isVisibilityAds && isOpacityAds;
-        };
-
         try {
             // 1. 글쓰기 모달 (Class: hidden)
             const writeModal = document.getElementById('write-modal');
