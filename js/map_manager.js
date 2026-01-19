@@ -200,12 +200,22 @@ const MapManager = {
         });
 
         // 지도 초기화
+        // [FIX] Instant Floating Mode: 플로팅 모드일 때는 Default Center 대신 Handover 위치로 즉시 초기화
+        let initialCenter = Config.DEFAULT_CENTER;
+        let initialZoom = Config.DEFAULT_ZOOM;
+
+        if (AppState.isFloatingMode && AppState.currentPosition) {
+            initialCenter = AppState.currentPosition;
+            initialZoom = 17; // 내비 모드 줌 레벨
+            console.log('⚡ Instant init at handover position:', initialCenter);
+        }
+
         AppState.map = new ol.Map({
             target: 'map',
             layers: [mapLayer, AppState.trajectoryLayer, AppState.routeLayer],
             view: new ol.View({
-                center: ol.proj.fromLonLat(Config.DEFAULT_CENTER),
-                zoom: Config.DEFAULT_ZOOM
+                center: ol.proj.fromLonLat(initialCenter),
+                zoom: initialZoom
             }),
             interactions: ol.interaction.defaults.defaults({ doubleClickZoom: false }),
             controls: ol.control.defaults.defaults({ attribution: false, zoom: false })

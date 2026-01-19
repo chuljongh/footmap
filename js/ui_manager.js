@@ -1447,14 +1447,28 @@ const UIManager = {
             document.getElementById('dashboard-container')?.classList.remove('hidden');
             document.getElementById('pre-nav-actions')?.classList.add('hidden');
 
-            this.updateDashboard(AppState.userMode);
             this.updateModeIndicator();
 
-            // [FIX] HUD 즉시 업데이트 (GPS 대기 없이 표시)
+            // [FIX] Cold Start Hydration: GPS 대기 전에 저장된 위치로 AppState 초기화
+            // 이렇게 해야 updateNavigationHUD 계산 시 0m가 나오지 않음
+            if (!AppState.currentPosition) {
+                if (AppState.routeHistory && AppState.routeHistory.length > 0) {
+                    AppState.currentPosition = AppState.routeHistory[AppState.routeHistory.length - 1].coords;
+                } else if (AppState.activeRoute && AppState.activeRoute.geometry) {
+                    // 최악의 경우 경로의 시작점을 현재 위치로 가정
+                    const firstCoord = AppState.activeRoute.geometry.coordinates[0];
+                    AppState.currentPosition = ol.proj.toLonLat(firstCoord);
+                }
+            }
+
+            // [FIX] HUD 즉시 업데이트 (GPS 대기 없이 표시 & Hydrated Position 사용)
             if (AppState.activeRoute) {
-                console.log('🔄 Restoring HUD with saved route data');
+                console.log('🔄 Restoring HUD with hydrated position:', AppState.currentPosition);
                 this.updateNavigationHUD(AppState.activeRoute);
             }
+
+            // [FIX] 상태바 업데이트 (목적지 정보가 확실히 로드된 후 실행)
+            this.updateDashboard(AppState.userMode);
 
             // 3. 지도 및 경로 복구
             // GPS가 아직 없으면 저장된 마지막 위치나 경로 시작점 사용
