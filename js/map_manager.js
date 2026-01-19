@@ -362,6 +362,12 @@ const MapManager = {
 
     updateCurrentPosition(coords, heading = null, speed = null, accuracy = null) {
         AppState.currentPosition = coords;
+
+        // [NEW] 안드로이드 브릿지 호출 (위치 대기 시간 단축용)
+        if (window.Android && window.Android.updateCurrentLocation) {
+            window.Android.updateCurrentLocation(coords[1], coords[0]);
+        }
+
         const mapCoords = ol.proj.fromLonLat(coords);
 
         // ===== 1. 마커 위치 업데이트 (항상 실행) =====

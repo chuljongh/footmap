@@ -23,6 +23,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             AppState.floatingDest = { lat: destLat, lng: destLng, name: destName };
         }
 
+        // 시작 위치 파라미터 파싱 (Seoul City Hall 방지용 Handover)
+        const startLat = parseFloat(urlParams.get('start_lat'));
+        const startLng = parseFloat(urlParams.get('start_lng'));
+        if (!isNaN(startLat) && !isNaN(startLng)) {
+            AppState.currentPosition = [startLng, startLat];
+            console.log('📍 Handover position applied:', AppState.currentPosition);
+        }
+
         console.log('🪟 Floating mode activated:', AppState.floatingDest);
 
         // [FIX-1] 플로팅 모드에서 스플래시 강제 제거 (동영상 자동재생 실패 방지)

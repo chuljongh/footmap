@@ -846,6 +846,8 @@ const UIManager = {
 
     handleNavigate(forceStop = false) {
         const btn = document.getElementById('navigate-btn');
+        // HUD 표시 최적화
+        const hud = document.getElementById('navigation-hud');
         // [FIX] forceStop일 때는 버튼이 disabled여도 진행 (안내 종료 강제 실행)
         if (!forceStop && btn && btn.classList.contains('disabled')) return;
 
@@ -1116,6 +1118,11 @@ const UIManager = {
             DataCollector.clearSessionState();
         }
 
+        // [NEW] 안드로이드 브릿지 호출 (내비 종료 알림)
+        if (window.Android && window.Android.setNavigationState) {
+            window.Android.setNavigationState(false, 0, 0, "");
+        }
+
         // [NEW] 재탐색 타이머 정리
         this.clearRerouteTimer();
 
@@ -1165,6 +1172,13 @@ const UIManager = {
 
         // Wake Lock - 화면 꺼짐 방지
         this.requestWakeLock();
+
+        // [NEW] 안드로이드 브릿지 호출 (내비 시작 알림)
+        if (window.Android && window.Android.setNavigationState) {
+            const coords = AppState.destination.coords;
+            const name = AppState.destination.name || '목적지';
+            window.Android.setNavigationState(true, coords[1], coords[0], name);
+        }
 
         document.body.classList.add('search-hidden');
         document.getElementById('navigation-hud')?.classList.remove('hidden');
