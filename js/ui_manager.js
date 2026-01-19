@@ -1111,6 +1111,7 @@ const UIManager = {
         this.processAndSaveRoute();
 
         // [NEW] 세션 상태 삭제 (정상 종료)
+        localStorage.removeItem('emergency_nav_state'); // [CRITICAL] 0m 자동 안내 방지
         if (typeof DataCollector !== 'undefined') {
             DataCollector.clearSessionState();
         }
