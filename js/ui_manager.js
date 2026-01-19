@@ -1525,6 +1525,7 @@ const UIManager = {
             const hasHidden = el.classList.contains('hidden');
             const hasOpen = el.classList.contains('open');
             const hasVisible = el.classList.contains('visible');
+            const hasHide = el.classList.contains('hide'); // Some elements use 'hide'
 
             // 2. 실제 스타일 체크
             const style = window.getComputedStyle(el);
@@ -1532,92 +1533,118 @@ const UIManager = {
             const isVisibilityAds = style.visibility !== 'hidden';
             const isOpacityAds = style.opacity !== '0';
 
-            // 종합 판단: hidden 클래스가 없고, 실제 display가 none이 아니어야 함
-            // 또는 open/visible 클래스가 명시적으로 있고 실제 보여야 함
+            // 종합 판단
             if (hasOpen || hasVisible) {
-                return isDisplayAds && isVisibilityAds && isOpacityAds;
+                return isDisplayAds && isVisibilityAds && isOpacityAds && !hasHide;
             }
-            return !hasHidden && isDisplayAds && isVisibilityAds && isOpacityAds;
+            return !hasHidden && !hasHide && isDisplayAds && isVisibilityAds && isOpacityAds;
         };
 
-        // 1. 글쓰기 모달
-        if (typeof SocialManager !== 'undefined') {
+        try {
+            // 1. 글쓰기 모달 (직접 닫기)
             if (isVisible('write-modal')) {
                 debugToast('🔙 글쓰기 모달 닫음');
-                SocialManager.closeWriteModal();
+                // SocialManager.closeWriteModal() -> MISSING, using DOM
+                const el = document.getElementById('write-modal');
+                if (el) el.classList.add('hidden');
+
+                // 혹시 SocialManager 상태 플래그가 있다면 해제 (없더라도 무방)
+                if (typeof SocialManager !== 'undefined') SocialManager.isWriting = false;
                 return;
             }
 
-            // 2. 스레드 패널
+            // 2. 스레드 패널 (직접 닫기)
             if (isVisible('thread-panel')) {
                 debugToast('🔙 스레드 패널 닫음');
-                SocialManager.closeThreadPanel();
+                // SocialManager.closeThreadPanel() -> MISSING, using DOM
+                const el = document.getElementById('thread-panel');
+                if (el) el.classList.remove('open');
+
+                // 패널 닫을 때 연관된 상태 정리
+                const inputBar = document.querySelector('.thread-input-bar');
+                if (inputBar) inputBar.classList.add('hidden');
                 return;
             }
 
             // 3. 대화 오버레이 (Talk Mode)
-            if (SocialManager.isTalkMode) {
+            if (typeof SocialManager !== 'undefined' && SocialManager.isTalkMode) {
                 debugToast('🔙 대화 모드 종료');
-                SocialManager.closeTalkMode();
+                // SocialManager.closeTalkMode() might be missing? Check safely
+                if (typeof SocialManager.closeTalkMode === 'function') {
+                    SocialManager.closeTalkMode();
+                } else {
+                    // Fallback DOM manipulation
+                    const overlay = document.getElementById('talk-mode-overlay');
+                    if (overlay) overlay.classList.add('hidden');
+                    SocialManager.isTalkMode = false;
+
+                    // UI 복구
+                    const mainUI = document.getElementById('main-ui-container');
+                    if (mainUI) mainUI.classList.remove('hidden');
+                }
                 return;
             }
-        }
 
-        // 4. 대시보드 모달
-        if (typeof DashboardManager !== 'undefined' && DashboardManager.isOpen) {
-             debugToast('🔙 대시보드 닫음');
-             DashboardManager.close();
-             return;
-        }
-        // 혹시 모르니 DOM 직접 체크
-        if (isVisible('dashboard-modal')) {
-             debugToast('🔙 대시보드 강제 닫음');
-             document.getElementById('dashboard-modal').classList.add('hidden');
-             DashboardManager.isOpen = false;
-             return;
-        }
+            // 4. 대시보드 모달
+            if (typeof DashboardManager !== 'undefined' && DashboardManager.isOpen) {
+                 debugToast('🔙 대시보드 닫음');
+                 DashboardManager.close();
+                 return;
+            }
+            if (isVisible('dashboard-modal')) {
+                 debugToast('🔙 대시보드 강제 닫음');
+                 document.getElementById('dashboard-modal').classList.add('hidden');
+                 if (typeof DashboardManager !== 'undefined') DashboardManager.isOpen = false;
+                 return;
+            }
 
-        // 5. 좌측 사이드 메뉴
-        if (isVisible('side-menu', this.elements['side-menu'])) {
-            debugToast('🔙 메뉴 닫음');
-            this.closeMenu();
-            return;
-        }
+            // 5. 좌측 사이드 메뉴
+            if (isVisible('side-menu', this.elements['side-menu'])) {
+                debugToast('🔙 메뉴 닫음');
+                this.closeMenu();
+                return;
+            }
 
-        // 6. 기타 모달들
-        if (isVisible('my-records-modal')) {
-            debugToast('🔙 내 기록 닫음');
-            document.getElementById('my-records-modal').classList.add('hidden');
-            return;
-        }
+            // 6. 기타 모달들
+            if (isVisible('my-records-modal')) {
+                debugToast('🔙 내 기록 닫음');
+                document.getElementById('my-records-modal').classList.add('hidden');
+                return;
+            }
 
-        if (isVisible('overlay-settings-modal')) {
-             debugToast('🔙 설정 모달 닫음');
-             document.getElementById('overlay-settings-modal').classList.add('hidden');
-             return;
-        }
+            if (isVisible('overlay-settings-modal')) {
+                 debugToast('🔙 설정 모달 닫음');
+                 document.getElementById('overlay-settings-modal').classList.add('hidden');
+                 return;
+            }
 
-        if (isVisible('waypoint-modal')) {
-             debugToast('🔙 경유지 모달 닫음');
-             this.handleWaypointAction('cancel');
-             return;
-        }
+            if (isVisible('waypoint-modal')) {
+                 debugToast('🔙 경유지 모달 닫음');
+                 this.handleWaypointAction('cancel');
+                 return;
+            }
 
-        // 7. 검색 제안/기록 (visible 클래스 사용)
-        const searchSuggestions = document.getElementById('search-suggestions');
-        if (searchSuggestions && (searchSuggestions.classList.contains('visible') || searchSuggestions.classList.contains('history-mode'))) {
-             debugToast('🔙 검색 제안 닫음');
-             searchSuggestions.classList.remove('visible', 'history-mode');
-             return;
-        }
+            // 7. 검색 제안/기록 (visible 클래스 사용)
+            const searchSuggestions = document.getElementById('search-suggestions');
+            if (searchSuggestions && (searchSuggestions.classList.contains('visible') || searchSuggestions.classList.contains('history-mode'))) {
+                 debugToast('🔙 검색 제안 닫음');
+                 searchSuggestions.classList.remove('visible', 'history-mode');
+                 return;
+            }
 
-        // 7.1 태그 검색 결과 뷰 (소셜 매니저 내부)
-        const tagsResult = document.getElementById('tags-result-view');
-        if (tagsResult && !tagsResult.classList.contains('hidden')) {
-             debugToast('🔙 태그 검색 결과 닫음');
-             tagsResult.classList.add('hidden');
-             document.getElementById('tags-main-view')?.classList.remove('hidden');
-             return;
+            // 7.1 태그 검색 결과 뷰
+            const tagsResult = document.getElementById('tags-result-view');
+            if (tagsResult && !tagsResult.classList.contains('hidden')) {
+                 debugToast('🔙 태그 검색 결과 닫음');
+                 tagsResult.classList.add('hidden');
+                 document.getElementById('tags-main-view')?.classList.remove('hidden');
+                 return;
+            }
+
+        } catch (e) {
+            console.error('Back Action Error:', e);
+            debugToast('⚠️ Back Action Error: ' + e.message);
+            // 에러 나더라도 종료 신호는 보내야 함
         }
 
         // 8. 더 이상 닫을 것이 없음 -> 안드로이드에게 위임
