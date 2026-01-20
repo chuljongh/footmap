@@ -1638,7 +1638,7 @@ const UIManager = {
                  searchSuggestions.classList.remove('visible', 'history-mode');
                  return;
             }
-
+            // 우선순위 7: 태그 검색 결과 뷰
             const tagsResult = document.getElementById('tags-result-view');
             if (isSafeVisible(tagsResult)) {
                  tagsResult.classList.add('hidden');
@@ -1646,11 +1646,19 @@ const UIManager = {
                  return;
             }
 
+            // [FIX] 우선순위 8: 내비게이션 중이면 즉시 종료 (즉시 반응)
+            // 안드로이드에 물어봤다가 다시 돌아오는 핑퐁 딜레이(약 3초) 제거
+            if (AppState.isNavigating) {
+                console.log('⚡ Instant Navigation Stop via Back Button');
+                this.executeNavigationStop();
+                return;
+            }
+
         } catch (e) {
             console.error('Back Action Error:', e);
         }
 
-        // 더 이상 닫을 것이 없음 -> 안드로이드에게 위임
+        // 더 이상 닫을 것이 없음 -> 안드로이드에게 위임 (앱 종료 등)
         if (window.Android && window.Android.triggerBackExit) {
             window.Android.triggerBackExit();
         }
