@@ -1109,8 +1109,10 @@ const UIManager = {
         }
         if (AppState.map) AppState.map.render();
 
-        // 3. Data Saving (Async, Safe)
-        this.processAndSaveRoute();
+        // 3. Data Saving (Deferred to prevent UI freeze)
+        setTimeout(() => {
+             this.processAndSaveRoute();
+        }, 50);
 
         // [NEW] 세션 상태 삭제 (정상 종료)
         localStorage.removeItem('emergency_nav_state'); // [CRITICAL] 0m 자동 안내 방지
