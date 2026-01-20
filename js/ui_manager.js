@@ -1663,6 +1663,19 @@ const UIManager = {
         if (window.Android && window.Android.triggerBackExit) {
             window.Android.triggerBackExit();
         }
+    },
+
+    // [NEW] Native PIP 모드 전환 핸들러 (안드로이드에서 호출)
+    setPIPMode(isPip) {
+        console.log('PIP Mode Changed:', isPip);
+        if (isPip) {
+            document.body.classList.add('pip-mode');
+            // PIP 모드에서는 모달 등 강제 닫기
+            const modals = document.querySelectorAll('.modal, .overlay-container');
+            modals.forEach(el => el.classList.add('hidden'));
+        } else {
+            document.body.classList.remove('pip-mode');
+        }
     }
 };
 
