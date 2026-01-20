@@ -123,6 +123,39 @@ const Utils = {
 
 
 
+    // [NEW] 경로 단순화 알고리즘 (Douglas-Peucker)
+    // points: [{coords: [127, 37], timestamp: ...}, ...]
+    // epsilon: 허용 오차 (미터 단위, 약 2~5m 권장)
+    simplifyPath(points, epsilon = 2) {
+        if (!points || points.length <= 2) return points;
+
+        const findMaximumDistance = (pts, start, end) => {
+            let maxDist = 0;
+            let index = 0;
+            for (let i = start + 1; i < end; i++) {
+                const dist = this.distanceToLineSegment(pts[i].coords, pts[start].coords, pts[end].coords);
+                if (dist > maxDist) {
+                    maxDist = dist;
+                    index = i;
+                }
+            }
+            return { maxDist, index };
+        };
+
+        const simplifyRecursive = (pts, start, end, eps) => {
+            const { maxDist, index } = findMaximumDistance(pts, start, end);
+            if (maxDist > eps) {
+                const left = simplifyRecursive(pts, start, index, eps);
+                const right = simplifyRecursive(pts, index, end, eps);
+                return [...left.slice(0, -1), ...right];
+            } else {
+                return [pts[start], pts[end]];
+            }
+        };
+
+        return simplifyRecursive(points, 0, points.length - 1, epsilon);
+    },
+
     // 두 좌표 간 거리 계산 (Haversine formula, 단위: 미터)
     calculateDistance(coord1, coord2) {
         if (!coord1 || !coord2) return 0;

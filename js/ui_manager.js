@@ -20,7 +20,7 @@ const UIManager = {
 
     cacheElements() {
         const ids = [
-            'splash-screen', 'permission-screen', 'mode-screen', 'main-screen',
+            'permission-screen', 'mode-screen', 'main-screen',
             'chat-btn', 'write-btn', 'navigate-btn', 'mode-indicator',
             'dashboard-container', 'stop-nav-btn', 'write-modal',
             'search-input', 'search-clear-btn', 'search-suggestions',
@@ -846,10 +846,18 @@ const UIManager = {
 
     handleNavigate(forceStop = false) {
         const btn = document.getElementById('navigate-btn');
-        // HUD 표시 최적화
         const hud = document.getElementById('navigation-hud');
-        // [FIX] forceStop일 때는 버튼이 disabled여도 진행 (안내 종료 강제 실행)
-        if (!forceStop && btn && btn.classList.contains('disabled')) return;
+
+        // [Optimization] 즉각적인 버튼 UI 피드백 (반응성 강화)
+        if (btn && !btn.classList.contains('disabled')) {
+            const textSpan = btn.querySelector('.btn-text');
+            if (textSpan) textSpan.textContent = forceStop || AppState.isNavigating ? '종료 중...' : '준비 중...';
+            btn.classList.add('disabled'); // 중복 클릭 시 마다 처리 방지
+        }
+
+        if (!forceStop && btn && btn.classList.contains('disabled')) {
+            // 이미 위에서 비활성화했으므로 실제 로직 진행
+        }
 
         if (forceStop || AppState.isNavigating) {
             // [STOP NAVIGATION]
@@ -976,7 +984,10 @@ const UIManager = {
                     }
                 }
 
-                if (validPoints.length >= 5 && totalDistance >= 1) {
+                // [Optimization] 경로 단순화 수행 (용량 및 처리 속도 향상)
+                const simplifiedPoints = Utils.simplifyPath(validPoints, 2); // 2m 오차범위 내 단순화
+
+                if (simplifiedPoints.length >= 2 && totalDistance >= 1) {
                     // [NEW] 접근 경로 추출
                     const approachPath = (typeof DataCollector !== 'undefined')
                         ? DataCollector.extractApproachPath(Config.APPROACH_BACKTRACK_SECONDS)
@@ -984,12 +995,12 @@ const UIManager = {
 
                     DataCollector.saveRoute({
                         distance: totalDistance / 1000,
-                        duration: (validPoints[validPoints.length - 1].timestamp - validPoints[0].timestamp) / 1000,
+                        duration: (simplifiedPoints[simplifiedPoints.length - 1].timestamp - simplifiedPoints[0].timestamp) / 1000,
                         mode: AppState.userMode || 'walking',
-                        startCoords: validPoints[0].coords.join(','),
-                        endCoords: validPoints[validPoints.length - 1].coords.join(','),
+                        startCoords: simplifiedPoints[0].coords.join(','),
+                        endCoords: simplifiedPoints[simplifiedPoints.length - 1].coords.join(','),
                         destinationCoords: AppState.destination.coords.join(','),
-                        points: validPoints,
+                        points: simplifiedPoints,
                         approachPath: approachPath // [NEW] 접근 경로 포함
                     }).catch(e => console.error('Route save err:', e));
                 }
@@ -1079,17 +1090,20 @@ const UIManager = {
 
     // [REFACTORED] 실제 안내 종료 실행
     executeNavigationStop(btn) {
-        // 1. UI & State Cleanup (Priority)
+        // [Optimization Priority 1] Android Bridge Call - 앱/플로팅 핸도버 즉시 중단
+        if (window.Android && window.Android.setNavigationState) {
+            window.Android.setNavigationState(false, 0, 0, "");
+        }
+
+        // [Optimization Priority 2] UI Cleanup - HUD 즉시 숨김
         AppState.isNavigating = false;
         AppState.isUserInteracting = false;
-
-        // [NEW] Wake Lock 해제
         this.releaseWakeLock();
 
         if (btn) {
             const textSpan = btn.querySelector('.btn-text');
             if (textSpan) textSpan.textContent = '경로 안내 시작';
-            btn.classList.remove('active');
+            btn.classList.remove('active', 'disabled');
         }
 
         document.body.classList.remove('search-hidden');
@@ -1097,13 +1111,12 @@ const UIManager = {
         document.getElementById('dashboard-container')?.classList.add('hidden');
         document.getElementById('pre-nav-actions')?.classList.remove('hidden');
 
-        // 2. Map Cleanup
+        // [Optimization Priority 3] Map & Logic Cleanup
         if (AppState.viewResetTimer) {
             clearTimeout(AppState.viewResetTimer);
             AppState.viewResetTimer = null;
         }
 
-        // Route Layer Clear
         if (AppState.routeLayer) {
             AppState.routeLayer.getSource().clear();
         }
@@ -1112,17 +1125,12 @@ const UIManager = {
         // 3. Data Saving (Deferred to prevent UI freeze)
         setTimeout(() => {
              this.processAndSaveRoute();
-        }, 50);
+        }, 100);
 
         // [NEW] 세션 상태 삭제 (정상 종료)
-        localStorage.removeItem('emergency_nav_state'); // [CRITICAL] 0m 자동 안내 방지
+        localStorage.removeItem('emergency_nav_state');
         if (typeof DataCollector !== 'undefined') {
             DataCollector.clearSessionState();
-        }
-
-        // [NEW] 안드로이드 브릿지 호출 (내비 종료 알림)
-        if (window.Android && window.Android.setNavigationState) {
-            window.Android.setNavigationState(false, 0, 0, "");
         }
 
         // [NEW] 재탐색 타이머 정리
@@ -1131,7 +1139,7 @@ const UIManager = {
         // [NEW] 상태 초기화
         AppState.isInAccessZone = false;
         AppState.accessHistory = [];
-        AppState.routeHistory = []; // [NEW] 전체 경로 초기화 추가
+        AppState.routeHistory = [];
         AppState.activeRoute = null;
         MapManager.clearWaypoints();
 
@@ -1661,6 +1669,7 @@ const UIManager = {
 
         // 더 이상 닫을 것이 없음 -> 안드로이드에게 위임 (앱 종료 등)
         if (window.Android && window.Android.triggerBackExit) {
+            console.log('🔙 No more UI to close, triggering native exit/back logic');
             window.Android.triggerBackExit();
         }
     },

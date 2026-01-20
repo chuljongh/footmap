@@ -33,13 +33,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.log('🪟 Floating mode activated:', AppState.floatingDest);
 
-        // [FIX-1] 플로팅 모드에서 스플래시 강제 제거 (동영상 자동재생 실패 방지)
-        document.querySelector('.splash-screen')?.remove();
+
     }
 
-    // 스플래시 화면 표시 후 온보딩 또는 메인 화면으로 전환
-    // [FLOATING MODE] 플로팅 모드에서는 스플래시 스킵
-    const splashDelay = isFloatingMode ? 0 : 1500;
+    // [NEW] 온보딩 완료 여부 미리 확인
+    const onboardingComplete = UIManager.loadSavedSettings();
+
+    // 동영상 스플래시 로직 삭제됨 (User Request)
+    // [Optimization] 지연 시간 제거
+    const splashDelay = 0;
+
     setTimeout(async () => {
         try {
 
@@ -100,7 +103,6 @@ document.addEventListener('DOMContentLoaded', async () => {
              }
         });
 
-        const onboardingComplete = UIManager.loadSavedSettings();
 
         const screenSwitchTime = Date.now();
 

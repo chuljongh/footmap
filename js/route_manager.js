@@ -20,8 +20,6 @@ function calculateRouteRotation(geometry, i, length) {
 const RouteManager = {
     // 경로 스타일 함수 (화살표 포함)
     routeStyleFunction(feature, resolution) {
-        // 디버깅: 화살표 스타일 생성 여부 확인 (최초 1회만 로그가 나오진 않지만, 문제 발생 시 확인용)
-
         const isFuture = feature.get('isFuture');
         const styles = [];
         const geometry = feature.getGeometry();
@@ -93,51 +91,67 @@ const RouteManager = {
             const data = await response.json();
 
             if (data.routes && data.routes.length > 0) {
-                AppState.activeRoute = data.routes[0];
                 const route = data.routes[0];
+                AppState.activeRoute = route;
 
                 if (AppState.routeLayer) {
                     AppState.routeLayer.getSource().clear();
 
                     if (route.legs && route.legs.length > 0) {
-                        route.legs.forEach((leg, index) => {
-                            const legCoords = [];
-                            leg.steps.forEach(step => {
-                                if (step.geometry && step.geometry.coordinates) {
-                                    step.geometry.coordinates.forEach(c => {
-                                        legCoords.push(ol.proj.fromLonLat(c));
-                                    });
+                        // [Optimization] 청크 단위 비동기 처리 함수 (UI Freeze 방지)
+                        const processLegsAsynchronously = async () => {
+                            for (let index = 0; index < route.legs.length; index++) {
+                                const leg = route.legs[index];
+                                const legCoords = [];
+
+                                // 내비게이션 단계별 처리 (OSRM steps)
+                                for (const step of leg.steps) {
+                                    if (step.geometry && step.geometry.coordinates) {
+                                        // 좌표 변환 (Batch 처리: 100개씩 끊어서 변환)
+                                        const coords = step.geometry.coordinates;
+                                        for (let i = 0; i < coords.length; i += 100) {
+                                            const chunk = coords.slice(i, i + 100);
+                                            chunk.forEach(c => legCoords.push(ol.proj.fromLonLat(c)));
+                                            // RAF를 사용하여 브라우저 렌더링 기회 제공 (부드러운 UI)
+                                            await new Promise(r => requestAnimationFrame(r));
+                                        }
+                                    }
                                 }
-                            });
 
-                            if (legCoords.length > 1) {
-                                const feature = new ol.Feature({
-                                    geometry: new ol.geom.LineString(legCoords)
-                                });
-                                feature.set('isFuture', index > 0);
-                                AppState.routeLayer.getSource().addFeature(feature);
+                                if (legCoords.length > 1) {
+                                    const feature = new ol.Feature({
+                                        geometry: new ol.geom.LineString(legCoords)
+                                    });
+                                    feature.set('isFuture', index > 0);
+                                    AppState.routeLayer.getSource().addFeature(feature);
+                                }
                             }
-                        });
+                            // 전체 뷰 맞춤 (완료 후)
+                            this.fitMapToRoute(route);
+                        };
+                        processLegsAsynchronously();
                     } else {
-                        const coordinates = route.geometry.coordinates.map(coord => ol.proj.fromLonLat(coord));
-                        route.cachedOlCoordinates = coordinates;
+                        // 단일 지오메트리 처리 (fallback)
+                        const rawCoords = route.geometry.coordinates;
+                        const coordinates = [];
 
-                        const feature = new ol.Feature({ geometry: new ol.geom.LineString(coordinates) });
-                        feature.set('isFuture', false);
-                        AppState.routeLayer.getSource().addFeature(feature);
+                        const processSingleGeometry = async () => {
+                            for (let i = 0; i < rawCoords.length; i += 100) {
+                                const chunk = rawCoords.slice(i, i + 100);
+                                chunk.forEach(c => coordinates.push(ol.proj.fromLonLat(c)));
+                                await new Promise(r => requestAnimationFrame(r));
+                            }
+                            route.cachedOlCoordinates = coordinates;
+
+                            const feature = new ol.Feature({ geometry: new ol.geom.LineString(coordinates) });
+                            feature.set('isFuture', false);
+                            AppState.routeLayer.getSource().addFeature(feature);
+
+                            this.fitMapToRoute(route);
+                        };
+                        processSingleGeometry();
                     }
-                }
-
-                if (AppState.map) {
-                    let fullCoordinates = route.cachedOlCoordinates;
-                    if (!fullCoordinates) {
-                        fullCoordinates = route.geometry.coordinates.map(c => ol.proj.fromLonLat(c));
-                    }
-
-                    const fullLine = new ol.geom.LineString(fullCoordinates);
-                    const extent = fullLine.getExtent();
-                    AppState.map.getView().fit(extent, { padding: [100, 50, 150, 50], maxZoom: 17 });
-                }
+                } // AppState.routeLayer closed
 
                 if (typeof UIManager !== 'undefined') {
                     UIManager.updateNavigationHUD(AppState.activeRoute);
@@ -149,6 +163,31 @@ const RouteManager = {
         } catch (error) {
             console.warn('라우팅 API 오류:', error);
             this.showStraightRoute(start, end);
+        }
+    },
+
+    // [HELPER] 지도 뷰를 경로에 맞춤
+    fitMapToRoute(route) {
+        if (!AppState.map) return;
+        let fullCoordinates = route.cachedOlCoordinates;
+
+        // 캐시가 없으면 모든 leg의 좌표를 합쳐서 가져옴
+        if (!fullCoordinates && route.legs) {
+             const allCoords = [];
+             route.legs.forEach(leg => {
+                 leg.steps.forEach(step => {
+                     if (step.geometry && step.geometry.coordinates) {
+                         step.geometry.coordinates.forEach(c => allCoords.push(ol.proj.fromLonLat(c)));
+                     }
+                 });
+             });
+             fullCoordinates = allCoords;
+        }
+
+        if (fullCoordinates && fullCoordinates.length > 1) {
+            const fullLine = new ol.geom.LineString(fullCoordinates);
+            const extent = fullLine.getExtent();
+            AppState.map.getView().fit(extent, { padding: [100, 50, 150, 50], maxZoom: 17 });
         }
     },
 
