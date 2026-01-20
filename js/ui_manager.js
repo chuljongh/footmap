@@ -1545,27 +1545,27 @@ const UIManager = {
 
     // [PHASE 8] 안드로이드 물리 뒤로가기 대응 (계층형 - Robust Version)
     handleBackAction() {
-        // 헬퍼: 안전한 가시성 체크 (무한 루프 방지)
-        // 화면에 실제로 공간을 차지하고 있고, 뷰포트 내에 존재하는지 확인
+        // 헬퍼: 안전한 가시성 체크 (Reflow 최소화)
         const isSafeVisible = (el) => {
             if (!el) return false;
-            // 1. 기본 스타일 체크
-            const style = window.getComputedStyle(el);
-            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+            // 1. 클래스 체크 (Reflow 없음, 가장 빠름)
             if (el.classList.contains('hidden')) return false;
 
-            // 2. 화면 점유 체크 (transform 등으로 화면 밖으로 나간 경우 제외)
+            // 2. 기본 스타일 체크
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+
+            // 3. 화면 점유 체크 (transform 등으로 화면 밖으로 나간 경우 제외)
             const rect = el.getBoundingClientRect();
             if (rect.width === 0 || rect.height === 0) return false;
 
-            // 3. 뷰포트 내 존재 여부 (일부 픽셀이라도 보여야 함)
-            const isInViewport = (
+            // 4. 뷰포트 내 존재 여부
+            return (
                 rect.top < window.innerHeight &&
                 rect.bottom > 0 &&
                 rect.left < window.innerWidth &&
                 rect.right > 0
             );
-            return isInViewport;
         };
 
         try {
@@ -1577,9 +1577,8 @@ const UIManager = {
                 return;
             }
 
-            // 우선순위 2: 스레드 패널 (슬라이드 패널)
+            // 우선순위 2: 스레드 패널
             const threadPanel = document.getElementById('thread-panel');
-            // 슬라이드 패널은 open 클래스가 있을 때만 닫기 (visible check만으론 부족할 수 있음)
             if (threadPanel && threadPanel.classList.contains('open')) {
                 threadPanel.classList.remove('open');
                 const inputBar = document.querySelector('.thread-input-bar');
@@ -1587,17 +1586,16 @@ const UIManager = {
                 return;
             }
 
-            // 우선순위 3: 대화 모드 / 오버레이
+            // 우선순위 3: 대화 모드
             if (typeof SocialManager !== 'undefined' && SocialManager.isTalkMode) {
-                if (typeof SocialManager.closeTalkMode === 'function') {
+                 if (typeof SocialManager.closeTalkMode === 'function') {
                     SocialManager.closeTalkMode();
-                } else {
-                    const overlay = document.getElementById('message-overlay');
-                    if (overlay) overlay.classList.add('hidden');
+                 } else {
+                    document.getElementById('message-overlay')?.classList.add('hidden');
                     SocialManager.isTalkMode = false;
                     document.getElementById('main-ui-container')?.classList.remove('hidden');
-                }
-                return;
+                 }
+                 return;
             }
 
             // 우선순위 4: 대시보드 및 각종 모달
@@ -1648,10 +1646,11 @@ const UIManager = {
                  return;
             }
 
-            // [FIX] 우선순위 8: 내비게이션 중이면 즉시 종료 (즉시 반응)
-            // 안드로이드에 물어봤다가 다시 돌아오는 핑퐁 딜레이(약 3초) 제거
-            if (AppState.isNavigating) {
-                console.log('⚡ Instant Navigation Stop via Back Button');
+            // [FIX] 우선순위 8: 내비게이션 중이면 즉시 종료 (UI 상태까지 더블 체크)
+            // AppState가 꼬였여도 UI가 떠있으면 종료 처리 -> Round Trip 방지 보장
+            const isNavUIOpen = document.getElementById('navigation-hud') && !document.getElementById('navigation-hud').classList.contains('hidden');
+            if (AppState.isNavigating || isNavUIOpen) {
+                console.log('⚡ Instant Navigation Stop via Back Button (Robust Check)');
                 this.executeNavigationStop();
                 return;
             }
