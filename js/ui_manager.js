@@ -1676,6 +1676,21 @@ const UIManager = {
         } else {
             document.body.classList.remove('pip-mode');
         }
+
+        // [Fix] 화면 크기 변경 통지 및 지도 재정렬
+        setTimeout(() => {
+            if (window.map) window.map.updateSize();
+            if (window.MapManager && window.AppState.currentPosition) {
+                // 현재 위치로 부드럽게 재정렬 (줌 레벨은 유지)
+                window.MapManager.updateUserMarker(window.AppState.currentPosition);
+                // 강제 센터링을 원하면 아래 코드를 사용하되,
+                // 사용자가 "줌 레벨 유지"를 원했으므로 center만 맞춤
+                window.map.getView().setCenter(window.ol.proj.fromLonLat([
+                    window.AppState.currentPosition.longitude,
+                    window.AppState.currentPosition.latitude
+                ]));
+            }
+        }, 100); // 0.1s delay for layout stabilization
     }
 };
 
