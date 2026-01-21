@@ -4,7 +4,10 @@
 - [x] 프로젝트 기획안 분석 및 구조화
 - [x] 초기 화면 (스플래시 + 온보딩) UI 설계
   - [x] 캐릭터 스플래시 화면 구현 (발자국 모양 마스크 + 애니메이션)
-- [x] 메인 지도 인터페이스 설계 (V-world/OSM)
+  - [x] 스플래시 화면 완전 삭제 및 진입 속도 최적화 (Clean Up)
+  - [x] Zero-Latency 진입 구조(Static First) 구현 (Visible-by-Default Re-write)
+  - [x] 안드로이드 빌드 오류 수정 및 최적화 (API 34 대응)
+  - [ ] 메인 지도 인터페이스 설계 (V-world/OSM)
 - [x] 카카오 지오코딩 API 연동 (REST API Proxy 방식 - 도메인 우회)
 - [x] 도로 기반 경로 안내 구현 (OSRM API)
 - [x] 목적지 설정 제스처 개선 (더블클릭/투터치, 드래그)

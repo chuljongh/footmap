@@ -5,116 +5,228 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="color-scheme" content="only light">
-    <title>발길맵 - 라스트 마일 내비게이션</title>
+    <title>발길맵 - 무장애 길안내</title>
+    <style>
+        /* [CRITICAL] Static First Rendering Styles */
+        /* JS 로드 전에도 화면을 즉시 표시하기 위한 필수 스타일 */
+        body { margin: 0; background-color: #0A1628; } /* Theme Blue */
+        .screen { display: none; }
+        .screen.active { display: flex; }
+
+        /* returning user hidden */
+        html.onboarding-complete #intro-layer { display: none !important; }
+
+        /* Intro Layer Styles (Moved from body) */
+        #intro-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background-color: #1a1a1a; /* Dark Theme Default */
+            color: white;
+            display: flex; /* Default Visible */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            transition: opacity 0.3s ease;
+        }
+
+        .intro-container {
+            width: 100%;
+            max-width: 360px;
+            padding: 24px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .intro-step {
+            display: none;
+            /* animation: fadeIn 0.4s ease; REMOVED for Zero-Latency */
+        }
+        .intro-step.active { display: block; animation: none; }
+
+        .intro-logo { font-size: 48px; margin-bottom: 16px; }
+        .intro-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; color: #fff; }
+        .intro-desc { font-size: 14px; color: #a0aec0; margin-bottom: 32px; line-height: 1.5; }
+
+        .perm-list { text-align: left; margin-bottom: 32px; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; }
+        .perm-item { display: flex; align-items: center; margin-bottom: 16px; }
+        .perm-item:last-child { margin-bottom: 0; }
+        .perm-icon { font-size: 20px; margin-right: 12px; width: 24px; text-align: center; }
+        .perm-text { font-size: 14px; color: #e2e8f0; }
+
+        .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 32px; }
+        .mode-card {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            padding: 20px 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .mode-card.selected {
+            background: rgba(0, 212, 170, 0.1);
+            border-color: #00d4aa;
+        }
+        .mode-icon { font-size: 70px; margin-bottom: 8px; display: block; }
+        .mode-name { font-size: 16px; font-weight: 600; color: #cccccc !important; }
+
+        .btn-large {
+            width: 100%;
+            padding: 16px;
+            background: #00d4aa;
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-large:active { transform: scale(0.98); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+    <script>
+        // [Zero-Latency] 앱 실행 즉시 로컬 스토리지 확인 후 초기 화면 결정
+        // app.js 로딩을 기다리지 않고 레이아웃을 잡아 흰 화면 제거
+        (function() {
+            try {
+                // [DEBUG] 신규 유저 로직 복구
+                var isComplete = localStorage.getItem('balgil_onboardingComplete');
+                if (isComplete && JSON.parse(isComplete) === true) {
+                    document.documentElement.className = 'onboarding-complete';
+                } else {
+                    document.documentElement.className = 'new-user';
+                }
+            } catch (e) {
+                document.documentElement.className = 'new-user';
+            }
+        })();
+    </script>
     <meta name="description" content="배달원과 휠체어 이용자를 위한 초정밀 라스트 마일 내비게이션">
 
-    <!-- PWA Manifest & Meta -->
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#00D4AA">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="/icon.webp">
-    <!-- OpenLayers CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
+    <!-- Fonts (System Default) -->
+    <!-- <link href="https://fonts.googleapis.com/css2..." rel="stylesheet"> -->
 
-    <!-- Main CSS (v1.3 - mobile zoom fix) -->
-    <link rel="stylesheet" href="styles.css?v=1.26">
-    <!-- Dashboard CSS -->
-    <link rel="stylesheet" href="css/dashboard.css?v=1.0">
+    <!-- Main Styles (Local & Non-Blocking) -->
+    <link rel="preload" href="styles.css?v=1.27" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="styles.css?v=1.27"></noscript>
 
-    <!-- Browser Zoom Prevention (Native App Experience) -->
-    <script>
-        // 모든 핀치 줌 차단 (지도 확대/축소는 OpenLayers가 처리)
-        document.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
+    <link rel="preload" href="css/dashboard.css?v=1.0" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="css/dashboard.css?v=1.0"></noscript>
 
-        // 더블탭 줌 차단
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) {
-                e.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
-    </script>
+    <!-- OpenLayers CSS (Non-Blocking) -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css"></noscript>
 
-    <!-- Kakao Maps SDK (로컬 API 사용, autoload=false) -->
-    <script type="text/javascript"
-        src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=94efadb747ddb4a6f534eae8dc61a99e&libraries=services&autoload=false"></script>
-
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap"
-        rel="stylesheet">
+    <!-- Kakao Maps SDK (Deferred) -->
+    <!-- <script type="text/javascript" src="https://dapi.kakao.com/..."></script> -->
 
 </head>
 
 <body>
 
 
-    <!-- 온보딩 - 권한 안내 -->
-    <div id="permission-screen" class="screen">
-        <div class="onboarding-content">
-            <h2>앱 사용을 위해<br>다음 권한이 필요합니다</h2>
+    <!-- [CRITICAL] Visible-by-Default Intro Layer -->
+    <!-- 기본적으로 보임 상태. JS가 없어도 렌더링됨. -->
+    <div id="intro-layer">
+        <div class="intro-container">
+            <!-- Step 1: Permissions -->
+            <div id="intro-step-1" class="intro-step active">
+                <div class="intro-logo">👣</div>
+                <h1 class="intro-title">발길맵 시작하기</h1>
+                <p class="intro-desc">누구나 쉽고 편하게 이동할 수 있도록<br>몇 가지 권한이 필요합니다.</p>
 
-            <div class="permission-cards">
-                <div class="permission-card">
-                    <div class="permission-icon">📍</div>
-                    <div class="permission-info">
-                        <h3>위치 정보</h3>
-                        <p>현재 위치와 이동 경로를 표시합니다</p>
+                <div class="perm-list">
+                    <div class="perm-item">
+                        <span class="perm-icon">📍</span>
+                        <span class="perm-text">내 위치 확인 및 경로 안내</span>
+                    </div>
+                    <div class="perm-item">
+                        <span class="perm-icon">🗺️</span>
+                        <span class="perm-text">다른 앱 위에 지도 표시 (오버레이)</span>
                     </div>
                 </div>
-                <div class="permission-card">
-                    <div class="permission-icon">🗺️</div>
-                    <div class="permission-info">
-                        <h3>오버레이</h3>
-                        <p>다른 앱 위에 지도를 표시합니다</p>
-                    </div>
-                </div>
-                <div class="permission-card">
-                    <div class="permission-icon">📋</div>
-                    <div class="permission-info">
-                        <h3>클립보드</h3>
-                        <p>복사한 주소로 바로 안내합니다</p>
-                    </div>
-                </div>
+
+                <button class="btn-large" onclick="nextStep()">다음</button>
             </div>
 
-            <button id="permission-next-btn" class="primary-btn">다음</button>
-        </div>
-    </div>
+            <!-- Step 2: Mode Selection -->
+            <div id="intro-step-2" class="intro-step">
+                <h1 class="intro-title">어떻게 이동하시나요?</h1>
+                <p class="intro-desc">선택하신 수단에 맞춰<br>최적의 경로를 안내해 드립니다.</p>
 
-    <!-- 온보딩 - 모드 선택 -->
-    <div id="mode-screen" class="screen">
-        <div class="onboarding-content">
-            <h2>이동 수단을 선택해주세요</h2>
-            <p class="mode-description">선택한 모드에 맞는 경로를 안내해 드립니다</p>
+                <div class="mode-grid">
+                    <div class="mode-card selected" onclick="selectMode('walking', this)">
+                        <span class="mode-icon">🚶</span>
+                        <span class="mode-name">도보</span>
+                    </div>
+                    <div class="mode-card" onclick="selectMode('wheelchair', this)">
+                        <span class="mode-icon">♿</span>
+                        <span class="mode-name">휠체어</span>
+                    </div>
+                </div>
 
-            <div class="mode-options">
-                <button class="mode-option selected" data-mode="walking">
-                    <div class="mode-icon">🚶</div>
-                    <div class="mode-label">도보</div>
-                    <div class="mode-check">✓</div>
-                </button>
-                <button class="mode-option" data-mode="wheelchair">
-                    <div class="mode-icon">♿</div>
-                    <div class="mode-label">휠체어</div>
-                    <div class="mode-check">✓</div>
-                </button>
+                <button class="btn-large" onclick="finishIntro()">시작하기</button>
             </div>
-
-            <p class="mode-note">* 설정에서 언제든지 변경할 수 있습니다</p>
-
-            <button id="mode-next-btn" class="primary-btn">시작하기</button>
         </div>
+
+        <script>
+            // Inline Interactions (No heavy JS dependency)
+            let selectedMode = 'walking';
+
+            function nextStep() {
+                // [Unified Flow] 웹에서 [다음] 클릭 시 네이티브 권한 요청 트리거
+                // Android 인터페이스가 있으면 호출, 없으면(브라우저 테스트) 바로 다음 단계로
+                if (window.Android && window.Android.requestPermissions) {
+                    window.Android.requestPermissions();
+                } else {
+                    // PC 브라우저 등 디버깅용 Fallback
+                    onNativePermissionGranted();
+                }
+            }
+
+            // [Unified Flow] 네이티브에서 권한 획득 완료 시 호출됨
+            window.onNativePermissionGranted = function() {
+                document.getElementById('intro-step-1').classList.remove('active');
+                document.getElementById('intro-step-2').classList.add('active');
+            };
+
+            function selectMode(mode, el) {
+                selectedMode = mode;
+                document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+                el.classList.add('selected');
+            }
+
+            function finishIntro() {
+                // Save to localStorage immediately
+                localStorage.setItem('balgil_onboardingComplete', 'true');
+                localStorage.setItem('balgil_userMode', JSON.stringify(selectedMode));
+
+                // Hide Intro
+                document.getElementById('intro-layer').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('intro-layer').style.display = 'none';
+                    // Trigger Main App Init if loaded
+                    if (window.UIManager) {
+                        window.UIManager.updateModeIndicator();
+                        if (window.AppState && !window.AppState.map) {
+                             window.MapManager?.init();
+                        } else {
+                             // [Fix] 초기화는 되었으나 권한 문제로 City Hall에 있던 맵을 현위치로 이동
+                             window.MapManager?.getCurrentPosition();
+                             // [Critical Fix] 화면이 보이기 시작했을 때 사이즈 갱신 (Blue Screen 방지)
+                             if (window.AppState && window.AppState.map) {
+                                 window.AppState.map.updateSize();
+                             }
+                        }
+                    }
+                }, 300);
+            }
+        </script>
     </div>
 
-    <!-- 메인 지도 화면 -->
-    <div id="main-screen" class="screen">
+    <!-- Main App Screen (Initially Hidden by Intro Layer) -->
+    <div id="main-screen" class="screen active">
         <!-- 상단 바 + 검색 버튼 래퍼 -->
         <div class="top-bar-wrapper">
             <header class="top-bar glass">
@@ -427,8 +539,9 @@
     </div>
 
     <!-- Scripts: Bottom of body for better initial rendering perception -->
-    <!-- OpenLayers JS (defer: parallel download) -->
-    <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js" defer></script>
+    <!-- Scripts: Bottom of body for better initial rendering perception -->
+    <!-- OpenLayers JS (Offline Debug) -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js" defer></script> -->
 
     <!-- App Modules: defer ensures execution order -->
     <script src="js/icons.js?v=1.2" defer></script>
@@ -444,6 +557,8 @@
     <script src="js/ui_manager.js?v=1.2" defer></script>
     <script src="js/dashboard_manager.js?v=1.0" defer></script>
     <script src="js/debug_overlay.js?v=1.0" defer></script>
+    <!-- Kakao Maps SDK (Deferred) -->
+    <script type="text/javascript" src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=94efadb747ddb4a6f534eae8dc61a99e&libraries=services&autoload=false" defer></script>
     <script src="js/app.js?v=1.2" defer></script>
 </body>
 
