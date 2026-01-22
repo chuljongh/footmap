@@ -369,31 +369,89 @@ const UIManager = {
         const clearBtn = document.getElementById('search-clear-btn');
         if (!input || !list) return;
 
-        const debouncedSearch = Utils.debounce(async (query) => {
+        // [FIX] Kakao SDK 로드 대기 및 안전한 초기화
+        let ps = null;
+        const initPlaces = () => {
+            if (window.kakao && kakao.maps && kakao.maps.services) {
+                ps = new kakao.maps.services.Places();
+                console.log('✅ Kakao Places Initialized');
+            } else {
+                console.warn('⚠️ Kakao SDK not ready, using Simulation Mode temporarily');
+                // SDK가 늦게 로드될 수 있으므로, 검색 시점에 다시 체크하도록 함
+            }
+        };
+
+        // 즉시 시도
+        initPlaces();
+        // SDK 로드가 늦을 경우를 대비해 1초 후 재시도
+        if (!ps) setTimeout(initPlaces, 1000);
+
+        const debouncedSearch = Utils.debounce((query) => {
             if (query.length < 2) {
                 list.classList.remove('visible');
                 return;
             }
-            try {
-                const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
-                if (!response.ok) throw new Error('Search failed');
-                const data = await response.json();
+
+            // [Simulation / Fallback Mode]
+            const performSimulation = () => {
+                const mockData = [
+                     { PlaceName: '강남역', AddressName: '서울 강남구 역삼동', x: 127.0276, y: 37.4979 },
+                     { PlaceName: '삼성역', AddressName: '서울 강남구 삼성동', x: 127.0631, y: 37.5088 },
+                     { PlaceName: '홍대입구역', AddressName: '서울 마포구 양화로 160', x: 126.9244, y: 37.5575 },
+                     { PlaceName: '서울역', AddressName: '서울 용산구 한강대로 405', x: 126.9723, y: 37.5559 }
+                ].filter(p => p.PlaceName.includes(query));
+
+                renderResults(mockData.map(d => ({
+                     place_name: d.PlaceName,
+                     road_address_name: d.AddressName || '',
+                     x: d.x,
+                     y: d.y
+                })));
+            };
+
+            // 1. Kakao API Search
+            // 검색 시점에 다시 한 번 ps 체크 (지연 로딩 대응)
+            if (!ps && window.kakao && kakao.maps && kakao.maps.services) {
+                ps = new kakao.maps.services.Places();
+            }
+
+            if (ps) {
+                ps.keywordSearch(query, (data, status, pagination) => {
+                    if (status === kakao.maps.services.Status.OK) {
+                        Utils.showToast(`검색 성공: ${data.length}건`); // Debug
+                        renderResults(data);
+                    } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+                        list.classList.remove('visible');
+                        Utils.showToast('검색 결과가 없습니다.');
+                    } else {
+                        // Error --> Fallback
+                         console.error('[Search] Kakao API Error Status:', status);
+                         Utils.showToast(`검색 오류 발생 (${status}). 테스트 모드로 전환합니다.`);
+                         performSimulation();
+                    }
+                });
+            } else {
+                 // No Kakao API --> Simulation
+                 console.warn('[Search] SDK not ready, running Simulation');
+                 Utils.showToast('지도 검색 엔진 로딩 실패. 테스트 모드 실행.');
+                 performSimulation();
+            }
+
+            function renderResults(documents) {
                 list.innerHTML = '';
-                if (data.documents && data.documents.length > 0) {
-                    // 현재 위치 가져오기
+                if (documents && documents.length > 0) {
                     const userPos = AppState.currentPosition;
 
-                    // 거리 포맷 함수
                     const formatDistance = (meters) => {
                         if (meters === null) return '';
                         if (meters < 1000) return `${Math.round(meters)}m`;
                         return `${(meters / 1000).toFixed(1)}km`;
                     };
 
-                    data.documents.forEach(doc => {
+                    documents.forEach(doc => {
                         const item = document.createElement('li');
                         item.className = 'suggestion-item';
-                        // [Refactored] Utils.calculateDistance 사용 (중복 제거)
+
                         const dist = userPos
                             ? Utils.calculateDistance(userPos, [parseFloat(doc.x), parseFloat(doc.y)])
                             : null;
@@ -402,13 +460,16 @@ const UIManager = {
                         item.innerHTML = `
                             <div class="suggestion-main">
                                 <div class="suggestion-name">${doc.place_name}</div>
-                                <div class="suggestion-address">${doc.road_address_name || doc.address_name}</div>
+                                <div class="suggestion-address">${doc.road_address_name || doc.address_name || ''}</div>
                             </div>
                             ${distText ? `<div class="suggestion-meta">${distText}</div>` : ''}
                         `;
                         item.addEventListener('click', () => {
                             const coords = [parseFloat(doc.x), parseFloat(doc.y)];
-                            MapManager.setDestination(coords, doc.place_name);
+                            // [FIX] Update MapManager to handle destination set
+                            if (window.MapManager && MapManager.setDestination) {
+                                MapManager.setDestination(coords, doc.place_name);
+                            }
                             input.value = doc.place_name;
                             list.classList.remove('visible');
                             if (clearBtn) clearBtn.classList.remove('hidden');
@@ -419,20 +480,36 @@ const UIManager = {
                 } else {
                     list.classList.remove('visible');
                 }
-            } catch (e) {
-                console.error(e);
             }
+
         }, 300);
 
         input.addEventListener('input', (e) => {
-            debouncedSearch(e.target.value);
-            // hidden 클래스 토글 불필요 - CSS가 :placeholder-shown으로 처리
+            const val = e.target.value;
+            debouncedSearch(val);
+            // Show clear button if text exists
+            if (val.length > 0) {
+                 clearBtn?.classList.remove('hidden');
+            } else {
+                 clearBtn?.classList.add('hidden');
+            }
         });
 
+        // Clear Button logic
+        if(clearBtn) {
+             clearBtn.addEventListener('click', () => {
+                 input.value = '';
+                 list.classList.remove('visible');
+                 clearBtn.classList.add('hidden');
+                 input.focus();
+             });
+        }
+
         document.addEventListener('click', (e) => {
-            const list = document.getElementById('search-suggestions');
-            if (!input.contains(e.target) && !list.contains(e.target)) {
-                list.classList.remove('visible', 'history-mode');
+            // [FIX] Ensure list exists before checking contains
+            const suggestionList = document.getElementById('search-suggestions');
+            if (suggestionList && !input.contains(e.target) && !suggestionList.contains(e.target)) {
+                suggestionList.classList.remove('visible', 'history-mode');
             }
         });
     },

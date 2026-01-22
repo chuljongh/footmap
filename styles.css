@@ -2334,8 +2334,27 @@ body.search-hidden .top-bar-wrapper {
 
 .bubble-meta {
     color: var(--text-muted);
+    font-size: 11px;
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.bubble-meta .author-truncate {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    max-width: 60%;
+}
+
+.bubble-meta span:last-child {
+    white-space: nowrap;
+    text-align: right;
+    flex-shrink: 0;
 }
 
 /* Action Bar */
@@ -2716,23 +2735,44 @@ body.search-hidden .top-bar-wrapper {
 
 .msg-meta {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between; /* Left: Author, Right: Date */
     align-items: center;
     font-size: 11px;
     color: var(--text-muted);
-    margin-top: 4px; /* Tight spacing from text */
-    padding-top: 4px; /* Tight spacing from border if any */
-    border-top: none; /* Removed border for cleaner tighter look */
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: none;
     gap: 8px;
+}
+
+.msg-meta.single-line {
+    justify-content: space-between; /* Ensure Left/Right split */
+    flex-wrap: nowrap;
+    gap: 4px;
+}
+
+.msg-meta .author-truncate {
+    max-width: 65%; /* Give more space to author */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.msg-meta span:last-child {
+    white-space: nowrap;
+    text-align: right;
+    flex-shrink: 0;
 }
 
 .msg-actions {
     display: flex;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 20px; /* Wider spacing */
+    margin-top: 12px; /* More breathing room */
     flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: 4px;
+    justify-content: flex-start;
 }
 
 .msg-actions::-webkit-scrollbar {

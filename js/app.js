@@ -1,6 +1,34 @@
 // ========================================
 // 앱 초기화 (Main Entry)
 // ========================================
+// [DEBUG] Network Diagnosis
+(function() {
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+        try {
+            const response = await originalFetch(...args);
+            if (!response.ok) {
+                // HTTP Error
+                if (window.Utils && window.Utils.showToast) {
+                   // window.Utils.showToast(`HTTP ${response.status}: ${args[0]}`);
+                }
+            }
+            return response;
+        } catch (error) {
+            // Network Error (CORS, offline, scheme)
+            console.error('[Network] Fetch Failed:', args[0], error);
+            if (window.Utils && window.Utils.showToast) {
+                // Shorten URL for Toast
+                const url = args[0].toString();
+                const shortUrl = url.length > 40 ? '...' + url.substring(url.length - 40) : url;
+                window.Utils.showToast(`Fetch Error: ${error.message}\n${shortUrl}`);
+            }
+            throw error;
+        }
+    };
+})();
+// ========================================
+
 document.addEventListener('DOMContentLoaded', async () => {
 
     // ========================================
@@ -55,6 +83,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         // DB 초기화 및 데이터 동기화
         await DataCollector.init();
 
+        // [CRITICAL FIX] Supabase SDK 초기화 보장
+        console.log('🔧 [DEBUG] Checking Supabase...');
+        if (typeof window.initSupabase === 'function') {
+            const client = window.initSupabase();
+            if (client) {
+                console.log('✅ [DEBUG] Supabase client created');
+                Utils.showToast('✅ Supabase 연결 성공');
+            } else {
+                console.error('❌ [DEBUG] Supabase client is null');
+                Utils.showToast('❌ Supabase SDK 로드 실패');
+            }
+        } else {
+            console.error('❌ [DEBUG] initSupabase function not found');
+            Utils.showToast('❌ Supabase 설정 미로드');
+        }
+
+        console.log('🔧 [DEBUG] Starting SocialManager & UIManager...');
         await Promise.all([
             SocialManager.init(),
             UIManager.init()

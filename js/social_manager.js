@@ -292,13 +292,17 @@ const SocialManager = {
             const msgCard = document.createElement('div');
             msgCard.className = 'speech-bubble empty-state-card'; // Use speech-bubble class for consistent style
             msgCard.innerHTML = `
+                <button class="close-bubble" style="position:absolute;top:8px;right:8px;">✕</button>
                 <div class="empty-state-text">
                     ${randomPhrase}
                 </div>
-                <div class="empty-state-sub">
-                     터치하여 이 창을 닫고, 깃발 버튼을 눌러보세요!
-                </div>
             `;
+
+            // X 버튼 클릭 이벤트
+            msgCard.querySelector('.close-bubble').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.closeTalkMode();
+            });
 
             // 카드 클릭 시 닫기
             msgCard.addEventListener('click', (e) => {
@@ -366,7 +370,7 @@ const SocialManager = {
                     ${msg.tags ? `<div class="bubble-tags">${Utils.sanitize(msg.tags)}</div>` : ''}
                     <div class="bubble-text">${Utils.sanitize(msg.text)}</div>
                     <div class="bubble-meta">
-                        <span class="bubble-author">${Utils.sanitize(msg.nickname || msg.userId)} (${msg.userId.substring(0, 3)}...)</span>
+                        <span class="author-truncate">by ${Utils.sanitize(msg.nickname || msg.userId)}(${msg.userId.substring(0, 3)}...)</span>
                         <span>${dateStr}</span>
                     </div>
                 </div>
@@ -629,104 +633,53 @@ const SocialManager = {
     },
 
     async handleEdit(id) {
-        const msg = this.messages.find(m => m.id === id);
-        const newText = prompt('수정할 내용:', msg.text);
-        if (newText && newText !== msg.text) {
-            try {
-                const response = await fetch(`/api/messages/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: AppState.userId, text: newText })
-                });
-
-                if (!response.ok) throw new Error('Failed to update message');
-
-                this.showNearbyMessages(true);
-            } catch (error) {
-                console.error('Error updating message:', error);
-                Utils.showToast('메시지 수정에 실패했습니다.');
-            }
-        }
+        // [STUB] Edit not yet supported via Supabase client-side
+        // Would require MessageService.updateMessage implementation
+        Utils.showToast('수정 기능은 현재 점검 중입니다.');
     },
 
     async handleDelete(id) {
+        // [STUB] Delete not yet supported via Supabase client-side
+        // Would require MessageService.deleteMessage implementation
         if (confirm('삭제하시겠습니까?')) {
-            try {
-                const response = await fetch(`/api/messages/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: AppState.userId })
-                });
-
-                if (!response.ok) throw new Error('Failed to delete message');
-
-                this.showNearbyMessages(true);
-            } catch (error) {
-                console.error('Error deleting message:', error);
-                Utils.showToast('메시지 삭제에 실패했습니다.');
-            }
+            Utils.showToast('삭제 기능은 현재 점검 중입니다.');
         }
     },
 
     async handleSave(id) {
-        const userId = AppState.userId;
-        try {
-            const response = await fetch(`/api/messages/${id}/save`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId })
-            });
-
-            if (!response.ok) throw new Error('Failed to save message');
-
-            // UI 즉시 업데이트
-            this.switchTab(this.currentTab); // 현재 탭 새로고침
-        } catch (error) {
-            console.error('Error saving message:', error);
-            Utils.showToast('저장에 실패했습니다.');
-        }
+        // [STUB] Save/Bookmark not yet implemented
+        Utils.showToast('저장 기능은 현재 점검 중입니다.');
     },
 
     async handleUnsave(id) {
-        const userId = AppState.userId;
-        try {
-            const response = await fetch(`/api/messages/${id}/save`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId })
-            });
-
-            if (!response.ok) throw new Error('Failed to unsave message');
-
-            // UI 즉시 업데이트
-            this.switchTab(this.currentTab); // 현재 탭 새로고침
-        } catch (error) {
-            console.error('Error unsaving message:', error);
-            Utils.showToast('저장 취소에 실패했습니다.');
-        }
+        // [STUB] Unsave/Unbookmark not yet implemented
+        Utils.showToast('저장 취소 기능은 현재 점검 중입니다.');
     },
 
+    _isSubmitting: false, // 중복 제출 방지 플래그
+
     async submitThreadComment() {
+        if (this._isSubmitting) return; // 이미 제출 중이면 무시
+
         const input = this.elements['thread-comment-input'];
         const text = input?.value.trim();
         if (!text || !this.currentMessageId) return;
 
+        this._isSubmitting = true; // 플래그 설정
         const userId = AppState.userId;
         try {
-            const response = await fetch(`/api/messages/${this.currentMessageId}/comments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, text })
-            });
-
-            if (!response.ok) throw new Error('Failed to post comment');
+            // [FIX] Use MessageService directly for Android compatibility
+            await MessageService.postComment(this.currentMessageId, userId, text);
 
             // 입력창 초기화 및 댓글 목록 새로고침
             input.value = '';
             this.loadComments(this.currentMessageId);
+            Utils.showToast('댓글이 등록되었습니다.');
         } catch (error) {
             console.error('Error posting comment:', error);
             Utils.showToast('댓글 작성에 실패했습니다.');
+        } finally {
+            this._isSubmitting = false; // 플래그 해제
         }
     },
 
@@ -929,53 +882,23 @@ const SocialManager = {
         let isSaved = false;
         // API Call omitted for Android stability
 
-        // [Refined] 5-Icon Layout Definition
-        // Owner: Like, Dislike, Edit, Share, Delete
-        // Non-Owner: Like, Dislike, Comment, Share, Save
-
+        // [Simplified] 3-Icon Layout: Like, Dislike, Comment only
         const btnLike = `<button data-action="like" data-msg-id="${msg.id}" data-type="up" class="${msg.userVote === 'up' ? 'active' : ''}">👍 ${msg.likes || 0}</button>`;
         const btnDislike = `<button data-action="like" data-msg-id="${msg.id}" data-type="down" class="${msg.userVote === 'down' ? 'active' : ''}">👎 ${msg.dislikes || 0}</button>`;
-        const btnShare = `<button data-action="share" data-msg-id="${msg.id}">🔗 공유</button>`;
-
-        // Owner Specific
-        const btnEdit = `<button data-action="edit" data-msg-id="${msg.id}">✏️ 수정</button>`;
-        const btnDelete = `<button data-action="delete" data-msg-id="${msg.id}">🗑️ 삭제</button>`;
-
-        // Non-Owner Specific
         const btnComment = `<button data-action="focus-comment">💬 댓글</button>`;
-        const btnSave = isSaved
-            ? `<button data-action="unsave" data-msg-id="${msg.id}">❌ 저장취소</button>`
-            : `<button data-action="save" data-msg-id="${msg.id}">💾 저장</button>`;
 
-        let actionButtons = '';
-        if (isOwner) {
-             actionButtons = `
-                ${btnLike}
-                ${btnDislike}
-                ${btnEdit}
-                ${btnShare}
-                ${btnDelete}
-             `;
-        } else {
-             actionButtons = `
-                ${btnLike}
-                ${btnDislike}
-                ${btnComment}
-                ${btnShare}
-                ${btnSave}
-             `;
-        }
+        const actionButtons = `${btnLike}${btnDislike}${btnComment}`;
 
         container.innerHTML = `
             <div class="main-message-card">
                 ${msg.tags ? `<div class="msg-tags">${msg.tags}</div>` : ''}
                 <div class="msg-full-text">${msg.text}</div>
-                <div class="msg-meta">
-                    <span>by ${msg.userId}</span>
+                <div class="msg-meta single-line">
+                    <span class="author-truncate">by ${Utils.sanitize(msg.nickname || msg.userId)}(${msg.userId.substring(0, 3)}...)</span>
                     <span>${new Date(msg.timestamp).toLocaleDateString('ko-KR')}</span>
                 </div>
-                <!-- 5-Icon Fixed Layout -->
-                <div class="msg-actions five-icons">
+                <!-- 3-Icon Layout -->
+                <div class="msg-actions" style="margin-top: 12px; gap: 20px;">
                     ${actionButtons}
                 </div>
             </div>
@@ -1006,9 +929,9 @@ const SocialManager = {
                 list.innerHTML = comments.map(c => `
                     <div class="comment-item">
                         <div class="comment-text">${Utils.sanitize(c.text)}</div>
-                        <div class="comment-header">
-                            <span class="comment-user">${Utils.sanitize(c.userId || c.user_id)}</span>
-                            <span class="comment-time">${new Date(c.timestamp).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        <div class="msg-meta single-line" style="margin-top: 4px;">
+                            <span class="author-truncate">by ${Utils.sanitize(c.userId || c.user_id)}(${(c.userId || c.user_id).substring(0, 3)}...)</span>
+                            <span>${new Date(c.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                     </div>
                 `).join('');
@@ -1024,6 +947,35 @@ const SocialManager = {
         }
     },
 
+    // [NEW] Shared Card Rendering Logic (Standardized UI)
+    _renderSharedCard(msg) {
+        const dateStr = new Date(msg.timestamp).toLocaleDateString('ko-KR');
+        // 3-Icon Layout
+        const btnLike = `<button data-action="like" data-msg-id="${msg.id}" data-type="up" class="${msg.userVote === 'up' ? 'active' : ''}">👍 ${msg.likes || 0}</button>`;
+        const btnDislike = `<button data-action="like" data-msg-id="${msg.id}" data-type="down" class="${msg.userVote === 'down' ? 'active' : ''}">👎 ${msg.dislikes || 0}</button>`;
+        const btnComment = `<button data-action="open-thread" data-msg-id="${msg.id}">💬 ${msg.commentCount || 0}</button>`;
+
+        return `
+            <div class="main-message-card clickable-card" onclick="if(!event.target.closest('button')) SocialManager.openThreadPanel('${msg.id}')" style="margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px;">
+                ${msg.tags ? `<div class="msg-tags">${Utils.sanitize(msg.tags)}</div>` : ''}
+                <div class="msg-full-text">${Utils.sanitize(msg.text)}</div>
+                <div class="msg-meta single-line">
+                    <span class="author-truncate">by ${Utils.sanitize(msg.nickname || msg.userId)}(${msg.userId.substring(0, 3)}...)</span>
+                    <span>${dateStr}</span>
+                </div>
+                <div class="msg-actions" style="margin-top: 12px; gap: 20px;">
+                    ${btnLike}
+                    ${btnDislike}
+                    ${btnComment}
+                </div>
+            </div>
+        `;
+    },
+
+    createPlaceMsgHTML(msg) {
+        return this._renderSharedCard(msg);
+    },
+
     renderPlaceTab() {
         const msg = this.messages.find(m => m.id === this.currentMessageId);
         if (!msg) return;
@@ -1031,8 +983,6 @@ const SocialManager = {
         const container = document.getElementById('thread-content');
 
         // 1. 같은 장소 (주소 일치) 대화 필터링
-        // 1. 같은 장소 (주소 일치) 대화 필터링
-        // [FIX] 주소가 없어도 거리가 매우 가까우면(20m 이내) 같은 장소로 간주
         const samePlaceMessages = this.messages.filter(m => {
             if (m.id === this.currentMessageId) return false;
 
@@ -1053,7 +1003,9 @@ const SocialManager = {
 
         // 같은 장소 대화가 있으면 표시
         if (samePlaceMessages.length > 0) {
-            html += samePlaceMessages.map(m => this.createPlaceMsgHTML(m)).join('');
+            html += samePlaceMessages.map(m => this._renderSharedCard(m)).join('');
+        } else {
+             html += '<div class="empty-state">이 장소의 다른 대화가 없습니다.</div>';
         }
         html += '</div>';
 
@@ -1062,10 +1014,11 @@ const SocialManager = {
 
         // "근처 이야기 보기" 버튼
         html += `
-            <div id="load-nearby-btn" class="load-nearby-btn">
+            <div id="load-nearby-btn" class="load-nearby-btn" onclick="SocialManager.loadNearbyMessagesForThread('${msg.id}')">
                 🚩 이 장소 근처의 다른 이야기 보기
             </div>
         `;
+
 
         container.innerHTML = html;
 
@@ -1322,35 +1275,29 @@ const SocialManager = {
         const payload = {
             userId: AppState.userId,
             text: text,
-            tags: parsedTags, // [FIX] Use parsed tags with auto-hashtags
-            coords: targetCoords
+            tags: parsedTags,
+            coords: targetCoords,
+            // 주소 정보가 있다면 함께 저장 (선택 사항)
+            address: (AppState.destination && AppState.destination.name) ? AppState.destination.name : null
         };
 
-
         try {
-            const response = await fetch('/api/messages', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            // [FIX] Use MessageService directly for Android compatibility
+            const newMessage = await MessageService.saveMessage(payload);
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`HTTP error! status: ${response.status}, msg: ${errText}`);
-            }
-
-            const newMessage = await response.json();
             this.messages.unshift(newMessage);
             this.showNearbyMessages(); // 지도 갱신
 
             // 성공 처리
             this.closeWriteModal();
-            Utils.showToast('📍 메시지를 남겼습니다!'); // [FIX] this.showToast -> Utils.showToast
+            Utils.showToast('📍 메시지를 남겼습니다!');
         } catch (e) {
             console.error('Save Failed:', e);
             Utils.showToast('저장 실패: ' + e.message);
         }
     },
+
+
 
     // 명세 4번: 플로팅 모드 주소 매칭
     getBestMessageAt(targetCoords) {
@@ -1461,8 +1408,6 @@ const SocialManager = {
         this.messages.forEach(msg => {
             if (!msg.coords) return;
             source.addFeature(new ol.Feature({
-                geometry: new ol.geom.Point(ol.proj.fromLonLat(msg.coords)),
-                id: msg.id
             }));
         });
     }
