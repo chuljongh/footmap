@@ -1090,22 +1090,7 @@ const SocialManager = {
         }
     },
 
-    createPlaceMsgHTML(m) {
-        return `
-            <div class="place-message-item" data-msg-id="${m.id}">
-                <div class="place-msg-text" data-action="open-thread" data-msg-id="${m.id}">${m.text}</div>
-                <div class="place-msg-footer-row">
-                    <div class="place-msg-actions-left">
-                         <button class="action-btn-clean" data-action="like" data-msg-id="${m.id}" data-type="up">👍 ${m.likes || 0}</button>
-                         <button class="action-btn-clean" data-action="like" data-msg-id="${m.id}" data-type="down">👎 ${m.dislikes || 0}</button>
-                    </div>
-                    <div class="place-msg-meta" data-action="open-thread" data-msg-id="${m.id}">
-                        by ${m.userId} · ${new Date(m.timestamp).toLocaleDateString()}
-                    </div>
-                </div>
-            </div>
-        `;
-    },
+
 
     renderTagsTab() {
         const container = document.getElementById('thread-content');

@@ -71,7 +71,7 @@ const MessageService = {
 
             const { data, error } = await client
                 .from('message')
-                .select('id, user_id, text, tags, coord_x, coord_y, likes, dislikes, timestamp, address')
+                .select('id, user_id, text, tags, coord_x, coord_y, likes, dislikes, timestamp, address, comment(count), user(nickname)')
                 .order('timestamp', { ascending: false })
                 .limit(50);
 
@@ -80,13 +80,15 @@ const MessageService = {
             const messages = data.map(row => ({
                 id: row.id,
                 userId: row.user_id,
+                nickname: (row.user && row.user.nickname) ? row.user.nickname : row.user_id,
                 text: row.text,
                 tags: row.tags,
                 coords: [row.coord_x || 0, row.coord_y || 0],
                 likes: row.likes || 0,
                 dislikes: row.dislikes || 0,
                 timestamp: new Date(row.timestamp).getTime(),
-                address: row.address
+                address: row.address,
+                commentCount: (row.comment && row.comment[0]) ? row.comment[0].count : 0
             }));
 
             localStorage.setItem('balgil_messages', JSON.stringify(messages));
@@ -204,10 +206,14 @@ const MessageService = {
                     text: text,
                     timestamp: new Date().toISOString()
                 }])
-                .select('id, user_id, text, timestamp')
+                .select('id, user_id, text, timestamp, user(nickname)')
                 .single();
 
             if (error) throw error;
+
+            // Map nickname for immediate display
+            data.nickname = (data.user && data.user.nickname) ? data.user.nickname : data.user_id;
+
             return data;
         } catch (error) {
             console.error('댓글 실패:', error);
@@ -223,23 +229,35 @@ const MessageService = {
 
             const msgPromise = client
                 .from('message')
-                .select('*')
+                .select('*, user(nickname)')
                 .eq('id', messageId)
                 .single();
 
             const commentsPromise = client
                 .from('comment')
-                .select('id, user_id, text, timestamp')
+                .select('id, user_id, text, timestamp, user(nickname)')
                 .eq('message_id', messageId)
                 .order('timestamp', { ascending: true });
 
             const [msgRes, cmtRes] = await Promise.all([msgPromise, commentsPromise]);
 
             if (msgRes.error) throw msgRes.error;
-            const comments = cmtRes.data || [];
+
+            // Map Comments
+            const comments = (cmtRes.data || []).map(c => ({
+                id: c.id,
+                userId: c.user_id,
+                text: c.text,
+                timestamp: c.timestamp,
+                nickname: (c.user && c.user.nickname) ? c.user.nickname : c.user_id
+            }));
+
+            // Map Message
+            const msgData = msgRes.data;
+            msgData.nickname = (msgData.user && msgData.user.nickname) ? msgData.user.nickname : msgData.user_id;
 
             return {
-                ...msgRes.data,
+                ...msgData,
                 comments: comments
             };
         } catch (error) {
