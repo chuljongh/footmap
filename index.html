@@ -90,10 +90,12 @@
         // app.js 로딩을 기다리지 않고 레이아웃을 잡아 흰 화면 제거
         (function() {
             try {
-                // [DEBUG] 신규 유저 로직 복구
                 var isComplete = localStorage.getItem('balgil_onboardingComplete');
                 if (isComplete && JSON.parse(isComplete) === true) {
                     document.documentElement.className = 'onboarding-complete';
+                    // [FIX] CSS가 적용되지 않는 경우를 대비한 직접 숨김
+                    var introLayer = document.getElementById('intro-layer');
+                    if (introLayer) introLayer.style.display = 'none';
                 } else {
                     document.documentElement.className = 'new-user';
                 }
@@ -130,20 +132,33 @@
     <!-- 기본적으로 보임 상태. JS가 없어도 렌더링됨. -->
     <div id="intro-layer">
         <div class="intro-container">
-            <!-- Step 1: Permissions -->
+            <!-- Step 1: Permissions (3가지 권한 안내) -->
             <div id="intro-step-1" class="intro-step active">
-                <div class="intro-logo">👣</div>
+                <img src="icon.png" alt="발길맵" style="width: 80px; height: 80px; margin-bottom: 20px; border-radius: 20px;">
                 <h1 class="intro-title">발길맵 시작하기</h1>
-                <p class="intro-desc">누구나 쉽고 편하게 이동할 수 있도록<br>몇 가지 권한이 필요합니다.</p>
+                <p class="intro-desc">누구나 쉽고 편하게 이동할 수 있도록<br>다음 권한이 필요합니다.</p>
 
-                <div class="perm-list">
-                    <div class="perm-item">
-                        <span class="perm-icon">📍</span>
-                        <span class="perm-text">내 위치 확인 및 경로 안내</span>
+                <div class="permission-cards" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
+                    <div class="permission-card" style="display: flex; align-items: center; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 16px 20px;">
+                        <div class="permission-icon" style="width: 48px; height: 48px; background: rgba(0,212,170,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-right: 16px; flex-shrink: 0;">📍</div>
+                        <div class="permission-info" style="flex: 1;">
+                            <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 4px 0;">위치 정보</h3>
+                            <p style="font-size: 13px; color: #94a3b8; line-height: 1.4; margin: 0;">현재 위치와 이동 경로를 표시합니다</p>
+                        </div>
                     </div>
-                    <div class="perm-item">
-                        <span class="perm-icon">🗺️</span>
-                        <span class="perm-text">다른 앱 위에 지도 표시 (오버레이)</span>
+                    <div class="permission-card" style="display: flex; align-items: center; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 16px 20px;">
+                        <div class="permission-icon" style="width: 48px; height: 48px; background: rgba(0,212,170,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-right: 16px; flex-shrink: 0;">🗺️</div>
+                        <div class="permission-info" style="flex: 1;">
+                            <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 4px 0;">오버레이</h3>
+                            <p style="font-size: 13px; color: #94a3b8; line-height: 1.4; margin: 0;">다른 앱 위에 지도를 표시합니다</p>
+                        </div>
+                    </div>
+                    <div class="permission-card" style="display: flex; align-items: center; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; padding: 16px 20px;">
+                        <div class="permission-icon" style="width: 48px; height: 48px; background: rgba(0,212,170,0.15); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-right: 16px; flex-shrink: 0;">📋</div>
+                        <div class="permission-info" style="flex: 1;">
+                            <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin: 0 0 4px 0;">클립보드</h3>
+                            <p style="font-size: 13px; color: #94a3b8; line-height: 1.4; margin: 0;">복사한 주소로 바로 안내합니다</p>
+                        </div>
                     </div>
                 </div>
 
@@ -157,11 +172,11 @@
 
                 <div class="mode-grid">
                     <div class="mode-card selected" onclick="selectMode('walking', this)">
-                        <span class="mode-icon">🚶</span>
+                        <span class="mode-icon" style="display: inline-block; transform: scaleX(-1);">🚶</span>
                         <span class="mode-name">도보</span>
                     </div>
                     <div class="mode-card" onclick="selectMode('wheelchair', this)">
-                        <span class="mode-icon">♿</span>
+                        <span class="mode-icon">🧑‍🦽</span>
                         <span class="mode-name">휠체어</span>
                     </div>
                 </div>
@@ -540,9 +555,12 @@
 
     <!-- Scripts: Bottom of body for better initial rendering perception -->
     <!-- Scripts: Bottom of body for better initial rendering perception -->
-    <!-- OpenLayers JS (Offline Debug) -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js" defer></script> -->
+    <!-- OpenLayers JS -->
+    <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js" defer></script>
 
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+    <script src="js/supabase-config.js?v=1.0" defer></script>
     <!-- App Modules: defer ensures execution order -->
     <script src="js/icons.js?v=1.2" defer></script>
     <script src="js/config.js?v=1.2" defer></script>

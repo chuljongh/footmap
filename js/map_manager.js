@@ -201,9 +201,23 @@ const MapManager = {
 
         // 지도 초기화
         // [FIX] Instant Floating Mode: 플로팅 모드일 때는 Default Center 대신 Handover 위치로 즉시 초기화
+        // [FIX] 캐싱된 최근 위치가 있으면 서울시청 대신 사용 (데이터 절약)
         let initialCenter = Config.DEFAULT_CENTER;
         let initialZoom = Config.DEFAULT_ZOOM;
 
+        // 1. 캐시된 위치 확인 (localStorage)
+        try {
+            const cachedPos = localStorage.getItem('balgil_lastPosition');
+            if (cachedPos) {
+                const parsed = JSON.parse(cachedPos);
+                if (Array.isArray(parsed) && parsed.length === 2) {
+                    initialCenter = parsed;
+                    console.log('📍 Using cached position:', initialCenter);
+                }
+            }
+        } catch (e) { console.warn('Cache position load failed:', e); }
+
+        // 2. 플로팅 모드: Handover 위치 우선
         if (AppState.isFloatingMode && AppState.currentPosition) {
             initialCenter = AppState.currentPosition;
             initialZoom = 17; // 내비 모드 줌 레벨
@@ -372,6 +386,11 @@ const MapManager = {
 
     updateCurrentPosition(coords, heading = null, speed = null, accuracy = null) {
         AppState.currentPosition = coords;
+
+        // [NEW] 위치 캐싱: 다음 앱 실행 시 서울시청 대신 이 위치로 시작
+        try {
+            localStorage.setItem('balgil_lastPosition', JSON.stringify(coords));
+        } catch (e) { /* 저장 실패 무시 */ }
 
         // [NEW] 안드로이드 브릿지 호출 (위치 대기 시간 단축용)
         if (window.Android && window.Android.updateCurrentLocation) {

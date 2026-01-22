@@ -40,10 +40,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // JS는 무조건 메인 화면을 활성화 상태로 두고 초기화를 진행
     document.getElementById('main-screen').classList.add('active');
 
-    // [Critical] Static Bootstrap Class 제거 (안전장치)
-    setTimeout(() => {
-        document.documentElement.classList.remove('new-user', 'onboarding-complete');
-    }, 100);
+    // [Critical] Static Bootstrap Class 제거 (안전장치) - REMOVED
+    // 이 코드가 onboarding-complete를 지워서 동의 화면이 다시 나타나는 버그 유발
+    // setTimeout(() => {
+    //     document.documentElement.classList.remove('new-user', 'onboarding-complete');
+    // }, 100);
 
     // [Background Init] 지도 초기화를 최우선 실행 (Data/UI 로딩과 병렬 처리)
     // DB가 느려도 지도는 먼저 뜨도록 함

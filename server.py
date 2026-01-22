@@ -830,45 +830,63 @@ ADMIN_SECRET_KEY = os.environ.get('ADMIN_KEY', 'balgil_admin_2024')
 
 @app.route('/admin/db')
 def admin_db():
-    """간단한 DB 조회 관리자 페이지 (페이지네이션 지원)"""
+    """간단한 DB 조회 관리자 페이지 (최적화 버전)"""
     key = request.args.get('key')
     if key != ADMIN_SECRET_KEY:
         return "Access Denied. Use ?key=YOUR_KEY", 403
 
-    # 페이지네이션
+    # 페이지네이션 & 섹션
     page = request.args.get('page', 1, type=int)
-    per_page = 50
+    section = request.args.get('section', 'routes') # routes, users, messages
+    per_page = 10 # [OPTIMIZATION] 페이지당 로드 개수 감소 (50 -> 10)
 
-    # 총 개수 조회
-    total_routes = Route.query.count()
-    total_users = User.query.count()
-    total_messages = Message.query.count()
+    # 초기값
+    routes = []
+    users = []
+    messages = []
+    total_routes = 0
+    total_users = 0
+    total_messages = 0
+    total_pages = 1
 
-    # 페이지별 데이터 조회
-    routes = Route.query.order_by(Route.timestamp.desc()).offset((page - 1) * per_page).limit(per_page).all()
-    users = User.query.order_by(User.created_at.desc()).limit(20).all()
-    messages = Message.query.order_by(Message.timestamp.desc()).limit(30).all()
+    # [OPTIMIZATION] 필요한 섹션만 쿼리 실행 (Egress 절감)
+    if section == 'routes':
+        total_routes = Route.query.count()
+        routes = Route.query.order_by(Route.timestamp.desc()).offset((page - 1) * per_page).limit(per_page).all()
+        total_pages = (total_routes + per_page - 1) // per_page if total_routes > 0 else 1
+        for r in routes:
+            r.timestamp_kst = r.timestamp if r.timestamp else None
 
-    # Stored timestamps are already in KST (via get_kst_now)
-    for r in routes:
-        r.timestamp_kst = r.timestamp if r.timestamp else None
-    for u in users:
-        u.created_at_kst = u.created_at if u.created_at else None
-    for m in messages:
-        m.timestamp_kst = m.timestamp if m.timestamp else None
+    elif section == 'users':
+        total_users = User.query.count()
+        users = User.query.order_by(User.created_at.desc()).offset((page - 1) * per_page).limit(5).all() # [OPTIMIZATION] 유저는 5명씩
+        total_pages = (total_users + per_page - 1) // per_page if total_users > 0 else 1
+        for u in users:
+            u.created_at_kst = u.created_at if u.created_at else None
 
-    # 총 페이지 수 계산
-    total_pages = (total_routes + per_page - 1) // per_page if total_routes > 0 else 1
+    elif section == 'messages':
+        total_messages = Message.query.count()
+        messages = Message.query.order_by(Message.timestamp.desc()).offset((page - 1) * per_page).limit(5).all() # [OPTIMIZATION] 메시지는 5개씩
+        total_pages = (total_messages + per_page - 1) // per_page if total_messages > 0 else 1
+        for m in messages:
+            m.timestamp_kst = m.timestamp if m.timestamp else None
+
+    # 요약 정보 (Counts) - 가벼운 쿼리라 항상 실행해도 무방하나, 성능 위해 캐싱 고려 가능
+    # 여기서는 정확한 네비게이션을 위해 Count는 항상 조회 (비용 낮음)
+    count_routes = Route.query.count()
+    count_users = User.query.count()
+    count_messages = Message.query.count()
 
     return render_template('admin_db.html',
                            routes=routes,
                            users=users,
                            messages=messages,
                            page=page,
+                           section=section,
                            total_pages=total_pages,
-                           total_routes=total_routes,
-                           total_users=total_users,
-                           total_messages=total_messages,
+                           total_routes=count_routes,
+                           total_users=count_users,
+                           total_messages=count_messages,
                            key=key)
 
 # ========================================
