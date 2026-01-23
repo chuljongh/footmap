@@ -891,26 +891,77 @@ const UIManager = {
         const input = this.elements['search-input'];
         const query = input?.value.trim();
         if (!query) { Utils.showToast('주소를 입력해주세요.'); return false; }
-        try {
-            const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
-            if (!response.ok) throw new Error('Network response was not ok');
-            const data = await response.json();
-            if (data.documents && data.documents.length > 0) {
-                const doc = data.documents[0];
-                const coords = [parseFloat(doc.x), parseFloat(doc.y)];
-                MapManager.setDestination(coords, query);
-                const overlayDest = document.getElementById('overlay-destination'); // Not in basic cache
-                if (overlayDest) overlayDest.textContent = query;
-                return true; // Search success
-            } else {
-                Utils.showToast('검색 결과가 없습니다.');
-                return false;
-            }
-        } catch (e) {
-            console.error(e);
-            Utils.showToast('검색 에러: ' + e.message);
-            return false;
+
+        // [FIX] 키보드 숨김 (모바일 UX)
+        input.blur();
+
+        // 1. Kakao SDK 체크 (Robust Check)
+        if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
+             console.warn('Kakao SDK not fully loaded during button click');
+             Utils.showToast('지도 검색 엔진이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
+             return false;
         }
+
+        const ps = new kakao.maps.services.Places();
+
+        return new Promise((resolve) => {
+            // [FIX] 검색 결과를 리스트로 보여주기 (Auto-Select 아님, 유저 요구사항 반영)
+            ps.keywordSearch(query, (data, status) => {
+                if (status === kakao.maps.services.Status.OK) {
+                    if (data.length > 0) {
+                        const list = document.getElementById('search-suggestions');
+                        if (list) {
+                            list.innerHTML = '';
+                            const userPos = AppState.currentPosition;
+                            const formatDistance = (meters) => {
+                                if (meters === null) return '';
+                                if (meters < 1000) return `${Math.round(meters)}m`;
+                                return `${(meters / 1000).toFixed(1)}km`;
+                            };
+
+                            data.forEach(doc => {
+                                const item = document.createElement('li');
+                                item.className = 'suggestion-item';
+
+                                const dist = userPos
+                                    ? Utils.calculateDistance(userPos, [parseFloat(doc.x), parseFloat(doc.y)])
+                                    : null;
+                                const distText = formatDistance(dist);
+
+                                item.innerHTML = `
+                                    <div class="suggestion-main">
+                                        <div class="suggestion-name">${doc.place_name}</div>
+                                        <div class="suggestion-address">${doc.road_address_name || doc.address_name || ''}</div>
+                                    </div>
+                                    ${distText ? `<div class="suggestion-meta">${distText}</div>` : ''}
+                                `;
+                                item.addEventListener('click', () => {
+                                    const coords = [parseFloat(doc.x), parseFloat(doc.y)];
+                                    MapManager.setDestination(coords, doc.place_name);
+                                    input.value = doc.place_name;
+                                    list.classList.remove('visible');
+                                    const clearBtn = document.getElementById('search-clear-btn');
+                                    if (clearBtn) clearBtn.classList.remove('hidden');
+                                });
+                                list.appendChild(item);
+                            });
+
+                            // 리스트 보이기
+                            list.scrollTop = 0;
+                            list.classList.add('visible');
+                        }
+                        resolve(true);
+                    } else {
+                        Utils.showToast('검색 결과가 없습니다.');
+                        resolve(false);
+                    }
+                } else {
+                    console.error('Search failed:', status);
+                    Utils.showToast('검색 결과가 없습니다.');
+                    resolve(false);
+                }
+            });
+        });
     },
 
     enableNavigateButton() {

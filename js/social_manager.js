@@ -369,8 +369,8 @@ const SocialManager = {
                 <div class="bubble-content" data-action="open-thread" data-msg-id="${msg.id}">
                     ${msg.tags ? `<div class="bubble-tags">${Utils.sanitize(msg.tags)}</div>` : ''}
                     <div class="bubble-text">${Utils.sanitize(msg.text)}</div>
-                    <div class="bubble-meta">
-                        <span class="author-truncate">by ${Utils.sanitize(msg.nickname || msg.userId)}(${msg.userId.substring(0, 3)}...)</span>
+                    <div class="bubble-meta single-line">
+                        <span class="author-truncate">by ${Utils.sanitize(msg.nickname)}(${msg.userId.substring(0, 3)}...)</span>
                         <span>${dateStr}</span>
                     </div>
                 </div>
@@ -894,7 +894,7 @@ const SocialManager = {
                 ${msg.tags ? `<div class="msg-tags">${msg.tags}</div>` : ''}
                 <div class="msg-full-text">${msg.text}</div>
                 <div class="msg-meta single-line">
-                    <span class="author-truncate">by ${Utils.sanitize(msg.nickname || msg.userId)}(${msg.userId.substring(0, 3)}...)</span>
+                    <span class="author-truncate">by ${Utils.sanitize(msg.nickname)}(${msg.userId.substring(0, 3)}...)</span>
                     <span>${new Date(msg.timestamp).toLocaleDateString('ko-KR')}</span>
                 </div>
                 <!-- 3-Icon Layout -->
@@ -930,7 +930,7 @@ const SocialManager = {
                     <div class="comment-item">
                         <div class="comment-text">${Utils.sanitize(c.text)}</div>
                         <div class="msg-meta single-line" style="margin-top: 4px;">
-                            <span class="author-truncate">by ${Utils.sanitize(c.userId || c.user_id)}(${(c.userId || c.user_id).substring(0, 3)}...)</span>
+                            <span class="author-truncate">by ${Utils.sanitize(c.nickname)}(${(c.userId || c.user_id).substring(0, 3)}...)</span>
                             <span>${new Date(c.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                     </div>
@@ -960,7 +960,7 @@ const SocialManager = {
                 ${msg.tags ? `<div class="msg-tags">${Utils.sanitize(msg.tags)}</div>` : ''}
                 <div class="msg-full-text">${Utils.sanitize(msg.text)}</div>
                 <div class="msg-meta single-line">
-                    <span class="author-truncate">by ${Utils.sanitize(msg.nickname || msg.userId)}(${msg.userId.substring(0, 3)}...)</span>
+                    <span class="author-truncate">by ${Utils.sanitize(msg.nickname)}(${msg.userId.substring(0, 3)}...)</span>
                     <span>${dateStr}</span>
                 </div>
                 <div class="msg-actions" style="margin-top: 12px; gap: 20px;">

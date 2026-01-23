@@ -338,12 +338,7 @@ body .hidden {
     pointer-events: auto;
 }
 
-/* Hide clear button when input is empty (placeholder is shown) */
-#search-input:placeholder-shown+#search-clear-btn {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-}
+
 
 #search-btn.search-action {
     /* Flexbox child - no absolute positioning needed */
