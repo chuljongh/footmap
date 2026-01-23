@@ -895,73 +895,122 @@ const UIManager = {
         // [FIX] 키보드 숨김 (모바일 UX)
         input.blur();
 
-        // 1. Kakao SDK 체크 (Robust Check)
-        if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
-             console.warn('Kakao SDK not fully loaded during button click');
-             Utils.showToast('지도 검색 엔진이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.');
-             return false;
+
+        console.log('[Search] Starting search for:', query);
+
+        // 검색 전략: 1. Kakao SDK (Client) -> 2. Backend API (Server Proxy)
+        let results = [];
+        try {
+            if (window.kakao && window.kakao.maps && window.kakao.maps.services) {
+                console.log('[Search] Attempting Client SDK...');
+                results = await new Promise((resolve) => {
+                    const ps = new kakao.maps.services.Places();
+                    ps.keywordSearch(query, (data, status) => {
+                        if (status === kakao.maps.services.Status.OK) {
+                            resolve(data);
+                        } else {
+                            console.warn('[Search] Client SDK Status:', status);
+                            resolve([]);
+                        }
+                    });
+                });
+            } else {
+                console.warn('[Search] Client SDK unavailable. Skipping to API.');
+            }
+        } catch (e) {
+            console.error('[Search] Client SDK Exception:', e);
         }
 
-        const ps = new kakao.maps.services.Places();
-
-        return new Promise((resolve) => {
-            // [FIX] 검색 결과를 리스트로 보여주기 (Auto-Select 아님, 유저 요구사항 반영)
-            ps.keywordSearch(query, (data, status) => {
-                if (status === kakao.maps.services.Status.OK) {
-                    if (data.length > 0) {
-                        const list = document.getElementById('search-suggestions');
-                        if (list) {
-                            list.innerHTML = '';
-                            const userPos = AppState.currentPosition;
-                            const formatDistance = (meters) => {
-                                if (meters === null) return '';
-                                if (meters < 1000) return `${Math.round(meters)}m`;
-                                return `${(meters / 1000).toFixed(1)}km`;
-                            };
-
-                            data.forEach(doc => {
-                                const item = document.createElement('li');
-                                item.className = 'suggestion-item';
-
-                                const dist = userPos
-                                    ? Utils.calculateDistance(userPos, [parseFloat(doc.x), parseFloat(doc.y)])
-                                    : null;
-                                const distText = formatDistance(dist);
-
-                                item.innerHTML = `
-                                    <div class="suggestion-main">
-                                        <div class="suggestion-name">${doc.place_name}</div>
-                                        <div class="suggestion-address">${doc.road_address_name || doc.address_name || ''}</div>
-                                    </div>
-                                    ${distText ? `<div class="suggestion-meta">${distText}</div>` : ''}
-                                `;
-                                item.addEventListener('click', () => {
-                                    const coords = [parseFloat(doc.x), parseFloat(doc.y)];
-                                    MapManager.setDestination(coords, doc.place_name);
-                                    input.value = doc.place_name;
-                                    list.classList.remove('visible');
-                                    const clearBtn = document.getElementById('search-clear-btn');
-                                    if (clearBtn) clearBtn.classList.remove('hidden');
-                                });
-                                list.appendChild(item);
-                            });
-
-                            // 리스트 보이기
-                            list.scrollTop = 0;
-                            list.classList.add('visible');
-                        }
-                        resolve(true);
-                    } else {
-                        Utils.showToast('검색 결과가 없습니다.');
-                        resolve(false);
+        // 2. Fallback to API if Client SDK failed/empty
+        if (!results || results.length === 0) {
+            console.log('[Search] Attempting Backend API Fallback...');
+            try {
+                // MainActivity.kt 프록시가 /api/ 요청을 처리함
+                const res = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.documents) {
+                        results = data.documents;
                     }
                 } else {
-                    console.error('Search failed:', status);
-                    Utils.showToast('검색 결과가 없습니다.');
-                    resolve(false);
+                    console.error('[Search] API Error:', res.status);
+                    // SDK도 없고 API도 실패한 경우에만 토스트
+                    if (!window.kakao || !window.kakao.maps) {
+                         Utils.showToast(`검색 실패: 네트워크 또는 서버 오류 (${res.status})`);
+                         return false;
+                    }
                 }
+            } catch (e) {
+                console.error('[Search] API Exception:', e);
+                if (!results) {
+                     Utils.showToast(`검색 시스템 연결 실패: ${e.message}`);
+                     return false;
+                }
+            }
+        }
+
+        // 3. 결과 렌더링 (공통 로직)
+        if (results && results.length > 0) {
+            this.renderSuggestionList(results);
+            return true;
+        } else {
+            Utils.showToast('검색 결과가 없습니다.');
+            return false;
+        }
+    },
+
+    // [New] 결과 리스트 렌더링 헬퍼
+    renderSuggestionList(documents) {
+        const list = document.getElementById('search-suggestions');
+        const input = document.getElementById('search-input');
+        const clearBtn = document.getElementById('search-clear-btn');
+        const userPos = AppState.currentPosition;
+
+        if (!list) return;
+
+        list.innerHTML = '';
+
+        const formatDistance = (meters) => {
+            if (meters === null) return '';
+            if (meters < 1000) return `${Math.round(meters)}m`;
+            return `${(meters / 1000).toFixed(1)}km`;
+        };
+
+        documents.forEach(doc => {
+            const item = document.createElement('li');
+            item.className = 'suggestion-item';
+
+            const docX = parseFloat(doc.x);
+            const docY = parseFloat(doc.y);
+
+            const dist = userPos && !isNaN(docX) && !isNaN(docY)
+                ? Utils.calculateDistance(userPos, [docX, docY])
+                : null;
+            const distText = formatDistance(dist);
+
+            item.innerHTML = `
+                <div class="suggestion-main">
+                    <div class="suggestion-name">${doc.place_name}</div>
+                    <div class="suggestion-addresses">
+                        <span class="addr-road">${doc.road_address_name || ''}</span>
+                        <span class="addr-jibun">${!doc.road_address_name ? (doc.address_name || '') : ''}</span>
+                    </div>
+                </div>
+                ${distText ? `<div class="suggestion-meta">${distText}</div>` : ''}
+            `;
+            item.addEventListener('click', () => {
+                const coords = [docX, docY];
+                MapManager.setDestination(coords, doc.place_name);
+                if (input) input.value = doc.place_name;
+
+                list.classList.remove('visible');
+                if (clearBtn) clearBtn.classList.remove('hidden');
             });
+            list.appendChild(item);
         });
+
+        list.scrollTop = 0;
+        list.classList.add('visible');
     },
 
     enableNavigateButton() {

@@ -1256,7 +1256,7 @@ body .marker-number.hidden {
     background: var(--bg-secondary);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
-    max-height: 300px;
+    max-height: 60vh; /* 300px -> 60vh (Approx 2x on mobile) */
     overflow-y: auto;
     z-index: 1150;
     box-shadow: var(--shadow-md);
@@ -1289,24 +1289,46 @@ body .marker-number.hidden {
 .suggestion-main {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .suggestion-name {
-    font-size: 14px;
+    font-size: 15px; /* Slightly larger for emphasis */
     font-weight: 500;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-bottom: 2px;
 }
 
+/* Legacy & Fallback */
 .suggestion-address {
     font-size: 12px;
-    color: var(--text-secondary);
-    margin-top: 2px;
+    color: var(--text-muted); /* Gray color same as distance */
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* New Structure */
+.suggestion-addresses {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+}
+
+.addr-road {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.addr-jibun {
+    font-size: 11px;
+    color: var(--text-muted);
+    opacity: 0.8;
 }
 
 .suggestion-meta {
