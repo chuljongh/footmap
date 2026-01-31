@@ -9,7 +9,10 @@
     <style>
         /* [CRITICAL] Static First Rendering Styles */
         /* JS 로드 전에도 화면을 즉시 표시하기 위한 필수 스타일 */
-        body { margin: 0; background-color: #0A1628; } /* Theme Blue */
+        body {
+            margin: 0;
+            background-color: #1a1a1a; /* [FIX] Prevent white flash */
+        }
         .screen { display: none; }
         .screen.active { display: flex; }
 
@@ -23,7 +26,7 @@
             z-index: 9999;
             background-color: #1a1a1a; /* Dark Theme Default */
             color: white;
-            display: flex; /* Default Visible */
+            display: flex; /* [FIX] Default Visible (More Stable) */
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -90,14 +93,19 @@
         // app.js 로딩을 기다리지 않고 레이아웃을 잡아 흰 화면 제거
         (function() {
             try {
-                var isComplete = localStorage.getItem('balgil_onboardingComplete');
+                var isComplete = localStorage.getItem('balgil_onboardingComplete_v2');
                 if (isComplete && JSON.parse(isComplete) === true) {
                     document.documentElement.className = 'onboarding-complete';
-                    // [FIX] CSS가 적용되지 않는 경우를 대비한 직접 숨김
+                    // [FIX] Instant hide for returning users
                     var introLayer = document.getElementById('intro-layer');
-                    if (introLayer) introLayer.style.display = 'none';
+                    if (introLayer) {
+                        introLayer.style.display = 'none';
+                        introLayer.style.opacity = '0';
+                    }
                 } else {
                     document.documentElement.className = 'new-user';
+                    var introLayer = document.getElementById('intro-layer');
+                    if (introLayer) introLayer.style.display = 'flex';
                 }
             } catch (e) {
                 document.documentElement.className = 'new-user';
@@ -214,7 +222,7 @@
 
             function finishIntro() {
                 // Save to localStorage immediately
-                localStorage.setItem('balgil_onboardingComplete', 'true');
+                localStorage.setItem('balgil_onboardingComplete_v2', 'true');
                 localStorage.setItem('balgil_userMode', JSON.stringify(selectedMode));
 
                 // Hide Intro

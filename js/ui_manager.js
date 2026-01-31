@@ -659,7 +659,7 @@ const UIManager = {
     loadSavedSettings() {
         AppState.userMode = Utils.loadState('userMode', 'walking');
         AppState.overlayOpacity = Utils.loadState('overlayOpacity', 30);
-        const onboardingComplete = Utils.loadState('onboardingComplete', false);
+        const onboardingComplete = Utils.loadState('onboardingComplete_v2', false);
 
         const slider = document.getElementById('opacity-slider');
         if (slider) {
@@ -1267,10 +1267,12 @@ const UIManager = {
 
     // [REFACTORED] 실제 안내 종료 실행
     executeNavigationStop(btn) {
-        // [Optimization Priority 1] Android Bridge Call - 앱/플로팅 핸도버 즉시 중단
-        if (window.Android && window.Android.setNavigationState) {
-            window.Android.setNavigationState(false, 0, 0, "");
-        }
+        // [Optimization Priority 1] Android Bridge Call - 앱/플로팅 핸도버 준비 (비동기 처리로 UI 프리징 방지)
+        setTimeout(() => {
+            if (window.Android && window.Android.setNavigationState) {
+                window.Android.setNavigationState(false, 0, 0, "");
+            }
+        }, 10);
 
         // [Optimization Priority 2] UI Cleanup - HUD 즉시 숨김
         AppState.isNavigating = false;
@@ -1360,12 +1362,14 @@ const UIManager = {
         // Wake Lock - 화면 꺼짐 방지
         this.requestWakeLock();
 
-        // [NEW] 안드로이드 브릿지 호출 (내비 시작 알림)
-        if (window.Android && window.Android.setNavigationState) {
-            const coords = AppState.destination.coords;
-            const name = AppState.destination.name || '목적지';
-            window.Android.setNavigationState(true, coords[1], coords[0], name);
-        }
+        // [NEW] 안드로이드 브릿지 호출 (내비 시작 알림) - 비동기 처리
+        setTimeout(() => {
+            if (window.Android && window.Android.setNavigationState) {
+                const coords = AppState.destination.coords;
+                const name = AppState.destination.name || '목적지';
+                window.Android.setNavigationState(true, coords[1], coords[0], name);
+            }
+        }, 10);
 
         document.body.classList.add('search-hidden');
         document.getElementById('navigation-hud')?.classList.remove('hidden');
@@ -1861,6 +1865,7 @@ const UIManager = {
             modals.forEach(el => el.classList.add('hidden'));
         } else {
             document.body.classList.remove('pip-mode');
+            document.body.classList.remove('floating-mode');
         }
 
         // [Fix] 화면 크기 변경 통지 및 지도 재정렬

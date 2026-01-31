@@ -1440,9 +1440,12 @@ body .marker-number.hidden {
 }
 
 .hud-card-main .hud-icon.large {
-    width: 32px; /* 아이콘 축소: 44px -> 32px */
-    height: 32px;
+    width: 48px; /* [FIX] 아이콘 크기 복구 및 확대: 32px -> 48px */
+    height: 48px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 
@@ -1728,9 +1731,10 @@ body.search-hidden .top-bar-wrapper {
    ======================================== */
 .bottom-bar {
     position: fixed;
-    bottom: env(safe-area-inset-bottom, 0px);
-    left: 0;
-    width: 100%;
+    bottom: calc(env(safe-area-inset-bottom, 16px) + 16px);
+    left: 16px;
+    right: 16px;
+    width: auto;
     padding: 20px 16px;
     z-index: 1100;
     display: flex;
@@ -1738,9 +1742,9 @@ body.search-hidden .top-bar-wrapper {
     gap: 12px;
     background: rgba(30, 30, 30, 0.95);
     backdrop-filter: blur(10px);
-    border-radius: 24px 24px 0 0;
+    border-radius: 24px;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
     pointer-events: auto;
     /* Buttons must be clickable */
 }
@@ -3270,3 +3274,67 @@ body.floating-mode .ol-attribution {
     0%, 100% { opacity: 0.7; }
     50% { opacity: 1; }
 }
+
+/* ========================================
+   PIP Mode (Floating) Styles
+   ======================================== */
+body.pip-mode .top-bar-wrapper,
+body.pip-mode .top-bar,
+body.pip-mode #menu-btn,
+body.pip-mode #search-btn,
+body.pip-mode .search-container {
+    display: none !important;
+}
+
+body.pip-mode .navigation-hud {
+    top: 8px;
+    left: 8px;
+    transform: scale(0.9);
+    transform-origin: top left;
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+body.pip-mode .bottom-bar {
+    background: rgba(0, 0, 0, 0.7);
+    padding: 6px 12px;
+    border-radius: 0;
+    bottom: 0;
+    display: flex !important;
+}
+
+body.pip-mode .dashboard-container {
+    padding: 0;
+    gap: 0;
+    width: 100%;
+}
+
+body.pip-mode .dashboard-actions {
+    display: none !important;
+}
+
+body.pip-mode .dashboard-info {
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
+
+body.pip-mode #dash-stats {
+    display: none;
+}
+
+body.pip-mode #dash-primary {
+    display: none;
+}
+
+body.pip-mode #dash-secondary {
+    font-size: 14px;
+    color: #ffffff;
+    font-weight: 600;
+    margin: 0;
+    width: 100%;
+    text-align: left;
+    padding-left: 4px;
+}
+

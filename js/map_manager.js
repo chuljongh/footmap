@@ -332,23 +332,36 @@ const MapManager = {
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const coords = [position.coords.longitude, position.coords.latitude];
-                this.setCurrentPosition(coords);
-            },
-            (error) => {
-                console.warn('위치 정보 획득 실패:', error);
+        const options = {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        };
+
+        const handleSuccess = (position) => {
+            const coords = [position.coords.longitude, position.coords.latitude];
+            console.log('📍 Geolocation success:', coords);
+            this.setCurrentPosition(coords);
+        };
+
+        const handleError = (error) => {
+            console.warn('📍 Geolocation error:', error.code, error.message);
+            // 에러 코드: 1(Denied), 2(Unavailable), 3(Timeout)
+            if (error.code === 3) {
+                console.log('📍 Retrying geolocation due to timeout...');
+                navigator.geolocation.getCurrentPosition(handleSuccess, handleError, options);
+            } else {
                 this.setCurrentPosition(Config.DEFAULT_CENTER);
-            },
-            { enableHighAccuracy: true }
-        );
+            }
+        };
+
+        navigator.geolocation.getCurrentPosition(handleSuccess, handleError, options);
 
         navigator.geolocation.watchPosition(
             (position) => {
                 const coords = [position.coords.longitude, position.coords.latitude];
                 const heading = position.coords.heading;
-                const speed = position.coords.speed; // m/s
+                const speed = position.coords.speed;
 
                 // [Debug]
                 if (typeof DebugOverlay !== 'undefined') {
@@ -363,8 +376,10 @@ const MapManager = {
 
                 this.updateCurrentPosition(coords, heading, speed, position.coords.accuracy);
             },
-            null,
-            { enableHighAccuracy: true }
+            (error) => {
+                console.warn('📍 watchPosition error:', error.code, error.message);
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
     },
 

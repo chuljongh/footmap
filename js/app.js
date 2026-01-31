@@ -41,6 +41,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (isFloatingMode) {
         AppState.isFloatingMode = true;
         document.body.classList.add('floating-mode');
+        // [FIX] PIP 모드에서는 인트로(권한 동의) 강제 건너뛰기
+        const introLayer = document.getElementById('intro-layer');
+        if (introLayer) {
+            introLayer.style.display = 'none';
+            introLayer.classList.remove('active');
+        }
+
 
         // 목적지 파라미터 파싱
         const destLat = parseFloat(urlParams.get('dest_lat'));

@@ -553,63 +553,28 @@ const SocialManager = {
         const msg = this.messages.find(m => m.id === id);
         if (!msg) return;
 
-        // [Logic] Toggle & Mutually Exclusive
-        const currentVote = msg.userVote; // 'up', 'down', or undefined
-        const isSame = currentVote === type;
-
-        // Optimistic Update Values
-        let newLikes = msg.likes || 0;
-        let newDislikes = msg.dislikes || 0;
-        let nextVote = null;
-
         try {
-            if (isSame) {
-                // 1. Cancel Vote (Toggle Off)
-                if (type === 'up') newLikes = Math.max(0, newLikes - 1);
-                else newDislikes = Math.max(0, newDislikes - 1);
+            // [NEW] Server-side handles all toggle/switch logic
+            const result = await MessageService.vote(id, type, userId);
 
-                nextVote = null;
-                await MessageService.cancelVote(id, type); // Service implements atomic decrement logic if possible
-            } else {
-                // 2. Switch Vote or New Vote
-                // If switching, decrement old one first
-                if (currentVote) {
-                    if (currentVote === 'up') newLikes = Math.max(0, newLikes - 1);
-                    else newDislikes = Math.max(0, newDislikes - 1);
+            // Update Local State with Server Response
+            msg.likes = result.likes;
+            msg.dislikes = result.dislikes;
+            msg.userVote = result.userVote;
 
-                    await MessageService.cancelVote(id, currentVote);
-                }
-
-                // Increment new one
-                if (type === 'up') newLikes++;
-                else newDislikes++;
-
-                nextVote = type;
-                await MessageService.vote(id, type, userId);
-            }
-
-            // Apply to Local State
-            msg.likes = newLikes;
-            msg.dislikes = newDislikes;
-            msg.userVote = nextVote;
-
-            // UI Update (All buttons for this msg)
+            // UI Update (Update all buttons for this message)
             const allLikeBtns = document.querySelectorAll(`button[data-action="like"][data-msg-id="${id}"]`);
             allLikeBtns.forEach(btn => {
                 const btnType = btn.dataset.type;
                 const count = btnType === 'up' ? msg.likes : msg.dislikes;
+                const countSpan = btn.querySelector('.count');
+                if (countSpan) countSpan.textContent = count;
 
-                btn.innerHTML = btnType === 'up' ? `👍 ${count}` : `👎 ${count}`;
-
-                // Toggle Active Class
-                if (msg.userVote === btnType) {
-                    btn.classList.add('active'); // CSS handles style
-                    btn.style.opacity = '1';
-                    btn.style.color = '#00d4aa'; // Force highlight just in case
+                // Active state (Primary color for selected)
+                if (btnType === msg.userVote) {
+                    btn.classList.add('active');
                 } else {
                     btn.classList.remove('active');
-                    btn.style.opacity = '0.7';
-                    btn.style.color = '';
                 }
             });
 
